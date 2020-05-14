@@ -1,4 +1,4 @@
-#web_bg {
+<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script>#web_bg {
 	
   /* 背景图像的地址（url括号里）  */
   background: url("https://i.picsum.photos/id/1005/5760/3840.jpg");
