@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://xiaozeng26.github.io/"/>
-  <updated>2020-05-20T11:00:50.430Z</updated>
+  <updated>2020-05-20T13:54:35.906Z</updated>
   <id>https://xiaozeng26.github.io/</id>
   
   <author>
@@ -15,6 +15,30 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>RabbitMQ的交换机说明</title>
+    <link href="https://xiaozeng26.github.io/2020/05/20/RabbitMQ%E7%9A%84%E4%BA%A4%E6%8D%A2%E6%9C%BA%E8%AF%B4%E6%98%8E/"/>
+    <id>https://xiaozeng26.github.io/2020/05/20/RabbitMQ%E7%9A%84%E4%BA%A4%E6%8D%A2%E6%9C%BA%E8%AF%B4%E6%98%8E/</id>
+    <published>2020-05-20T11:23:05.000Z</published>
+    <updated>2020-05-20T13:54:35.906Z</updated>
+    
+    <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="RabbitMQ-的交换机-转发器"><a href="#RabbitMQ-的交换机-转发器" class="headerlink" title="RabbitMQ 的交换机(转发器)"></a>RabbitMQ 的交换机(转发器)</h1><p>定义 ：交换机/转发器一方面它接受生产者的消息，另一方面向队列推送消息。</p><p>在RabbitMQ中，有三种有三种类型的交换机 : </p><ul><li>Fanout Exchange(不处理路由键)</li><li>Direct Exchange(处理路由键)</li><li>Topic Exchange(将路由键和某模式进行匹配)</li></ul><h1 id="1-Fanout-Exchange"><a href="#1-Fanout-Exchange" class="headerlink" title="1. Fanout Exchange"></a>1. Fanout Exchange</h1><p>模型 : </p><p><img src="/img/RabbitMQ/Fanout_Exchange.png" alt=""></p><p>其实由上图就可以很容易的知道 ：只需要将队列与交换机进行绑定，生产者发送消息到队列上后，都会被转发到与该交换机绑定的所有队列上，这就是<strong>不处理路由键</strong>。</p><h1 id="2-Direct-Exchange"><a href="#2-Direct-Exchange" class="headerlink" title="2. Direct Exchange"></a>2. Direct Exchange</h1><p>模型 : </p><p><img src="/img/RabbitMQ/direct_exchange.png" alt=""> </p><p><strong>处理路由键</strong>，需要将队列与交换机进行绑定，，要求该消息与一个特定的路由键完全匹配，这是一个完整的匹配。</p><p>例如，如果一个队列绑定到该交换机上要求路由键”dog”,则只有被标记为”dog”的消息才回被转发。</p><h1 id="3-Topic-Exchange"><a href="#3-Topic-Exchange" class="headerlink" title="3. Topic Exchange"></a>3. Topic Exchange</h1><p>模型 : </p><p><img src="/img/RabbitMQ/Topic_Exchange.png" alt=""></p><p>将队列绑定到一个模式上。</p><p>“#” 匹配一个或多个词，</p><p>“*” 匹配一个词</p><p>就是说，生产者方routingKey = goods.add,存在有消费者1routingKey = good.delete,消费者2的routingKey = goods.#，那么消息只会被消费者2获取，消费者1无法获取。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;link rel=&quot;stylesheet&quot; class=&quot;aplayer-secondary-style-marker&quot; href=&quot;\assets\css\APlayer.min.css&quot;&gt;&lt;script src=&quot;\assets\js\APlayer.min.js&quot; cla
+      
+    
+    </summary>
+    
+    
+    
+      <category term="RabbitMQ" scheme="https://xiaozeng26.github.io/tags/RabbitMQ/"/>
+    
+  </entry>
   
   <entry>
     <title>RabbitMQ的五种队列</title>
