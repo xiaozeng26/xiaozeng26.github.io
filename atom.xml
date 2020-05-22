@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://xiaozeng26.github.io/"/>
-  <updated>2020-05-21T14:41:36.752Z</updated>
+  <updated>2020-05-22T02:58:03.626Z</updated>
   <id>https://xiaozeng26.github.io/</id>
   
   <author>
@@ -15,6 +15,30 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Redis通用指令</title>
+    <link href="https://xiaozeng26.github.io/2020/05/22/Redis%E9%80%9A%E7%94%A8%E6%8C%87%E4%BB%A4/"/>
+    <id>https://xiaozeng26.github.io/2020/05/22/Redis%E9%80%9A%E7%94%A8%E6%8C%87%E4%BB%A4/</id>
+    <published>2020-05-22T02:20:56.000Z</published>
+    <updated>2020-05-22T02:58:03.626Z</updated>
+    
+    <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><p>Redis通用指令可以分两种 : </p><ul><li>key通用指令</li><li>数据库通用指令</li></ul><h1 id="1-key通用指令"><a href="#1-key通用指令" class="headerlink" title="1.key通用指令"></a>1.key通用指令</h1><h2 id="1-1-key基本操作"><a href="#1-1-key基本操作" class="headerlink" title="1.1 key基本操作"></a>1.1 key基本操作</h2><ul><li>删除指定key</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">del key</span><br></pre></td></tr></table></figure><ul><li>判断key是否存在</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">exists key</span><br></pre></td></tr></table></figure><ul><li>获取key的类型</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">type key</span><br></pre></td></tr></table></figure><h2 id="1-2-key扩展操作"><a href="#1-2-key扩展操作" class="headerlink" title="1.2 key扩展操作"></a>1.2 key扩展操作</h2><ul><li>为指定key设置有效期</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">expire key seconds</span><br><span class="line">pexpire key milliseconds</span><br><span class="line">expireat key timestamp</span><br><span class="line">pexpireat key milliseconds-timestamp</span><br></pre></td></tr></table></figure><ul><li>获取key的有效时间</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ttl key</span><br><span class="line">pttl key</span><br></pre></td></tr></table></figure><ul><li>将key从时效性转化为永久性</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">persist key</span><br></pre></td></tr></table></figure><ul><li>查询key</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">keys pattern</span><br></pre></td></tr></table></figure><p><strong>查询规则</strong></p><p>？匹配一个任意字符    [] 匹配一个指定字符    * 匹配任意数量的任意字符</p><table><thead><tr><th>pattern</th><th>description</th></tr></thead><tbody><tr><td>keys *</td><td>查询所有</td></tr><tr><td>keys zhang*</td><td>查询所有以zhang开头</td></tr><tr><td>keys *san</td><td>查询所有以san结尾</td></tr><tr><td>keys ?????san</td><td>查询所有前面五个任意字符，后面以san结尾</td></tr><tr><td>keys user: ?</td><td>查询所有以user : 开头，最后一个字符任意</td></tr><tr><td>keys u[st]er : 1</td><td>查询所有以u开头，以er:1结尾，中间包含一个字母，s或t</td></tr></tbody></table><h2 id="1-3-key其他操作"><a href="#1-3-key其他操作" class="headerlink" title="1.3 key其他操作"></a>1.3 key其他操作</h2><ul><li>为key改名</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rename key newkey</span><br><span class="line">renamenx key newkey</span><br></pre></td></tr></table></figure><ul><li>对所有key排序</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sort</span><br></pre></td></tr></table></figure><ul><li>其他key通用操作</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">help @generic</span><br></pre></td></tr></table></figure><h1 id="2-数据库通用指令"><a href="#2-数据库通用指令" class="headerlink" title="2.数据库通用指令"></a>2.数据库通用指令</h1><h2 id="2-1-db基本操作"><a href="#2-1-db基本操作" class="headerlink" title="2.1 db基本操作"></a>2.1 db基本操作</h2><ul><li>切换数据库</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">select index</span><br></pre></td></tr></table></figure><ul><li>其他操作</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">quit</span><br><span class="line">ping </span><br><span class="line">echo message</span><br></pre></td></tr></table></figure><h2 id="2-2-db相关操作"><a href="#2-2-db相关操作" class="headerlink" title="2.2 db相关操作"></a>2.2 db相关操作</h2><ul><li>数据移动</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">move key db</span><br></pre></td></tr></table></figure><ul><li>数据清除</li></ul><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">dbsize</span><br><span class="line">flushdb</span><br><span class="line">flushall</span><br></pre></td></tr></table></figure>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;link rel=&quot;stylesheet&quot; class=&quot;aplayer-secondary-style-marker&quot; href=&quot;\assets\css\APlayer.min.css&quot;&gt;&lt;script src=&quot;\assets\js\APlayer.min.js&quot; cla
+      
+    
+    </summary>
+    
+    
+    
+      <category term="Redis" scheme="https://xiaozeng26.github.io/tags/Redis/"/>
+    
+  </entry>
   
   <entry>
     <title>Redis的五大数据类型</title>
