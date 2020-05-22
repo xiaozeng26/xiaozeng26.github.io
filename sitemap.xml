@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://xiaozeng26.github.io/2020/05/22/%E5%9F%BA%E4%BA%8ELinux%E7%9A%84Redis%E5%AE%89%E8%A3%85%E4%B8%8E%E5%90%AF%E5%8A%A8/</loc>
+    
+    <lastmod>2020-05-22T13:59:55.470Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://xiaozeng26.github.io/2020/05/22/Redis%E9%80%9A%E7%94%A8%E6%8C%87%E4%BB%A4/</loc>
     
     <lastmod>2020-05-22T02:58:03.626Z</lastmod>
