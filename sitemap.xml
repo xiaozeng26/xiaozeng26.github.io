@@ -2,6 +2,27 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://xiaozeng26.github.io/2020/05/23/Redis%E6%8C%81%E4%B9%85%E5%8C%96/</loc>
+    
+    <lastmod>2020-05-23T14:07:12.594Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>https://xiaozeng26.github.io/2020/05/14/%E4%BD%BF%E7%94%A8hexo%E5%88%9B%E5%BB%BA%E7%9A%84%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/</loc>
+    
+    <lastmod>2020-05-23T01:47:32.132Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>https://xiaozeng26.github.io/2020/05/20/Spring-rabbit%E7%9A%84%E7%AE%80%E5%8D%95%E5%BA%94%E7%94%A8/</loc>
+    
+    <lastmod>2020-05-23T01:46:56.980Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://xiaozeng26.github.io/2020/05/22/%E5%9F%BA%E4%BA%8ELinux%E7%9A%84Redis%E5%AE%89%E8%A3%85%E4%B8%8E%E5%90%AF%E5%8A%A8/</loc>
     
     <lastmod>2020-05-22T14:07:05.216Z</lastmod>
@@ -19,13 +40,6 @@
     <loc>https://xiaozeng26.github.io/2020/05/21/Redis%E7%9A%84%E4%BA%94%E5%A4%A7%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B/</loc>
     
     <lastmod>2020-05-21T14:41:36.752Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://xiaozeng26.github.io/2020/05/20/Spring-rabbit%E7%9A%84%E7%AE%80%E5%8D%95%E5%BA%94%E7%94%A8/</loc>
-    
-    <lastmod>2020-05-20T15:11:44.080Z</lastmod>
     
   </url>
   
@@ -61,13 +75,6 @@
     <loc>https://xiaozeng26.github.io/2020/05/15/Docker%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E4%B8%8E%E5%AE%89%E8%A3%85/</loc>
     
     <lastmod>2020-05-15T06:03:06.174Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://xiaozeng26.github.io/2020/05/14/%E4%BD%BF%E7%94%A8hexo%E5%88%9B%E5%BB%BA%E7%9A%84%E7%AC%AC%E4%B8%80%E7%AF%87%E5%8D%9A%E5%AE%A2/</loc>
-    
-    <lastmod>2020-05-15T02:11:27.777Z</lastmod>
     
   </url>
   
