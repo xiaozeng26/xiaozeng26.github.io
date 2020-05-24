@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://xiaozeng26.github.io/2020/05/24/Zookeeper%E7%9A%84%E4%B8%8B%E8%BD%BD%E4%B8%8E%E5%AE%89%E8%A3%85/</loc>
+    
+    <lastmod>2020-05-24T04:20:33.896Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://xiaozeng26.github.io/2020/05/23/Redis%E6%8C%81%E4%B9%85%E5%8C%96/</loc>
     
     <lastmod>2020-05-23T14:07:12.594Z</lastmod>

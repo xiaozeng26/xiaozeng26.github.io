@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://xiaozeng26.github.io/"/>
-  <updated>2020-05-23T14:07:12.594Z</updated>
+  <updated>2020-05-24T04:20:33.896Z</updated>
   <id>https://xiaozeng26.github.io/</id>
   
   <author>
@@ -15,6 +15,30 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Zookeeper的下载与安装</title>
+    <link href="https://xiaozeng26.github.io/2020/05/24/Zookeeper%E7%9A%84%E4%B8%8B%E8%BD%BD%E4%B8%8E%E5%AE%89%E8%A3%85/"/>
+    <id>https://xiaozeng26.github.io/2020/05/24/Zookeeper%E7%9A%84%E4%B8%8B%E8%BD%BD%E4%B8%8E%E5%AE%89%E8%A3%85/</id>
+    <published>2020-05-24T02:21:48.000Z</published>
+    <updated>2020-05-24T04:20:33.896Z</updated>
+    
+    <content type="html"><![CDATA[<link rel="stylesheet" class="aplayer-secondary-style-marker" href="\assets\css\APlayer.min.css"><script src="\assets\js\APlayer.min.js" class="aplayer-secondary-script-marker"></script><h1 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h1><p>​            Zookeeper是一个开源的分布式的项目，用于管理服务提供者的注册信息。</p><p>​            Zookeeper = 文件系统 + 通知机制</p><h1 id="2-特点"><a href="#2-特点" class="headerlink" title="2. 特点"></a>2. 特点</h1><ul><li>Zookeeper : 一个领导者(Leader),多个跟随者(Follower)组成的集群。</li><li><strong>集群中只有半数以上节点存活，Zookeeper集群才能正常服务。</strong></li><li>全局数据一致 : 每个Server保存一份相同的数据副本，Client无论连接到哪一个Server，数据都是一致的。</li><li>更新请求和顺序执行 : 来自同一个Client的更新请求按其发送顺序依次执行。</li><li>数据更新原子性 :  一次数据更新要么成功，要么失败。</li><li>实时性 : 在一定时间范围内，Client能读到最新数据。</li></ul><h1 id="3-Zookeeper的数据结构"><a href="#3-Zookeeper的数据结构" class="headerlink" title="3. Zookeeper的数据结构"></a>3. Zookeeper的数据结构</h1><p>​                Zookeeper数据模型，整体上可以看作是一棵树，每个节点称作一个ZNode，每一个ZNode默认能够存储<strong>1MB</strong>的数据，<strong>每个ZNode都可以通过其路径唯一标识。</strong></p><p><img src="/img/Zookeeper/mode.png" alt=""></p><h1 id="4-基于Windows的Zookeeper安装"><a href="#4-基于Windows的Zookeeper安装" class="headerlink" title="4. 基于Windows的Zookeeper安装"></a>4. 基于Windows的Zookeeper安装</h1><p>1.下载地址 : <a href="https://www.apache.org/dyn/closer.lua/zookeeper/zookeeper-3.6.1/apache-zookeeper-3.6.1-bin.tar.gz" target="_blank" rel="noopener">https://www.apache.org/dyn/closer.lua/zookeeper/zookeeper-3.6.1/apache-zookeeper-3.6.1-bin.tar.gz</a></p><p>2.将下载下来的.tar.gz解压到不含中文的目录，并进入Zookeeper根目录下的bin目录。</p><p><img src="/img/Zookeeper/bin.png" alt=""></p><p>3.在bin目录下的地址栏输入cmd,进入命令行窗口并执行zkServer.cmd</p><p><img src="/img/Zookeeper/zoo.png" alt=""></p><p>如果报了以上的错误，说明需要在conf目录下做修改 ：</p><p><img src="/img/Zookeeper/conf.png" alt=""></p><p>将文件夹下的zoo_sample.cfg文件复制一份副本，并更名为zoo.cfg。</p><p>编辑zoo.cfg,更改dataDir参数，并在Zookeeper目录下创建data目录 ： </p><p><img src="/img/Zookeeper/vimZoo.png" alt=""></p><p><img src="/img/Zookeeper/data.png" alt=""></p><p>4.然后重新进入bin目录启动Zookeeper服务器，并用客户端连接 : </p><p><img src="/img/Zookeeper/start.png" alt=""></p><p>启动Server时出现Zookeeper的图标，说明启动成功。</p><p><img src="/img/Zookeeper/conn.png" alt=""></p><p>客户端连接成功</p><h1 id="5-基于Linux的Zookeeper安装"><a href="#5-基于Linux的Zookeeper安装" class="headerlink" title="5.基于Linux的Zookeeper安装"></a>5.基于Linux的Zookeeper安装</h1><p>*<em>注意: *</em> 安装Zookeeper之前先要安装jdk</p><p>1.在/opt目录下新建software,和module目录，</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># mkdir &#x2F;opt&#x2F;software</span><br><span class="line"># mkdir &#x2F;opt&#x2F;module</span><br></pre></td></tr></table></figure><p>2.按住alt + p进入文件传输窗口，将Zookeeper和jdk的.tar.gz拖进/opt/software/</p><p>3.将/opt/software中的Zookeeper包解压到/opt/module目录下</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># tar -zxvf jdk-8u144-linux-x64.tar.gz -C &#x2F;opt&#x2F;module&#x2F;</span><br></pre></td></tr></table></figure><p>4.配置环境变量</p><p>进入jdk目录，用pwd命令获取其路径，然后编辑/etc/profile</p><p>在profile文件底部加入以下内容: </p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">##JAVA_HOME</span><br><span class="line">export JAVA_HOME&#x3D;&#x2F;opt&#x2F;module&#x2F;jdk1.8.0_144</span><br><span class="line">export PATH&#x3D;$PATH:$JAVA_HOME&#x2F;bin</span><br></pre></td></tr></table></figure><p>记住，写入之后需要先编译以下才能生效</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">source &#x2F;etc&#x2F;profile</span><br></pre></td></tr></table></figure><p>执行</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># java -version</span><br></pre></td></tr></table></figure><p><img src="/img/Zookeeper/java.png" alt=""></p><p>出现以上信息代表安装成功</p><p>5.解压Zookeeper软件包到/opt/module目录下</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># tar -zxvf apache-zookeeper-3.6.1-bin.tar.gz -C &#x2F;opt&#x2F;module&#x2F;</span><br></pre></td></tr></table></figure><p>6.修改配置</p><p>将/opt/module/apache-zookeeper-3.6.1-bin/conf路径下的zoo_sample.cfg更名为zoo.cfg;</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># mv zoo_sample.cfg zoo.cfg</span><br></pre></td></tr></table></figure><p>打开zoo.cfg文件，修改dataDir路径 : </p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># vim zoo.cfg</span><br></pre></td></tr></table></figure><p>​        修改如下内容 :</p><p>​            dataDir=/opt/module/apache-zookeeper-3.6.1-bin/zkData</p><p>在/opt/module/apache-zookeeper-3.6.1-bin/目录下创建zkData文件夹</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mkdir zkData</span><br></pre></td></tr></table></figure><p>7.启动Linux版的Zookeeper服务端</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># bin&#x2F;zkServer.sh start</span><br><span class="line"># ps -ef | grep zookeeper</span><br></pre></td></tr></table></figure><p><img src="/img/Zookeeper/zoo_linux.png" alt=""></p><p>用客户端连接Zookeeper服务端</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># bin&#x2F;zkCli.sh</span><br></pre></td></tr></table></figure><p><img src="/img/Zookeeper/cli_linux.png" alt=""></p><p>到达此步骤表示已经全部安装完成。</p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;link rel=&quot;stylesheet&quot; class=&quot;aplayer-secondary-style-marker&quot; href=&quot;\assets\css\APlayer.min.css&quot;&gt;&lt;script src=&quot;\assets\js\APlayer.min.js&quot; cla
+      
+    
+    </summary>
+    
+    
+    
+      <category term="Zookeeper" scheme="https://xiaozeng26.github.io/tags/Zookeeper/"/>
+    
+  </entry>
   
   <entry>
     <title>Redis持久化</title>
