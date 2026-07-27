@@ -728,28 +728,38 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
     print("[OK] 首页 index.html 已更新")
 
 # ============================================================
+# Slug 生成（纯 ASCII，避免 URL 编码问题）
+# ============================================================
+def generate_slug(title, category):
+    """生成纯 ASCII 的 URL 安全目录名: {category}-{8位哈希}"""
+    hash_hex = hashlib.sha256(title.encode("utf-8")).hexdigest()[:8]
+    # 确保 category 是 ASCII 安全的
+    safe_cat = re.sub(r'[^a-z0-9-]', '', category.lower())
+    if not safe_cat:
+        safe_cat = "post"
+    return f"{safe_cat}-{hash_hex}"
+
+# ============================================================
 # 文件写入
 # ============================================================
-def write_post_files(title, html_content):
+def write_post_files(title, category, html_content):
     """创建文章目录并写入 HTML 文件"""
     now = datetime.now(timezone(timedelta(hours=8)))
     year = now.strftime("%Y")
     month = now.strftime("%m")
     day = now.strftime("%d")
 
-    # URL 安全的目录名
-    slug = title.replace('/', '-').replace('\\', '-').replace('?', '').replace(':', ' -')
-    # URL encode for Chinese characters
-    encoded_slug = quote(slug, safe='')
-
-    post_dir = REPO_ROOT / year / month / day / encoded_slug
+    # 纯 ASCII slug，杜绝 URL 编码问题
+    slug = generate_slug(title, category)
+    post_dir = REPO_ROOT / year / month / day / slug
     post_dir.mkdir(parents=True, exist_ok=True)
 
     index_file = post_dir / "index.html"
     index_file.write_text(html_content, encoding="utf-8")
 
     print(f"[OK] 文章已生成: {post_dir}/index.html")
-    return f"/{year}/{month}/{day}/{encoded_slug}/"
+    url_path = f"/{year}/{month}/{day}/{slug}/"
+    return url_path
 
 # ============================================================
 # Git 操作
@@ -886,7 +896,7 @@ def main():
     )
 
     # 10. 写入文件
-    url_path = write_post_files(post_title, full_html)
+    url_path = write_post_files(post_title, category, full_html)
 
     # 11. 提取摘要
     plain_text = re.sub(r'<[^>]+>', '', content_html)

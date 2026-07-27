@@ -49,7 +49,7 @@ def main():
     )
 
     # 写入文章目录
-    url_path = write_post_files(post_title, full_html)
+    url_path = write_post_files(post_title, "java", full_html)
 
     # 提取纯文本摘要
     plain_text = re.sub(r'<[^>]+>', '', content_html)
