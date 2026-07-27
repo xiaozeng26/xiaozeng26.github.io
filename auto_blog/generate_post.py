@@ -735,16 +735,19 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
     print("[OK] 首页 index.html 已更新")
 
 # ============================================================
-# Slug 生成（纯 ASCII，避免 URL 编码问题）
+# Slug 生成（直接用中文标题，与老文章风格一致）
 # ============================================================
-def generate_slug(title, category):
-    """生成纯 ASCII 的 URL 安全目录名: {category}-{8位哈希}"""
-    hash_hex = hashlib.sha256(title.encode("utf-8")).hexdigest()[:8]
-    # 确保 category 是 ASCII 安全的
-    safe_cat = re.sub(r'[^a-z0-9-]', '', category.lower())
-    if not safe_cat:
-        safe_cat = "post"
-    return f"{safe_cat}-{hash_hex}"
+def generate_slug(title):
+    """直接用文章标题做目录名，只替换文件系统禁止的字符"""
+    # 替换文件系统不安全的字符（和旧文章 Git的常用命令/ 风格一致）
+    slug = title
+    for ch in ['/', '\\', ':', '*', '?', '"', '<', '>', '|']:
+        slug = slug.replace(ch, '-')
+    # 去掉首尾空格和点
+    slug = slug.strip(' .')
+    if not slug:
+        slug = "untitled"
+    return slug
 
 # ============================================================
 # 文件写入
@@ -756,8 +759,8 @@ def write_post_files(title, category, html_content):
     month = now.strftime("%m")
     day = now.strftime("%d")
 
-    # 纯 ASCII slug，杜绝 URL 编码问题
-    slug = generate_slug(title, category)
+    # 直接用中文标题做目录名，与旧文章风格一致
+    slug = generate_slug(title)
     post_dir = REPO_ROOT / year / month / day / slug
     post_dir.mkdir(parents=True, exist_ok=True)
 
