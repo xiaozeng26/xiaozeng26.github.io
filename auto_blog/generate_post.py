@@ -704,6 +704,11 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
 
     content = index_path.read_text(encoding="utf-8")
 
+    # 防止重复插入：检查该 URL 是否已存在于首页
+    if post_url_path in content:
+        print(f"[INFO] 文章链接 {post_url_path} 已存在于首页，跳过插入")
+        return
+
     img_src = cover_img or f"/img/{random.randint(1000, 5000)}.jpg"
     preview_text = content_preview[:200].replace('"', '\\"').replace('\n', ' ')
 
