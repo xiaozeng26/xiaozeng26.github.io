@@ -1,0 +1,16 @@
+{
+  "generated": [
+    {
+      "title": "ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路",
+      "category": "Java",
+      "subtopic": "ThreadPoolExecutor源码拆解与最佳实践",
+      "date": "2026-07-27",
+      "url": "/2026/07/27/ThreadPoolExecutor%20%E6%BA%90%E7%A0%81%E6%8B%86%E8%A7%A3%EF%BC%9A%E4%BB%8E%E4%BD%8D%E8%BF%90%E7%AE%97%E5%88%B0%E6%8B%92%E7%BB%9D%E7%AD%96%E7%95%A5%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/"
+    }
+  ],
+  "used_subtopics": {
+    "java": [
+      "ThreadPoolExecutor源码拆解与最佳实践"
+    ]
+  }
+}
