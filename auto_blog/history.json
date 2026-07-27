@@ -8,33 +8,33 @@
       "url": "/2026/07/27/ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路/"
     },
     {
-      "title": "数据库分库分表中间件ShardingSphere源码分析",
-      "category": "architecture",
-      "subtopic": "数据库分库分表中间件ShardingSphere源码分析",
+      "title": "Python性能调优：cProfile、memory_profiler实战",
+      "category": "python",
+      "subtopic": "Python性能调优：cProfile、memory_profiler实战",
       "date": "2026-07-27",
-      "url": "/2026/07/27/数据库分库分表中间件ShardingSphere源码分析/"
+      "url": "/2026/07/27/Python性能调优：cProfile、memory_profiler实战/"
     },
     {
-      "title": "Go项目工程化：wire依赖注入与分层架构",
-      "category": "golang",
-      "subtopic": "Go项目工程化：wire依赖注入与分层架构",
+      "title": "RAG（检索增强生成）系统设计与实现",
+      "category": "ai-ml",
+      "subtopic": "RAG（检索增强生成）系统设计与实现",
       "date": "2026-07-27",
-      "url": "/2026/07/27/Go项目工程化：wire依赖注入与分层架构/"
+      "url": "/2026/07/27/RAG（检索增强生成）系统设计与实现/"
     }
   ],
   "used_subtopics": {
     "java": [
       "ThreadPoolExecutor源码拆解与最佳实践"
     ],
-    "architecture": [
-      "数据库分库分表中间件ShardingSphere源码分析"
+    "python": [
+      "Python性能调优：cProfile、memory_profiler实战"
     ],
-    "go": [
-      "Go项目工程化：wire依赖注入与分层架构"
+    "ai": [
+      "RAG（检索增强生成）系统设计与实现"
     ]
   },
   "content_hashes": {
-    "数据库分库分表中间件ShardingSphere源码分析": "a5223ab1b1040d3b388856821f995f95aceca16a4fabc601b2299731229016ec",
-    "Go项目工程化：wire依赖注入与分层架构": "cc3ed0b9611d0a2dea7511fe38aeabda41877d658c9e1fb11e2f981fc361a62b"
+    "Python性能调优：cProfile、memory_profiler实战": "f83f7f061027d25607694f0b4f6208d3c7afad336a617ad6b077a35664148a14",
+    "RAG（检索增强生成）系统设计与实现": "552fbbd1f13297174ec4768a1534a54e36e51f0553e1d84052c4c356dfed107f"
   }
 }

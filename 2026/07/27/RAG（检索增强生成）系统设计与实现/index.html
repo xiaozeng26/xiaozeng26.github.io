@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RAG（检索增强生成）系统设计与实现 | 小曾博客</title>
+  <meta name="description" content="RAG（检索增强生成）系统设计与实现 引言 想象一下，你正在开发一个企业级知识问答系统。用户问：“我们公司去年Q3的营收数据在哪个报表里？”这个问题看似简单，但背后隐藏着巨大的挑战：大语言模型（LLM）虽然博闻强识，却对你的企业内部数据一无所知。它可能自信满满地编造一个答案，然后你的老板就会收到一份“我们Q3营收是10个亿，在财务报表第42页”的虚假信息——而实际数据是8.5个亿，在第17页。 这">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="RAG（检索增强生成）系统设计与实现">
+  <meta name="twitter:description" content="RAG（检索增强生成）系统设计与实现 引言 想象一下，你正在开发一个企业级知识问答系统。用户问：“我们公司去年Q3的营收数据在哪个报表里？”这个问题看似简单，但背后隐藏着巨大的挑战：大语言模型（LLM）虽然博闻强识，却对你的企业内部数据一无所知。它可能自信满满地编造一个答案，然后你的老板就会收到一份“我们Q3营收是10个亿，在财务报表第42页”的虚假信息——而实际数据是8.5个亿，在第17页。 这">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/8113/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="RAG（检索增强生成）系统设计与实现">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="RAG（检索增强生成）系统设计与实现 引言 想象一下，你正在开发一个企业级知识问答系统。用户问：“我们公司去年Q3的营收数据在哪个报表里？”这个问题看似简单，但背后隐藏着巨大的挑战：大语言模型（LLM）虽然博闻强识，却对你的企业内部数据一无所知。它可能自信满满地编造一个答案，然后你的老板就会收到一份“我们Q3营收是10个亿，在财务报表第42页”的虚假信息——而实际数据是8.5个亿，在第17页。 这">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/8113/800/400">
+  <meta property="article:published_time" content="2026-07-27T17:09:08.000Z">
+  <meta property="article:modified_time" content="2026-07-27T17:09:08.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#RAG-检索增强生成-系统设计与实现"><span class="toc-text">RAG（检索增强生成）系统设计与实现</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-图书馆里的学霸"><span class="toc-text">生活类比：图书馆里的学霸</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#为什么朴素RAG不够好"><span class="toc-text">为什么朴素RAG不够好？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#进阶RAG架构"><span class="toc-text">进阶RAG架构</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-完整的RAG管道实现"><span class="toc-text">示例1：完整的RAG管道实现</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-查询重写与分解"><span class="toc-text">示例2：查询重写与分解</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-多轮对话与上下文管理"><span class="toc-text">示例3：多轮对话与上下文管理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#主流RAG方案对比"><span class="toc-text">主流RAG方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#为什么选择进阶RAG"><span class="toc-text">为什么选择进阶RAG？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#文档处理最佳实践"><span class="toc-text">文档处理最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#检索优化技巧"><span class="toc-text">检索优化技巧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/8113/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">RAG（检索增强生成）系统设计与实现</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-07-27"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-07-27</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-07-27"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-07-27</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="RAG-检索增强生成-系统设计与实现"><a href="#RAG-检索增强生成-系统设计与实现" class="headerlink" title="RAG（检索增强生成）系统设计与实现"></a>RAG（检索增强生成）系统设计与实现</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你正在开发一个企业级知识问答系统。用户问：“我们公司去年Q3的营收数据在哪个报表里？”这个问题看似简单，但背后隐藏着巨大的挑战：大语言模型（LLM）虽然博闻强识，却对你的企业内部数据一无所知。它可能自信满满地编造一个答案，然后你的老板就会收到一份“我们Q3营收是10个亿，在财务报表第42页”的虚假信息——而实际数据是8.5个亿，在第17页。</p>
+<p>这就是LLM的“幻觉”问题。RAG（Retrieval-Augmented Generation，检索增强生成）正是为了解决这个问题而生。它不是让模型记住所有数据，而是教会模型“查资料”的能力：在回答问题前，先从知识库中检索相关文档，然后基于这些文档生成答案。</p>
+<p>在本文中，我将从一个资深架构师的视角，带你深入RAG系统的设计细节，从理论到实践，从简单到复杂，最终构建一个生产级别的RAG系统。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-图书馆里的学霸"><a href="#生活类比-图书馆里的学霸" class="headerlink" title="生活类比：图书馆里的学霸"></a>生活类比：图书馆里的学霸</h3>
+<p>想象一个学霸在图书馆复习考试。他有两种学习方式：</p>
+<ol>
+<li><strong>纯背诵（LLM预训练）</strong>：把整本书的内容都背下来，然后直接回答。但问题在于：书会更新，他背的可能是旧版本；而且他可能会记混细节，把A书的内容安到B书上。</li>
+</ol>
+<ol>
+<li><strong>查资料再回答（RAG）</strong>：他先看题目，然后去书架找到相关书籍，翻开特定章节，根据找到的内容组织答案。这样答案准确、可溯源、且能应对新知识。</li>
+</ol>
+<p>RAG的核心流程就是：<strong>理解问题 → 检索相关文档 → 基于文档生成答案</strong>。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>RAG系统由三个核心组件构成：</p>
+<div class="mermaid">
+graph TD
+    A[用户查询] --> B[查询编码器]
+    B --> C[向量检索]
+    C --> D[文档召回]
+    D --> E[上下文组装]
+    E --> F[LLM生成]
+    F --> G[最终答案]
+    
+    H[知识库文档] --> I[文档切分]
+    I --> J[向量化]
+    J --> K[向量数据库]
+    C --> K
+</div>
+<ol>
+<li><strong>文档处理管道</strong>：将原始文档切分成合适的片段，并转化为向量表示</li>
+<li><strong>检索引擎</strong>：根据用户查询找到最相关的文档片段</li>
+<li><strong>生成引擎</strong>：将检索到的文档片段作为上下文，驱动LLM生成答案</li>
+</ol>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="为什么朴素RAG不够好"><a href="#为什么朴素RAG不够好" class="headerlink" title="为什么朴素RAG不够好？"></a>为什么朴素RAG不够好？</h3>
+<p>大多数初学者会写出这样的伪代码：</p>
+<figure class="highlight python"><pre><code class="language-python">def naive_rag(query, vector_db, llm):
+    # 1. 检索最相似的3个文档
+    docs = vector_db.similarity_search(query, k=3)
+    # 2. 拼接成上下文
+    context = &quot;\n&quot;.join([doc.text for doc in docs])
+    # 3. 生成答案
+    prompt = f&quot;基于以下内容回答问题：\n{context}\n问题：{query}&quot;
+    return llm.generate(prompt)</code></pre></figure>
+<p>这个实现有三个致命缺陷：</p>
+<p><strong>问题1：检索精度不足</strong></p>
+<ul>
+<li>向量检索只考虑语义相似度，不考虑文档的时效性、权威性</li>
+</ul>
+<ul>
+<li>关键词精确匹配的能力很弱（比如“苹果”和“Apple”语义相同但向量可能不同）</li>
+</ul>
+<p><strong>问题2：上下文窗口浪费</strong></p>
+<ul>
+<li>3个文档可能有大量重复信息</li>
+</ul>
+<ul>
+<li>关键信息可能被埋没在冗余内容中</li>
+</ul>
+<p><strong>问题3：生成质量不可控</strong></p>
+<ul>
+<li>LLM可能忽略上下文，依然产生幻觉</li>
+</ul>
+<ul>
+<li>无法处理“没有找到相关信息”的情况</li>
+</ul>
+<h3 id="进阶RAG架构"><a href="#进阶RAG架构" class="headerlink" title="进阶RAG架构"></a>进阶RAG架构</h3>
+<p>一个生产级别的RAG系统需要引入多个优化组件：</p>
+<div class="mermaid">
+graph LR
+    subgraph 查询阶段
+        Q1[原始查询] --> Q2[查询重写]
+        Q2 --> Q3[查询分解]
+        Q3 --> Q4[多路检索]
+    end
+    
+    subgraph 检索阶段
+        R1[向量检索] --> R5[结果融合]
+        R2[BM25检索] --> R5
+        R3[知识图谱检索] --> R5
+        R5 --> R6[重排序]
+    end
+    
+    subgraph 生成阶段
+        G1[上下文压缩] --> G2[提示词工程]
+        G2 --> G3[可控生成]
+    end
+    
+    Q4 --> R1
+    Q4 --> R2
+    Q4 --> R3
+    R6 --> G1
+    G3 -->[最终答案]
+</div>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例1-完整的RAG管道实现"><a href="#示例1-完整的RAG管道实现" class="headerlink" title="示例1：完整的RAG管道实现"></a>示例1：完整的RAG管道实现</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+完整RAG管道实现
+包含：文档加载、切分、向量化、检索、重排序、生成
+依赖：pip install langchain chromadb sentence-transformers rank_bm25
+&quot;&quot;&quot;
+
+from typing import List, Dict, Any
+import hashlib
+import json
+from dataclasses import dataclass
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.vectorstores import Chroma
+from langchain.llms import OpenAI
+from langchain.prompts import ChatPromptTemplate
+from rank_bm25 import BM25Okapi
+import numpy as np
+
+@dataclass
+class Document:
+    &quot;&quot;&quot;文档数据类&quot;&quot;&quot;
+    text: str
+    metadata: Dict[str, Any]
+    doc_id: str = None
+    
+    def __post_init__(self):
+        if self.doc_id is None:
+            # 用内容哈希生成唯一ID，便于去重
+            self.doc_id = hashlib.md5(self.text.encode()).hexdigest()[:16]
+
+class RAGPipeline:
+    &quot;&quot;&quot;
+    RAG管道核心类
+    实现了混合检索（向量+BM25）+ 重排序的完整流程
+    &quot;&quot;&quot;
+    
+    def __init__(self, embedding_model: str = &quot;BAAI/bge-small-zh-v1.5&quot;):
+        # 文本切分器：递归切分，保持段落完整性
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=512,      # 每个片段约512字符
+            chunk_overlap=128,   # 重叠128字符，避免关键信息被截断
+            separators=[&quot;\n\n&quot;, &quot;\n&quot;, &quot;。&quot;, &quot;！&quot;, &quot;？&quot;, &quot;，&quot;, &quot; &quot;, &quot;&quot;],
+            length_function=len
+        )
+        
+        # 向量化模型：使用中文优化的bge模型
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=embedding_model,
+            model_kwargs={&#x27;device&#x27;: &#x27;cpu&#x27;},
+            encode_kwargs={&#x27;normalize_embeddings&#x27;: True}
+        )
+        
+        # 向量数据库：持久化存储
+        self.vector_store = None
+        self.documents = []      # 存储原始文档
+        self.bm25_index = None   # BM25索引
+        self.bm25_corpus = []    # BM25语料库
+    
+    def add_documents(self, docs: List[Dict[str, str]]):
+        &quot;&quot;&quot;
+        添加文档到知识库
+        
+        Args:
+            docs: [{&quot;text&quot;: &quot;...&quot;, &quot;metadata&quot;: {...}}, ...]
+        &quot;&quot;&quot;
+        # 1. 文本切分
+        chunks = []
+        for doc in docs:
+            text_chunks = self.text_splitter.split_text(doc[&quot;text&quot;])
+            for chunk in text_chunks:
+                doc_obj = Document(
+                    text=chunk,
+                    metadata=doc.get(&quot;metadata&quot;, {})
+                )
+                chunks.append(doc_obj)
+        
+        # 2. 构建向量索引
+        texts = [chunk.text for chunk in chunks]
+        metadatas = [chunk.metadata for chunk in chunks]
+        
+        if self.vector_store is None:
+            self.vector_store = Chroma.from_texts(
+                texts=texts,
+                embedding=self.embeddings,
+                metadatas=metadatas,
+                persist_directory=&quot;./chroma_db&quot;
+            )
+        else:
+            self.vector_store.add_texts(texts=texts, metadatas=metadatas)
+        
+        # 3. 构建BM25索引（用于关键词检索）
+        self.documents.extend(chunks)
+        self.bm25_corpus = [doc.text for doc in self.documents]
+        self.bm25_index = BM25Okapi(self.bm25_corpus)
+        
+        print(f&quot;已添加 {len(chunks)} 个文档片段到知识库&quot;)
+    
+    def hybrid_search(self, query: str, k: int = 5) -&gt; List[Document]:
+        &quot;&quot;&quot;
+        混合检索：向量检索 + BM25关键词检索
+        
+        Args:
+            query: 用户查询
+            k: 返回结果数量
+        &quot;&quot;&quot;
+        # 1. 向量检索：捕获语义相似度
+        vector_results = self.vector_store.similarity_search_with_score(
+            query, k=k*2  # 多召回一些，给重排序留空间
+        )
+        
+        # 2. BM25检索：捕获关键词匹配
+        tokenized_query = query.split()  # 简单分词，生产环境用jieba
+        bm25_scores = self.bm25_index.get_scores(tokenized_query)
+        bm25_top_k = np.argsort(bm25_scores)[-k*2:][::-1]
+        
+        # 3. 融合结果（加权平均）
+        combined_scores = {}
+        
+        # 向量检索得分（归一化到0-1）
+        for doc, score in vector_results:
+            doc_id = hashlib.md5(doc.page_content.encode()).hexdigest()[:16]
+            # 余弦距离转相似度（1 - 距离）
+            norm_score = 1.0 / (1.0 + score)
+            combined_scores[doc_id] = {
+                &#x27;doc&#x27;: Document(text=doc.page_content, metadata=doc.metadata),
+                &#x27;vector_score&#x27;: norm_score,
+                &#x27;bm25_score&#x27;: 0.0
+            }
+        
+        # BM25得分（归一化）
+        for idx in bm25_top_k:
+            doc = self.documents[idx]
+            doc_id = doc.doc_id
+            norm_score = bm25_scores[idx] / (max(bm25_scores) + 1e-6)
+            
+            if doc_id in combined_scores:
+                combined_scores[doc_id][&#x27;bm25_score&#x27;] = norm_score
+            else:
+                combined_scores[doc_id] = {
+                    &#x27;doc&#x27;: doc,
+                    &#x27;vector_score&#x27;: 0.0,
+                    &#x27;bm25_score&#x27;: norm_score
+                }
+        
+        # 加权融合：向量0.7，BM25 0.3
+        alpha = 0.7
+        for doc_id in combined_scores:
+            scores = combined_scores[doc_id]
+            combined_scores[doc_id][&#x27;final_score&#x27;] = (
+                alpha * scores[&#x27;vector_score&#x27;] + 
+                (1 - alpha) * scores[&#x27;bm25_score&#x27;]
+            )
+        
+        # 4. 排序并返回Top-K
+        sorted_results = sorted(
+            combined_scores.values(),
+            key=lambda x: x[&#x27;final_score&#x27;],
+            reverse=True
+        )[:k]
+        
+        return [result[&#x27;doc&#x27;] for result in sorted_results]
+    
+    def generate_answer(self, query: str, context_docs: List[Document]) -&gt; str:
+        &quot;&quot;&quot;
+        基于检索到的文档生成答案
+        
+        使用结构化提示词，强制LLM遵循约束
+        &quot;&quot;&quot;
+        # 组装上下文
+        context = &quot;&quot;
+        for i, doc in enumerate(context_docs, 1):
+            source = doc.metadata.get(&#x27;source&#x27;, &#x27;未知来源&#x27;)
+            context += f&quot;[文档{i}](来源：{source})\n{doc.text}\n\n&quot;
+        
+        # 结构化提示词模板
+        prompt_template = ChatPromptTemplate.from_template(&quot;&quot;&quot;
+你是一个知识问答助手。请基于提供的文档内容回答问题。
+
+要求：
+1. 如果文档中有相关信息，请用中文回答，并标注信息来源
+2. 如果文档中没有相关信息，请明确说&quot;无法从提供的资料中找到答案&quot;
+3. 不要编造任何文档中没有的信息
+4. 回答要简洁、准确，控制在200字以内
+
+文档内容：
+{context}
+
+问题：{query}
+
+回答：
+&quot;&quot;&quot;)
+        
+        prompt = prompt_template.format_messages(
+            context=context,
+            query=query
+        )
+        
+        # 使用LLM生成（这里用OpenAI示例，实际可替换为其他模型）
+        llm = OpenAI(temperature=0.1, max_tokens=500)
+        answer = llm(prompt)
+        
+        return answer
+    
+    def query(self, query: str) -&gt; Dict[str, Any]:
+        &quot;&quot;&quot;
+        完整查询流程
+        &quot;&quot;&quot;
+        # 1. 检索相关文档
+        retrieved_docs = self.hybrid_search(query, k=5)
+        
+        # 2. 生成答案
+        answer = self.generate_answer(query, retrieved_docs)
+        
+        return {
+            &#x27;query&#x27;: query,
+            &#x27;answer&#x27;: answer,
+            &#x27;source_docs&#x27;: [
+                {
+                    &#x27;text&#x27;: doc.text[:100] + &quot;...&quot;,  # 截取前100字符
+                    &#x27;metadata&#x27;: doc.metadata
+                }
+                for doc in retrieved_docs
+            ]
+        }
+
+# 使用示例
+if __name__ == &quot;__main__&quot;:
+    rag = RAGPipeline()
+    
+    # 添加知识库文档
+    documents = [
+        {
+            &quot;text&quot;: &quot;&quot;&quot;
+            2025年Q3财务报告
+            营收：8.5亿元，同比增长12.3%
+            净利润：1.2亿元，同比增长8.7%
+            主要增长驱动：云计算业务增长35%，企业服务增长20%
+            这份报告由财务部于2025年10月15日发布。
+            &quot;&quot;&quot;,
+            &quot;metadata&quot;: {&quot;source&quot;: &quot;财务报告&quot;, &quot;date&quot;: &quot;2025-10-15&quot;}
+        },
+        {
+            &quot;text&quot;: &quot;&quot;&quot;
+            公司组织架构调整通知（2025年）
+            经董事会决议，自2025年11月1日起：
+            1. 原技术部拆分为云技术部和应用技术部
+            2. 成立AI事业部，由张明担任负责人
+            3. 销售团队合并为统一的大客户部
+            &quot;&quot;&quot;,
+            &quot;metadata&quot;: {&quot;source&quot;: &quot;内部公告&quot;, &quot;date&quot;: &quot;2025-10-20&quot;}
+        }
+    ]
+    
+    rag.add_documents(documents)
+    
+    # 测试查询
+    result = rag.query(&quot;公司Q3营收是多少？&quot;)
+    print(f&quot;问题：{result[&#x27;query&#x27;]}&quot;)
+    print(f&quot;答案：{result[&#x27;answer&#x27;]}&quot;)
+    print(&quot;参考来源：&quot;)
+    for doc in result[&#x27;source_docs&#x27;]:
+        print(f&quot;  - {doc[&#x27;text&#x27;]}&quot;)</code></pre></figure>
+<h3 id="示例2-查询重写与分解"><a href="#示例2-查询重写与分解" class="headerlink" title="示例2：查询重写与分解"></a>示例2：查询重写与分解</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+查询优化模块：提升检索准确率
+包含查询重写、查询分解、伪文档生成
+&quot;&quot;&quot;
+
+from typing import List, Tuple
+import re
+
+class QueryOptimizer:
+    &quot;&quot;&quot;
+    查询优化器：在检索之前对用户查询进行优化
+    &quot;&quot;&quot;
+    
+    def __init__(self, llm=None):
+        self.llm = llm  # 可选，用于复杂重写
+    
+    def expand_abbreviations(self, query: str) -&gt; str:
+        &quot;&quot;&quot;
+        缩略词扩展：Q3 -&gt; 第三季度
+        &quot;&quot;&quot;
+        replacements = {
+            r&#x27;\bQ1\b&#x27;: &#x27;第一季度&#x27;,
+            r&#x27;\bQ2\b&#x27;: &#x27;第二季度&#x27;,
+            r&#x27;\bQ3\b&#x27;: &#x27;第三季度&#x27;,
+            r&#x27;\bQ4\b&#x27;: &#x27;第四季度&#x27;,
+            r&#x27;\bCEO\b&#x27;: &#x27;首席执行官&#x27;,
+            r&#x27;\bCTO\b&#x27;: &#x27;首席技术官&#x27;,
+            r&#x27;\b营收\b&#x27;: &#x27;营业收入&#x27;,
+            r&#x27;\b净利\b&#x27;: &#x27;净利润&#x27;,
+        }
+        
+        expanded = query
+        for pattern, replacement in replacements.items():
+            expanded = re.sub(pattern, replacement, expanded)
+        
+        return expanded
+    
+    def generate_sub_queries(self, query: str) -&gt; List[str]:
+        &quot;&quot;&quot;
+        将复杂查询分解为子查询
+        
+        例如：&quot;对比Q2和Q3的营收变化&quot;
+        -&gt; [&quot;Q2营收数据&quot;, &quot;Q3营收数据&quot;]
+        &quot;&quot;&quot;
+        # 简单规则分解
+        sub_queries = []
+        
+        # 处理&quot;和&quot;、&quot;与&quot;、&quot;对比&quot;等连接词
+        if &#x27;对比&#x27; in query or &#x27;比较&#x27; in query:
+            # 提取对比的两方
+            parts = re.split(r&#x27;[和与]&#x27;, query)
+            for part in parts:
+                # 提取关键实体
+                cleaned = re.sub(r&#x27;对比|比较|的|变化|差异&#x27;, &#x27;&#x27;, part).strip()
+                if cleaned:
+                    sub_queries.append(cleaned)
+        
+        # 如果没有分解成功，返回原查询
+        return sub_queries if sub_queries else [query]
+    
+    def rewrite_query(self, query: str, history: List[str] = None) -&gt; str:
+        &quot;&quot;&quot;
+        查询重写：补充上下文，消除歧义
+        
+        例如：
+        用户问：&quot;去年营收是多少？&quot;
+        然后问：&quot;今年呢？&quot;
+        -&gt; 重写为：&quot;今年的营收是多少？&quot;
+        &quot;&quot;&quot;
+        if not history:
+            return self.expand_abbreviations(query)
+        
+        # 简单规则：如果当前查询很短，可能依赖上文
+        if len(query) &lt; 10 and history:
+            # 提取历史查询中的关键实体
+            last_query = history[-1]
+            # 提取可能的实体（如&quot;营收&quot;、&quot;利润&quot;等）
+            entities = re.findall(r&#x27;[\u4e00-\u9fa5]{2,}&#x27;, last_query)
+            
+            if entities:
+                # 将当前查询与历史实体组合
+                rewritten = f&quot;{query} {&#x27; &#x27;.join(entities[-3:])}&quot;
+                return rewritten
+        
+        return self.expand_abbreviations(query)
+    
+    def optimize(self, query: str, history: List[str] = None) -&gt; Tuple[str, List[str]]:
+        &quot;&quot;&quot;
+        完整优化流程
+        
+        Returns:
+            (优化后的主查询, 子查询列表)
+        &quot;&quot;&quot;
+        # 1. 查询重写
+        rewritten = self.rewrite_query(query, history)
+        
+        # 2. 查询分解
+        sub_queries = self.generate_sub_queries(rewritten)
+        
+        # 3. 缩略词扩展
+        expanded = self.expand_abbreviations(rewritten)
+        sub_queries = [self.expand_abbreviations(sq) for sq in sub_queries]
+        
+        return expanded, sub_queries
+
+# 使用示例
+if __name__ == &quot;__main__&quot;:
+    optimizer = QueryOptimizer()
+    
+    # 测试缩略词扩展
+    query = &quot;Q3营收和净利分别是多少？&quot;
+    optimized, sub_queries = optimizer.optimize(query)
+    print(f&quot;原始查询：{query}&quot;)
+    print(f&quot;优化后：{optimized}&quot;)
+    print(f&quot;子查询：{sub_queries}&quot;)
+    
+    # 测试上下文补全
+    history = [&quot;2025年Q2的营收是多少？&quot;]
+    query2 = &quot;Q3呢？&quot;
+    optimized2, _ = optimizer.optimize(query2, history)
+    print(f&quot;\n历史：{history[-1]}&quot;)
+    print(f&quot;当前查询：{query2}&quot;)
+    print(f&quot;重写后：{optimized2}&quot;)</code></pre></figure>
+<h3 id="示例3-多轮对话与上下文管理"><a href="#示例3-多轮对话与上下文管理" class="headerlink" title="示例3：多轮对话与上下文管理"></a>示例3：多轮对话与上下文管理</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+多轮对话RAG：维护对话历史，实现上下文感知的问答
+&quot;&quot;&quot;
+
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
+from datetime import datetime
+import uuid
+
+@dataclass
+class Message:
+    &quot;&quot;&quot;对话消息&quot;&quot;&quot;
+    role: str  # &#x27;user&#x27; 或 &#x27;assistant&#x27;
+    content: str
+    timestamp: datetime = field(default_factory=datetime.now)
+    message_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
+
+class ConversationManager:
+    &quot;&quot;&quot;
+    对话管理器：维护对话状态，实现上下文感知
+    &quot;&quot;&quot;
+    
+    def __init__(self, max_history: int = 10):
+        self.sessions: Dict[str, List[Message]] = {}
+        self.max_history = max_history
+    
+    def create_session(self) -&gt; str:
+        &quot;&quot;&quot;创建新会话&quot;&quot;&quot;
+        session_id = uuid.uuid4().hex[:12]
+        self.sessions[session_id] = []
+        return session_id
+    
+    def add_message(self, session_id: str, role: str, content: str):
+        &quot;&quot;&quot;添加消息到会话&quot;&quot;&quot;
+        if session_id not in self.sessions:
+            self.sessions[session_id] = []
+        
+        message = Message(role=role, content=content)
+        self.sessions[session_id].append(message)
+        
+        # 限制历史长度
+        if len(self.sessions[session_id]) &gt; self.max_history:
+            self.sessions[session_id] = self.sessions[session_id][-self.max_history:]
+    
+    def get_context(self, session_id: str, max_messages: int = 5) -&gt; str:
+        &quot;&quot;&quot;
+        获取对话上下文，用于生成回答
+        
+        策略：
+        1. 只保留最近的N轮对话
+        2. 提取关键信息（如上次提到的实体）
+        3. 压缩过长的历史
+        &quot;&quot;&quot;
+        if session_id not in self.sessions:
+            return &quot;&quot;
+        
+        messages = self.sessions[session_id][-max_messages*2:]  # 保留N轮对话
+        
+        context_parts = []
+        for msg in messages:
+            prefix = &quot;用户&quot; if msg.role == &quot;user&quot; else &quot;助手&quot;
+            # 截取过长消息
+            content = msg.content[:200] if len(msg.content) &gt; 200 else msg.content
+            context_parts.append(f&quot;{prefix}: {content}&quot;)
+        
+        return &quot;\n&quot;.join(context_parts)
+
+class ConversationalRAG:
+    &quot;&quot;&quot;
+    多轮对话RAG系统
+    结合对话历史和检索结果生成回答
+    &quot;&quot;&quot;
+    
+    def __init__(self, rag_pipeline: RAGPipeline):
+        self.rag = rag_pipeline
+        self.conversation = ConversationManager()
+        self.query_optimizer = QueryOptimizer()
+    
+    def chat(self, session_id: str, user_message: str) -&gt; str:
+        &quot;&quot;&quot;
+        处理用户消息，返回回答
+        
+        Args:
+            session_id: 会话ID，用于跟踪对话历史
+            user_message: 用户输入
+        &quot;&quot;&quot;
+        # 1. 保存用户消息
+        self.conversation.add_message(session_id, &quot;user&quot;, user_message)
+        
+        # 2. 获取对话上下文
+        history = self.conversation.get_context(session_id, max_messages=3)
+        
+        # 3. 优化查询（上下文感知）
+        optimized_query, sub_queries = self.query_optimizer.optimize(
+            user_message,
+            history=[msg.content for msg in self.conversation.sessions[session_id][-3:]]
+        )
+        
+        # 4. 检索文档（对每个子查询分别检索）
+        all_docs = []
+        seen_ids = set()
+        
+        for sq in [optimized_query] + sub_queries:
+            docs = self.rag.hybrid_search(sq, k=3)
+            for doc in docs:
+                if doc.doc_id not in seen_ids:
+                    all_docs.append(doc)
+                    seen_ids.add(doc.doc_id)
+        
+        # 5. 生成回答（带对话上下文）
+        answer = self._generate_with_context(
+            user_message,
+            all_docs[:5],  # 最多5个文档
+            history
+        )
+        
+        # 6. 保存助手消息
+        self.conversation.add_message(session_id, &quot;assistant&quot;, answer)
+        
+        return answer
+    
+    def _generate_with_context(self, query: str, docs: List, history: str) -&gt; str:
+        &quot;&quot;&quot;
+        带上下文的生成
+        &quot;&quot;&quot;
+        # 组装上下文
+        context = f&quot;对话历史：\n{history}\n\n&quot;
+        context += &quot;参考文档：\n&quot;
+        for i, doc in enumerate(docs, 1):
+            context += f&quot;[{i}] {doc.text}\n\n&quot;
+        
+        prompt = f&quot;&quot;&quot;
+你是一个智能助手，请基于对话历史和参考文档回答问题。
+
+要求：
+1. 如果问题可以通过对话历史回答，优先使用历史信息
+2. 如果需要最新信息，使用参考文档
+3. 如果两者都没有相关信息，请明确说明
+4. 回答要自然流畅，像正常对话一样
+
+{context}
+
+用户问题：{query}
+
+回答：
+&quot;&quot;&quot;
+        
+        llm = OpenAI(temperature=0.3, max_tokens=500)
+        return llm(prompt)
+
+# 使用示例
+if __name__ == &quot;__main__&quot;:
+    # 初始化RAG
+    rag = RAGPipeline()
+    
+    # 添加知识库
+    rag.add_documents([
+        {
+            &quot;text&quot;: &quot;公司2025年Q3营收8.5亿元，同比增长12.3%&quot;,
+            &quot;metadata&quot;: {&quot;source&quot;: &quot;财务报告&quot;}
+        },
+        {
+            &quot;text&quot;: &quot;2025年10月公司进行了组织架构调整，成立了AI事业部&quot;,
+            &quot;metadata&quot;: {&quot;source&quot;: &quot;内部公告&quot;}
+        }
+    ])
+    
+    # 创建对话式RAG
+    chat_rag = ConversationalRAG(rag)
+    session = chat_rag.conversation.create_session()
+    
+    # 模拟多轮对话
+    questions = [
+        &quot;公司最近有什么重大变动吗？&quot;,
+        &quot;那财务表现怎么样？&quot;,
+        &quot;Q3营收具体是多少？&quot;
+    ]
+    
+    for q in questions:
+        print(f&quot;\n用户: {q}&quot;)
+        answer = chat_rag.chat(session, q)
+        print(f&quot;助手: {answer}&quot;)</code></pre></figure>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="主流RAG方案对比"><a href="#主流RAG方案对比" class="headerlink" title="主流RAG方案对比"></a>主流RAG方案对比</h3>
+<p>| 特性 | 朴素RAG | 进阶RAG（本文方案） | 微调模型 | 知识图谱增强 |</p>
+<p>|------|---------|-------------------|----------|-------------|</p>
+<p>| <strong>实现复杂度</strong> | 低 | 中 | 高 | 高 |</p>
+<p>| <strong>检索精度</strong> | 低 | 高 | N/A | 高（关系准确） |</p>
+<p>| <strong>更新成本</strong> | 低（改文档即可） | 低 | 高（需重新训练） | 中（需维护图谱） |</p>
+<p>| <strong>可解释性</strong> | 中 | 高（可溯源） | 低（黑盒） | 高 |</p>
+<p>| <strong>处理长尾知识</strong> | 好 | 好 | 差（数据稀疏） | 中 |</p>
+<p>| <strong>对话连贯性</strong> | 差 | 好（带上下文） | 好 | 中 |</p>
+<p>| <strong>适用场景</strong> | 简单QA | 企业知识库 | 特定风格生成 | 关系推理 |</p>
+<h3 id="为什么选择进阶RAG"><a href="#为什么选择进阶RAG" class="headerlink" title="为什么选择进阶RAG？"></a>为什么选择进阶RAG？</h3>
+<ol>
+<li><strong>成本效益</strong>：不需要昂贵的模型训练，只需更新文档即可更新知识</li>
+<li><strong>可控性强</strong>：可以精确控制信息来源，避免幻觉</li>
+<li><strong>可扩展性好</strong>：支持动态添加新知识，无需重新部署模型</li>
+<li><strong>透明度高</strong>：用户可以查看答案的来源文档</li>
+</ol>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="文档处理最佳实践"><a href="#文档处理最佳实践" class="headerlink" title="文档处理最佳实践"></a>文档处理最佳实践</h3>
+<ol>
+<li><strong>切分策略</strong></li>
+</ol>
+<ul>
+<li>✅ 按语义边界切分（段落、句子）</li>
+</ul>
+<ul>
+<li>❌ 固定字符切分（会切断关键信息）</li>
+</ul>
+<ul>
+<li>建议：chunk_size=512，overlap=128，使用递归切分器</li>
+</ul>
+<ol>
+<li><strong>向量模型选择</strong></li>
+</ol>
+<ul>
+<li>中文场景：BAAI/bge-* 系列</li>
+</ul>
+<ul>
+<li>英文场景：text-embedding-ada-002</li>
+</ul>
+<ul>
+<li>多语言场景：multilingual-e5-*</li>
+</ul>
+<ol>
+<li><strong>元数据管理</strong></li>
+</ol>
+<ul>
+<li>必须包含：来源、时间戳、文档类型</li>
+</ul>
+<ul>
+<li>建议包含：作者、权限级别、版本号</li>
+</ul>
+<h3 id="检索优化技巧"><a href="#检索优化技巧" class="headerlink" title="检索优化技巧"></a>检索优化技巧</h3>
+<ol>
+<li><strong>混合检索权重</strong>：向量检索0.7 + BM25 0.3</li>
+<li><strong>重排序</strong>：使用cross-encoder模型对候选结果重新排序</li>
+<li><strong>查询重写</strong>：补充上下文、扩展缩略词、分解复杂查询</li>
+<li><strong>多路召回</strong>：同时使用向量检索、关键词检索、知识图谱检索</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<ol>
+<li><strong>检索不到关键信息</strong></li>
+</ol>
+<ul>
+<li>原因：chunk_size过大，关键信息被稀释</li>
+</ul>
+<ul>
+<li>解决：减小chunk_size，增加重叠度</li>
+</ul>
+<ol>
+<li><strong>生成内容与文档矛盾</strong></li>
+</ol>
+<ul>
+<li>原因：LLM忽略上下文，依赖预训练知识</li>
+</ul>
+<ul>
+<li>解决：使用更强约束的提示词，降低temperature值</li>
+</ul>
+<ol>
+<li><strong>回答过于冗长</strong></li>
+</ol>
+<ul>
+<li>原因：上下文包含太多无关信息</li>
+</ul>
+<ul>
+<li>解决：增加重排序步骤，限制上下文长度</li>
+</ul>
+<ol>
+<li><strong>多轮对话上下文丢失</strong></li>
+</ol>
+<ul>
+<li>原因：未正确维护对话历史</li>
+</ul>
+<ul>
+<li>解决：使用会话管理器，实现上下文感知的查询重写</li>
+</ul>
+<ol>
+<li><strong>性能问题</strong></li>
+</ol>
+<ul>
+<li>原因：每次查询都检索整个向量数据库</li>
+</ul>
+<ul>
+<li>解决：使用HNSW索引、分片存储、缓存热门查询</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>RAG系统不是简单的"检索+生成"拼接，而是一个需要精心设计的系统工程。从文档处理、检索优化到生成控制，每个环节都会影响最终效果。</p>
+<p>回顾本文的核心要点：</p>
+<ol>
+<li><strong>文档处理</strong>是基础：合理的切分策略和元数据管理决定了检索质量的上限</li>
+<li><strong>混合检索</strong>是核心：向量检索+BM25的结合能兼顾语义和关键词匹配</li>
+<li><strong>查询优化</strong>是关键：查询重写、分解、上下文补全能显著提升检索精度</li>
+<li><strong>对话管理</strong>是进阶：维护对话历史，实现上下文感知的问答</li>
+</ol>
+<p>延伸思考：RAG的未来方向包括：</p>
+<ul>
+<li><strong>多模态RAG</strong>：不仅能检索文本，还能检索图片、表格、视频</li>
+</ul>
+<ul>
+<li><strong>Agent RAG</strong>：让LLM自主决定何时检索、如何检索、检索什么</li>
+</ul>
+<ul>
+<li><strong>流式RAG</strong>：边检索边生成，实现实时知识更新</li>
+</ul>
+<p>最后，记住一个原则：<strong>好的RAG系统应该让LLM学会"查资料"，而不是"背资料"</strong>。当你看到你的系统能准确回答"我们公司去年Q3的营收数据在哪个报表里？"时，那种成就感是无与伦比的。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

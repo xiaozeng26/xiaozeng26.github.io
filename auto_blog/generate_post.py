@@ -268,6 +268,49 @@ def call_ai_api(prompt, config):
         return call_deepseek_api(prompt, config)
 
 # ============================================================
+# AI 输出后处理（切除元信息引用块）
+# ============================================================
+def _clean_ai_output(md_text):
+    """清理 AI 可能输出的元信息引用块和重复标题"""
+    lines = md_text.split('\n')
+    cleaned = []
+    skip_until_empty = False
+    seen_h1 = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # 跳过开头的元信息引用块: > 发布... > 分类... > 标签...
+        if i < 10 and stripped.startswith('> ') and any(
+            kw in stripped for kw in ['发布', '分类', '标签', '日期', '博客', '发表于', '发布于']
+        ):
+            continue
+
+        # 跳过残留的分类标签行（非 markdown 格式）
+        if i < 10 and any(
+            stripped.startswith(kw) for kw in ['发布日期', '分类：', '标签：', '博客名称', '所属分类']
+        ):
+            continue
+
+        # 跳过开头的连续空行（在真正的 # 标题之前）
+        if not seen_h1 and not stripped:
+            continue
+
+        # 记录已见到第一个 # 标题
+        if stripped.startswith('# ') and not seen_h1:
+            seen_h1 = True
+
+        cleaned.append(line)
+
+    result = '\n'.join(cleaned).strip()
+
+    # 如果清理后内容为空，返回原始内容
+    if len(result) < 100:
+        return md_text
+
+    return result
+
+# ============================================================
 # Prompt 构建
 # ============================================================
 def build_prompt(category, subtopic, topic_config, config):
@@ -278,47 +321,47 @@ def build_prompt(category, subtopic, topic_config, config):
 
     prompt = f"""请以一位资深全栈架构师的身份，撰写一篇高质量中文技术博客。
 
-博客标题：{subtopic}
-所属分类：{topic_config['category']}
-标签：{', '.join(topic_config['tags'])}
-发布日期：{date_str}
-博客名称：{blog['title']}
+## 文章信息（仅供你参考，不要在正文中重复输出！）
+- 博客标题：{subtopic}
+- 所属分类：{topic_config['category']}
+- 标签：{', '.join(topic_config['tags'])}
+- 发布日期：{date_str}
 
 ## 内容要求
 
 ### 深度要求
-- 你面向的是有3-5年经验的开发工程师，内容要有真正的高级深度，不要写入门级内容
+- 面向有3-5年经验的开发工程师，内容要有真正的高级深度，不要写入门级内容
 - 必须包含源码级别的分析（如果有相关源码）
-- 必须包含至少 3 个代码示例，代码要完整可运行
-- 涉及到架构设计的地方，请用文字描述流程图或时序图的结构（我会转为mermaid图）
+- 必须包含至少 3 个完整的可运行代码示例（带详细注释）
+- 涉及架构设计的地方，请用 mermaid 代码块画图
 
 ### 风格要求
-- 用生活化的类比来解释复杂原理（比如用餐厅后厨类比线程池，用快递分拣类比消息队列）
-- 对比不同的实现方案，分析各自的优缺点和适用场景
-- 给出最佳实践和常见的坑
+- 用生活化的类比解释复杂原理（如：餐厅后厨类比线程池，快递分拣类比消息队列）
+- 对比不同实现方案，分析优缺点和适用场景
+- 给出最佳实践和常见坑
 
 ### 文章结构
-1. **引言**：用实际场景引出问题（200字左右）
-2. **核心概念**：生活类比 + 技术定义（400字左右）
-3. **源码/原理深度分析**：这是核心部分，需要足够的深度（1500-2000字）
-4. **实战代码**：至少3个完整的可运行代码示例（包含详细注释）
-5. **方案对比**：对比业界其他方案或相关技术的异同（400字左右）
-6. **最佳实践与避坑指南**：给出工程实践建议（300字左右）
-7. **总结**：回顾要点和延伸思考（200字左右）
+1. **引言**：用实际场景引出问题
+2. **核心概念**：生活类比 + 技术定义
+3. **源码/原理深度分析**：核心部分，需要足够深度
+4. **实战代码**：至少3个完整可运行代码示例
+5. **方案对比**：对比业界其他方案的异同
+6. **最佳实践与避坑指南**
+7. **总结**：回顾要点和延伸思考
 
-### Mermaid 图表
-在适当的位置插入 mermaid 图表占位符（用 ```mermaid 代码块），至少包含1个流程图或架构图或时序图。
-例如：
+### Mermaid 图表（至少1个）
 ```mermaid
 graph TD
-    A[客户端请求] --> B[API网关]
-    B --> C[服务A]
-    C --> D[数据库]
+    A[客户端] --> B[服务端]
 ```
 
-### 输出格式
-请直接用 Markdown 格式输出完整的博客文章。不要包含任何前言或后记。
-文章开头直接从 # 标题 开始即可。"""
+## 输出格式（严格遵守！）
+1. 第一行必须是 "# 标题" 格式的 Markdown 标题
+2. **绝对不要**在正文中输出"发布日期"、"分类"、"标签"、"博客名称"等元信息
+3. **绝对不要**用 blockquote（>）包裹任何元信息
+4. **绝对不要**输出"发表于"、"发布于"、"分类："、"标签："等内容
+5. 直接从 # 标题 开始，然后是 ## 引言，依次展开
+6. 除了文章标题（一个 #），不要重复输出文章信息"""
 
     return prompt
 
@@ -913,7 +956,9 @@ def main():
     provider = config["generation"].get("api_provider", "deepseek")
     print(f"\n[生成] 正在调用 {provider.upper()} API 生成博客内容...")
     try:
-        md_content = call_ai_api(prompt, config)
+        raw_content = call_ai_api(prompt, config)
+        # 后处理：切除 AI 可能输出的元信息引用块
+        md_content = _clean_ai_output(raw_content)
         print(f"[生成] 内容长度: {len(md_content)} 字符")
     except RuntimeError as e:
         print(f"\n[ERROR] {e}")
