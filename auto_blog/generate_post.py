@@ -37,7 +37,7 @@ def load_history():
     if HISTORY_PATH.exists():
         with open(HISTORY_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"generated": [], "used_subtopics": {}}
+    return {"generated": [], "used_subtopics": {}, "content_hashes": {}}
 
 def save_history(history):
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
@@ -141,13 +141,13 @@ def _get_api_key(config):
     # 从 .apikey 文件读取
     key_file = SCRIPT_DIR / ".apikey"
     if key_file.exists():
-        content = key_file.read_text().strip()
+        content = key_file.read_text(encoding="utf-8").strip()
         # 如果有等号，取=后面的值
         if "=" in content and not content.startswith("sk-"):
             api_key = content.split("=", 1)[1].strip()
         elif content.startswith("sk-"):
             api_key = content
-        if api_key:
+        if api_key and "your-deepseek-key-here" not in api_key:
             return api_key
 
     raise RuntimeError(
@@ -819,6 +819,13 @@ def main():
     # 3. 构建 prompt
     prompt = build_prompt(category_key, subtopic, topic_config, config)
     print(f"[Prompt] 长度: {len(prompt)} 字符")
+
+    # Dry-run 模式：仅预览，不调用 API
+    if args.dry_run:
+        print(f"\n[Dry Run] 文章标题（预设）: {subtopic}")
+        print(f"[Dry Run] 分类: {category}")
+        print(f"[Dry Run] Prompt 前 300 字符:\n{prompt[:300]}...")
+        return
 
     # 4. 调用 AI 生成内容
     provider = config["generation"].get("api_provider", "deepseek")
