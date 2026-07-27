@@ -819,13 +819,20 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
     img_src = cover_img or get_cover_image(post_title)
     preview_text = content_preview[:200].replace('"', '\\"').replace('\n', ' ')
 
+    # 检测第一个已有文章的封面位置，新文章取反方向（左右交替）
+    first_cover_match = re.search(r'post_cover (left_radius|right_radius)', content)
+    if first_cover_match:
+        existing_side = first_cover_match.group(1)
+        new_side = 'right_radius' if existing_side == 'left_radius' else 'left_radius'
+    else:
+        new_side = 'left_radius'
+
     # 构建新文章卡片 HTML
-    new_card = f'''<div class="recent-post-item"><div class="post_cover left_radius"><a href="{post_url_path}" title="{post_title}">     <img class="post_bg" src="{img_src}" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="{post_title}"></a></div><div class="recent-post-info"><a class="article-title" href="{post_url_path}" title="{post_title}">{post_title}</a><div class="article-meta-wrap"><time class="post-meta__date"><span class="post-meta__date-created" title="发表于 {date_str}"><i class="fa fa-calendar" aria-hidden="true"></i>{date_str}</span><span class="article-meta__separator">|</span><span class="post-meta__date-updated" title="更新于 {date_str}"><i class="fa fa-history" aria-hidden="true"></i>{date_str}</span></time><span class="article-meta"><span class="article-meta__separator">|</span><i class="fa fa-inbox article-meta__icon" aria-hidden="true"></i><a class="article-meta__categories" href="/categories/">{category}</a></span></div><div class="content">{preview_text}</div></div></div>'''
+    new_card = f'''<div class="recent-post-item"><div class="post_cover {new_side}"><a href="{post_url_path}" title="{post_title}">     <img class="post_bg" src="{img_src}" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="{post_title}"></a></div><div class="recent-post-info"><a class="article-title" href="{post_url_path}" title="{post_title}">{post_title}</a><div class="article-meta-wrap"><time class="post-meta__date"><span class="post-meta__date-created" title="发表于 {date_str}"><i class="fa fa-calendar" aria-hidden="true"></i>{date_str}</span><span class="article-meta__separator">|</span><span class="post-meta__date-updated" title="更新于 {date_str}"><i class="fa fa-history" aria-hidden="true"></i>{date_str}</span></time><span class="article-meta"><span class="article-meta__separator">|</span><i class="fa fa-inbox article-meta__icon" aria-hidden="true"></i><a class="article-meta__categories" href="/categories/">{category}</a></span></div><div class="content">{preview_text}</div></div></div>'''
 
     # 在第一个 recent-post-item 之前插入
     first_item_pos = content.find('<div class="recent-post-item">')
     if first_item_pos == -1:
-        # 找到 recent-posts 容器
         container_pos = content.find('<div class="recent-posts" id="recent-posts">')
         if container_pos != -1:
             insert_pos = content.find('>', container_pos) + 1
@@ -837,7 +844,7 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
 
     new_content = content[:insert_pos] + new_card + content[insert_pos:]
     index_path.write_text(new_content, encoding="utf-8")
-    print("[OK] 首页 index.html 已更新")
+    print(f"[OK] 首页 index.html 已更新（封面: {new_side}）")
 
 # ============================================================
 # Slug 生成（直接用中文标题，与老文章风格一致）
