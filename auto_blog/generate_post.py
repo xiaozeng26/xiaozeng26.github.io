@@ -44,35 +44,64 @@ def save_history(history):
         json.dump(history, f, ensure_ascii=False, indent=2)
 
 # ============================================================
-# 选题逻辑
+# 去重与选题逻辑
 # ============================================================
+def _get_recent_categories(history, days=3):
+    """获取最近 N 天内使用过的分类"""
+    from datetime import datetime as dt, timedelta
+    cutoff = (dt.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    recent = set()
+    for post in history.get("generated", []):
+        if post.get("date", "") >= cutoff:
+            recent.add(post.get("category", ""))
+    return recent
+
+def _get_all_generated_titles(history):
+    """获取所有已生成的文章标题（用于标题相似度检测）"""
+    return {post.get("title", "") for post in history.get("generated", [])}
+
 def choose_topic(config, history):
     """
-    按权重随机选择话题大类，然后在该大类下选择一个未使用过的子话题。
-    如果某个大类的子话题已用完，则重置该大类的使用记录。
+    增强选题逻辑：
+    1. 同一分类在 min_days_between_same_category 天内不重复
+    2. 子话题用完后才重置该分类
+    3. 严格的子话题去重
     """
     topics = config["topics"]
     weights = config["topic_weights"]
     used_subtopics = history.get("used_subtopics", {})
+    dedup_cfg = config.get("dedup", {})
+    min_days = dedup_cfg.get("min_days_between_same_category", 3)
+
+    # 获取最近 N 天内使用过的分类，避免短期重复
+    recent_cats = _get_recent_categories(history, days=min_days)
+    all_titles = _get_all_generated_titles(history)
 
     # 过滤出有权重且存在的 topics
     available = [(k, weights.get(k, 10)) for k in topics.keys()]
     available.sort(key=lambda x: x[1], reverse=True)
 
-    # 按权重加权随机选 category
     categories = [a[0] for a in available]
     cat_weights = [a[1] for a in available]
 
-    # 尝试选择子话题（避免重复）
-    shuffled_cats = random.choices(categories, weights=cat_weights, k=len(categories) * 3)
+    # 优先选择近期没用过的分类
+    fresh_cats = [c for c in categories if topics[c].get("category", c) not in recent_cats]
+
+    # 如果所有分类近期都用过了，则不过滤
+    target_cats = fresh_cats if fresh_cats else categories
+    target_weights = [weights.get(c, 10) for c in target_cats]
+
+    # 按权重加权随机，多轮尝试
+    shuffled_cats = random.choices(target_cats, weights=target_weights, k=len(target_cats) * 3)
 
     for cat in shuffled_cats:
         subtopics = topics[cat]["subtopics"]
         used = used_subtopics.get(cat, [])
+        # 过滤掉已使用的子话题（子话题去重）
         available_subs = [s for s in subtopics if s not in used]
 
         if not available_subs:
-            # 重置：该大类所有子话题已用一轮
+            # 该分类所有子话题已用完，重置该分类的使用记录
             used_subtopics[cat] = []
             available_subs = subtopics
 
@@ -80,9 +109,13 @@ def choose_topic(config, history):
         used_subtopics[cat] = used_subtopics.get(cat, []) + [chosen]
         history["used_subtopics"] = used_subtopics
 
+        # 检查标题是否已生成过（双重保险）
+        if chosen in all_titles:
+            continue
+
         return cat, chosen, topics[cat]
 
-    # fallback: 全随机
+    # fallback: 全随机（理论上不会到达这里）
     cat = random.choice(categories)
     chosen = random.choice(topics[cat]["subtopics"])
     return cat, chosen, topics[cat]
@@ -670,18 +703,38 @@ def git_commit_and_push(post_title):
 # 主流程
 # ============================================================
 def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(description="自动博客生成与发布")
+    parser.add_argument("--no-git", action="store_true",
+                        help="跳过 git 提交和推送（GitHub Actions 中由 workflow 统一处理）")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="仅选题和生成内容，不写入文件也不提交")
+    args = parser.parse_args()
+
     print("=" * 60)
     print("  自动博客生成系统")
     print(f"  运行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if args.no_git:
+        print("  模式: 跳过 Git 操作")
+    if args.dry_run:
+        print("  模式: Dry Run（仅预览）")
     print("=" * 60)
 
     # 1. 加载配置和历史
     config = load_config()
     history = load_history()
 
-    # 2. 选题
+    # 2. 选题（带去重检查）
     category_key, subtopic, topic_config = choose_topic(config, history)
-    print(f"\n[选题] {topic_config['category']} → {subtopic}")
+    category = topic_config['category']
+    print(f"\n[选题] [{category}] {subtopic}")
+
+    # 检查该子话题是否已有内容哈希记录（防重复生成完全相同的文章）
+    content_hashes = history.get("content_hashes", {})
+    if subtopic in content_hashes:
+        print(f"[跳过] 该子话题已生成过（hash: {content_hashes[subtopic][:12]}...），跳过")
+        return
 
     # 3. 构建 prompt
     prompt = build_prompt(category_key, subtopic, topic_config, config)
@@ -694,8 +747,10 @@ def main():
         print(f"[生成] 内容长度: {len(md_content)} 字符")
     except RuntimeError as e:
         print(f"\n[ERROR] {e}")
-        print("\n备选方案：请确保已设置 ANTHROPIC_API_KEY 环境变量")
-        print("获取 API Key: https://console.anthropic.com/")
+        print("\n请确保已设置 ANTHROPIC_API_KEY 环境变量")
+        print("GitHub Actions: 在仓库 Settings → Secrets → Actions 中添加 ANTHROPIC_API_KEY")
+        print("本地运行: 设置环境变量或在 auto_blog/.apikey 文件中写入")
+        print("获取 API Key: https://console.anthropic.com/settings/keys")
         sys.exit(1)
 
     # 5. 提取标题
@@ -707,57 +762,84 @@ def main():
 
     print(f"[标题] {post_title}")
 
-    # 6. Markdown → HTML
+    # 6. 内容哈希去重
+    content_hash = hashlib.sha256(md_content.encode("utf-8")).hexdigest()
+    if content_hash in content_hashes.values():
+        print(f"[跳过] 生成的内容与已有文章重复（hash: {content_hash[:12]}...），跳过")
+        return
+    content_hashes[subtopic] = content_hash
+    history["content_hashes"] = content_hashes
+
+    # 7. 检查标题是否已存在
+    all_titles = {p.get("title", "") for p in history.get("generated", [])}
+    if post_title in all_titles:
+        print(f"[跳过] 文章标题 '{post_title}' 已存在")
+        return
+
+    if args.dry_run:
+        print(f"\n[Dry Run] 文章标题: {post_title}")
+        print(f"[Dry Run] 分类: {category}")
+        print(f"[Dry Run] 内容预览: {md_content[:300]}...")
+        return
+
+    # 8. Markdown → HTML
     content_html = markdown_to_html(md_content)
     date_str = datetime.now().strftime("%Y-%m-%d")
 
-    # 7. 生成完整的 HTML 页面
+    # 9. 生成完整的 HTML 页面
     full_html = build_post_html(
         title=post_title,
-        category=topic_config['category'],
+        category=category,
         tags=topic_config['tags'],
         date_str=date_str,
         content_html=content_html
     )
 
-    # 8. 写入文件
+    # 10. 写入文件
     url_path = write_post_files(post_title, full_html)
 
-    # 9. 提取摘要（纯文本前200字）
+    # 11. 提取摘要
     plain_text = re.sub(r'<[^>]+>', '', content_html)
     plain_text = re.sub(r'\s+', ' ', plain_text).strip()
 
-    # 10. 更新首页
+    # 12. 更新首页
     update_index_html(
         post_title=post_title,
         post_url_path=url_path,
         date_str=date_str,
         content_preview=plain_text,
-        category=topic_config['category']
+        category=category
     )
 
-    # 11. 保存历史
+    # 13. 保存历史
     history["generated"].append({
         "title": post_title,
-        "category": topic_config['category'],
+        "category": category,
         "subtopic": subtopic,
         "date": date_str,
         "url": url_path
     })
     save_history(history)
 
-    # 12. Git 提交推送
-    print("\n[Git] 准备提交到 GitHub...")
-    success = git_commit_and_push(post_title)
-
-    if success:
-        print(f"\n{'=' * 60}")
-        print(f"  [SUCCESS] 博客发布成功!")
+    # 14. Git 操作
+    if args.no_git:
+        print("\n[Git] --no-git 模式，跳过提交推送")
+        print(f"[SUCCESS] 博客文件已生成，等待外部 Git 操作")
         print(f"  标题: {post_title}")
-        print(f"  访问: https://xiaozeng26.github.io{url_path}")
-        print(f"{'=' * 60}")
+        print(f"  路径: {url_path}")
     else:
-        print("\n[INFO] 没有变更需要提交（内容可能重复生成）")
+        print("\n[Git] 准备提交到 GitHub...")
+        success = git_commit_and_push(post_title)
+
+        if success:
+            print(f"\n{'=' * 60}")
+            print(f"  [SUCCESS] 博客发布成功!")
+            print(f"  标题: {post_title}")
+            print(f"  分类: {category}")
+            print(f"  访问: https://xiaozeng26.github.io{url_path}")
+            print(f"{'=' * 60}")
+        else:
+            print("\n[INFO] 没有变更需要提交")
 
 if __name__ == "__main__":
     main()

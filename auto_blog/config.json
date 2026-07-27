@@ -17,8 +17,8 @@
   },
   "topics": {
     "java": {
-      "category": "Java",
-      "tags": ["Java", "JVM", "Spring", "并发编程"],
+      "category": "java",
+      "tags": ["java", "jvm", "spring", "concurrency", "source-code"],
       "subtopics": [
         "JVM内存模型与垃圾回收器深度解析",
         "ThreadPoolExecutor源码拆解与最佳实践",
@@ -40,8 +40,8 @@
       ]
     },
     "python": {
-      "category": "Python",
-      "tags": ["Python", "FastAPI", "异步编程", "Django"],
+      "category": "python",
+      "tags": ["python", "fastapi", "async", "django", "source-code"],
       "subtopics": [
         "asyncio事件循环源码级分析与实战",
         "FastAPI依赖注入系统设计剖析",
@@ -60,8 +60,8 @@
       ]
     },
     "go": {
-      "category": "Go",
-      "tags": ["Go", "并发", "微服务", "源码分析"],
+      "category": "golang",
+      "tags": ["go", "golang", "concurrency", "microservices", "source-code"],
       "subtopics": [
         "Go调度器GMP模型深度剖析",
         "Channel底层实现与select多路复用",
@@ -80,8 +80,8 @@
       ]
     },
     "docker_kubernetes": {
-      "category": "Docker & K8s",
-      "tags": ["Docker", "Kubernetes", "云原生", "DevOps"],
+      "category": "cloud-native",
+      "tags": ["docker", "kubernetes", "cloud-native", "devops", "container"],
       "subtopics": [
         "Docker网络模式：bridge、host、overlay深入对比",
         "Docker存储驱动：overlay2、aufs、devicemapper原理",
@@ -98,28 +98,31 @@
       ]
     },
     "ai": {
-      "category": "AI & ML",
-      "tags": ["AI", "机器学习", "深度学习", "LLM"],
+      "category": "ai-ml",
+      "tags": ["ai", "machine-learning", "deep-learning", "llm", "langchain", "langgraph", "rag"],
       "subtopics": [
         "Transformer架构深度解读：Self-Attention数学原理",
         "RAG（检索增强生成）系统设计与实现",
         "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
         "LangGraph状态图驱动Agent的实现原理",
+        "LangChain表达式语言（LCEL）与Runnable协议深度解析",
+        "LangChain Memory模块：对话历史管理最佳实践",
+        "LangGraph多Agent协作模式：Supervisor与Swarm架构",
+        "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
+        "Function Calling机制与LangChain Tool集成实践",
         "大模型微调技术对比：LoRA、QLoRA、全参微调",
-        "向量数据库选型：Milvus、Pinecone、Weaviate对比",
+        "向量数据库选型与LangChain VectorStore集成",
         "Prompt Engineering最佳实践与链式推理",
         "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
-        "LangChain表达式语言（LCEL）与Runnable协议",
-        "Function Calling机制与工具调用实现",
         "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
         "Embedding模型选型与语义搜索实践",
         "多模态AI应用开发：GPT-4V + LangChain",
-        "AI应用的可观测性与LangSmith/LangFuse监控"
+        "LangGraph Checkpointing：持久化与Human-in-the-Loop模式"
       ]
     },
     "architecture": {
-      "category": "系统架构",
-      "tags": ["架构设计", "分布式", "高可用", "设计模式"],
+      "category": "architecture",
+      "tags": ["architecture", "distributed-systems", "high-availability", "design-patterns", "microservices"],
       "subtopics": [
         "DDD领域驱动设计落地实践与六边形架构",
         "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
@@ -152,5 +155,11 @@
     "temperature": 0.8,
     "max_tokens": 8000,
     "retry_count": 3
+  },
+  "dedup": {
+    "check_title_similarity": true,
+    "min_days_between_same_category": 3,
+    "prevent_exact_title_match": true,
+    "track_content_hashes": true
   }
 }

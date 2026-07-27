@@ -1,0 +1,56 @@
+name: Daily Blog Generation
+
+# ============================================================
+# 每天 UTC 12:00 = 北京时间 20:00 自动运行
+# 也可手动触发: Actions → Daily Blog Generation → Run workflow
+#
+# 便携性说明：
+#   此 workflow 文件随仓库一起克隆，换任何电脑都不需要重新配置。
+#   唯一需要的是在 GitHub 仓库设置中配置 ANTHROPIC_API_KEY 密钥。
+# ============================================================
+on:
+  schedule:
+    # 每天 UTC 12:00（北京时间 20:00）
+    - cron: '0 12 * * *'
+  # 允许手动触发（Actions 页面 → Run workflow 按钮）
+  workflow_dispatch:
+
+# 赋予 GITHUB_TOKEN 写入权限，用于 push 回仓库
+permissions:
+  contents: write
+
+jobs:
+  generate-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Generate blog post
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          cd auto_blog
+          python generate_post.py --no-git
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "blog-bot"
+          git config user.email "blog-bot@xiaozeng.dev"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit (content may be duplicate)"
+          else
+            git commit -m "docs: daily auto-generated blog post [skip ci]"
+            git push origin master
+            echo "Blog post published!"
+          fi
