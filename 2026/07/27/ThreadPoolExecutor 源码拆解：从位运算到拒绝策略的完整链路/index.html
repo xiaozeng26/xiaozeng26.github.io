@@ -5,8 +5,8 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 | 小曾博客</title>
-  <meta name="description" content="<h1 id=\"ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\"><a href=\"#ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\" class=\"headerlink\" title=\"ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路\"></a>ThreadPoolExecutor 源码拆解：从位运算到拒绝策">
-  <meta name="keywords" content="Java,JVM,Spring,并发编程">
+  <meta name="description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
+  <meta name="keywords" content="java,jvm,spring,concurrency,source-code">
   <meta name="author" content="小曾">
   <meta name="copyright" content="小曾">
   <meta name="format-detection" content="telephone=no">
@@ -21,16 +21,16 @@
   <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路">
-  <meta name="twitter:description" content="<h1 id=\"ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\"><a href=\"#ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\" class=\"headerlink\" title=\"ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路\"></a>ThreadPoolExecutor 源码拆解：从位运算到拒绝策">
-  <meta name="twitter:image" content="https://xiaozeng26.github.io/img/3063.jpg">
+  <meta name="twitter:description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2717/800/400">
   <meta property="og:type" content="article">
   <meta property="og:title" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
-  <meta property="og:description" content="<h1 id=\"ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\"><a href=\"#ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路\" class=\"headerlink\" title=\"ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路\"></a>ThreadPoolExecutor 源码拆解：从位运算到拒绝策">
-  <meta property="og:image" content="https://xiaozeng26.github.io/img/3063.jpg">
-  <meta property="article:published_time" content="2026-07-27T13:57:54.000Z">
-  <meta property="article:modified_time" content="2026-07-27T13:57:54.000Z">
+  <meta property="og:description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2717/800/400">
+  <meta property="article:published_time" content="2026-07-27T16:42:22.000Z">
+  <meta property="article:modified_time" content="2026-07-27T16:42:22.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
   <script>
 var autoChangeMode = '1'
@@ -167,7 +167,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(/img/3063.jpg)">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/2717/800/400)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">
@@ -205,7 +205,7 @@ var GLOBAL_CONFIG = {
           <span class="post-meta-categories">
             <span class="post-meta__separator">|</span>
             <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
-            <a class="post-meta__categories" href="/categories/">Java</a>
+            <a class="post-meta__categories" href="/categories/">java</a>
           </span>
         </div>
         <div class="meta-thirdline">
@@ -219,20 +219,16 @@ var GLOBAL_CONFIG = {
     <article id="post">
       <div class="post-content" id="article-container">
         <h1 id="ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路"><a href="#ThreadPoolExecutor-源码拆解-从位运算到拒绝策略的完整链路" class="headerlink" title="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路"></a>ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路</h1>
-<br>
 <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
-<br>
 <p>想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是<strong>池化思想</strong>的由来。在 Java 生态中，线程池就是这家"餐厅"，核心线程是"正式员工"，阻塞队列是"等位区"，最大线程是"临时工上限"，而拒绝策略决定了"客满之后该怎么办"。</p>
-<br>
 <p>然而，<strong>阿里 Java 开发规约</strong>明确要求：<strong>必须手动创建线程池，禁止使用 Executors 工厂类</strong>。为什么？因为 <code>Executors.newFixedThreadPool</code> 用了无界队列，会在极端情况撑爆内存。今天我们就从源码层次，把线程池的每一个关键设计讲透。</p>
-<br>
-<p>> 本文基于 <strong>Java 17</strong> 源码分析，核心逻辑与 Java 8/11/21 一致。</p>
-<br>
+<blockquote>
+<p>本文基于 <strong>Java 17</strong> 源码分析，核心逻辑与 Java 8/11/21 一致。</p>
+</blockquote>
 <h2 id="核心概念-餐厅模型"><a href="#核心概念-餐厅模型" class="headerlink" title="核心概念：餐厅模型"></a>核心概念：餐厅模型</h2>
-<br>
 <p>在深入源码之前，先用一张图建立直觉：</p>
-<br>
-<div class="mermaid">graph TD
+<div class="mermaid">
+graph TD
     A[提交任务] --> B{当前线程数 < corePoolSize?}
     B -->|是| C[创建新线程立即执行]
     B -->|否| D{阻塞队列已满?}
@@ -242,16 +238,12 @@ var GLOBAL_CONFIG = {
     F -->|否| H[执行拒绝策略]
     C --> I[worker.runTask]
     E --> I
-    G --> I</div>
-<br>
+    G --> I
+</div>
 <p>这就像一个餐厅：正式员工不够用 → 让客人在等位区排队 → 等位区满了 → 临时招人（直到上限） → 实在不行就拒绝接待。</p>
-<br>
 <h2 id="源码分析-三个核心设计"><a href="#源码分析-三个核心设计" class="headerlink" title="源码分析：三个核心设计"></a>源码分析：三个核心设计</h2>
-<br>
 <h3 id="1-ctl-字段-一个-AtomicInteger-的双重身份"><a href="#1-ctl-字段-一个-AtomicInteger-的双重身份" class="headerlink" title="1. ctl 字段：一个 AtomicInteger 的双重身份"></a>1. ctl 字段：一个 AtomicInteger 的双重身份</h3>
-<br>
-<code>ThreadPoolExecutor</code> 最精妙的设计是 <code>ctl</code> 字段——<strong>用一个 AtomicInteger 同时存储线程池状态和工作线程数量</strong>：
-<br>
+<p><code>ThreadPoolExecutor</code> 最精妙的设计是 <code>ctl</code> 字段——<strong>用一个 AtomicInteger 同时存储线程池状态和工作线程数量</strong>：</p>
 <figure class="highlight java"><pre><code class="language-java">public class ThreadPoolExecutor extends AbstractExecutorService {
     // ctl 是一个 AtomicInteger：高3位存状态，低29位存线程数
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
@@ -279,30 +271,23 @@ var GLOBAL_CONFIG = {
     private static int workerCountOf(int c)  { return c &amp; CAPACITY; }
     private static int ctlOf(int rs, int wc) { return rs | wc; }
 }</code></pre></figure>
-<br>
-<strong>为什么这样做？</strong> 两个理由：
-<br>
+<p><strong>为什么这样做？</strong> 两个理由：</p>
 <ol>
 <li><strong>CAS 原子性</strong>：对状态和数量的修改可以通过一次 CAS 原子完成，避免了两步操作的竞态条件</li>
-</ol>
-<ol>
 <li><strong>内存效率</strong>：一个 int（4字节）替代两个独立变量，减少缓存行占用</li>
 </ol>
-<br>
-<strong>状态流转图：</strong>
-<br>
-<div class="mermaid">stateDiagram-v2
+<p><strong>状态流转图：</strong></p>
+<div class="mermaid">
+stateDiagram-v2
     [*] --> RUNNING
     RUNNING --> SHUTDOWN: shutdown()
     RUNNING --> STOP: shutdownNow()
     SHUTDOWN --> TIDYING: 队列为空且workerCount=0
     STOP --> TIDYING: workerCount=0
-    TIDYING --> TERMINATED: terminated()执行完毕</div>
-<br>
+    TIDYING --> TERMINATED: terminated()执行完毕
+</div>
 <h3 id="2-execute-方法-三步走的精妙逻辑"><a href="#2-execute-方法-三步走的精妙逻辑" class="headerlink" title="2. execute() 方法：三步走的精妙逻辑"></a>2. execute() 方法：三步走的精妙逻辑</h3>
-<br>
-<code>execute()</code> 是入口方法，让我们逐行分析：
-<br>
+<p><code>execute()</code> 是入口方法，让我们逐行分析：</p>
 <figure class="highlight java"><pre><code class="language-java">public void execute(Runnable command) {
     if (command == null)
         throw new NullPointerException();
@@ -331,25 +316,15 @@ var GLOBAL_CONFIG = {
     else if (!addWorker(command, false))  // false = 使用 maximumPoolSize 作为上限
         reject(command);  // 达到最大线程数，执行拒绝策略
 }</code></pre></figure>
-<br>
-<strong>关键细节</strong>：第二步的双重检查（double-check）非常关键。考虑这个场景：
-<br>
+<p><strong>关键细节</strong>：第二步的双重检查（double-check）非常关键。考虑这个场景：</p>
 <ol>
 <li>线程池在 RUNNING 状态，<code>workQueue.offer()</code> 成功入队</li>
-</ol>
-<ol>
-<li>就在这一瞬间，外部调用 <code>shutdown()</code></li>
-</ol>
-<ol>
+<li>就在这一瞬间，外部调用 <code>shutdown()</code> </li>
 <li>如果不做 recheck，这个刚入队的任务永远不会被执行（因为 shutdown 后不会有新 worker 来拉取任务）</li>
 </ol>
-<br>
 <p>这个<strong>并发窗口</strong>极其短暂，但 <code>execute()</code> 仍然做了防御。这就是 Doug Lea 的编码功力。</p>
-<br>
 <h3 id="3-Worker-类-AQS-实现的可重入独占锁"><a href="#3-Worker-类-AQS-实现的可重入独占锁" class="headerlink" title="3. Worker 类：AQS 实现的可重入独占锁"></a>3. Worker 类：AQS 实现的可重入独占锁</h3>
-<br>
 <p>每个工作线程封装在一个 <code>Worker</code> 对象中。Worker 继承 <code>AbstractQueuedSynchronizer</code>，实现了一个<strong>不可重入的独占锁</strong>：</p>
-<br>
 <figure class="highlight java"><pre><code class="language-java">private final class Worker extends AbstractQueuedSynchronizer implements Runnable {
     private static final long serialVersionUID = 6138294804551838833L;
     
@@ -383,21 +358,13 @@ var GLOBAL_CONFIG = {
     public void unlock()      { release(1); }
     public boolean isLocked() { return isHeldExclusively(); }
 }</code></pre></figure>
-<br>
-<strong>Worker 用 AQS 实现锁的三个目的：</strong>
-<br>
+<p><strong>Worker 用 AQS 实现锁的三个目的：</strong></p>
 <ol>
 <li><strong>判断线程是否空闲</strong>：<code>tryLock()</code> 成功 = Worker 空闲，可用于分配新任务</li>
-</ol>
-<ol>
 <li><strong>安全中断</strong>：<code>interruptIdleWorkers()</code> 只中断能获取锁的 Worker（即空闲的），正在执行任务的 Worker 不受影响</li>
-</ol>
-<ol>
 <li><strong>防止并发中断</strong>：<code>shutdown()</code> 和 <code>shutdownNow()</code> 在中断线程前需要先获取锁</li>
 </ol>
-<br>
-<code>runWorker()</code> 方法是 Worker 的核心循环：
-<br>
+<p><code>runWorker()</code> 方法是 Worker 的核心循环：</p>
 <figure class="highlight java"><pre><code class="language-java">final void runWorker(Worker w) {
     Thread wt = Thread.currentThread();
     Runnable task = w.firstTask;
@@ -434,11 +401,8 @@ var GLOBAL_CONFIG = {
         processWorkerExit(w, completedAbruptly);
     }
 }</code></pre></figure>
-<br>
 <h2 id="实战代码-三个进阶用法"><a href="#实战代码-三个进阶用法" class="headerlink" title="实战代码：三个进阶用法"></a>实战代码：三个进阶用法</h2>
-<br>
 <h3 id="示例1-监控型线程池-包装-ThreadPoolExecutor"><a href="#示例1-监控型线程池-包装-ThreadPoolExecutor" class="headerlink" title="示例1：监控型线程池（包装 ThreadPoolExecutor）"></a>示例1：监控型线程池（包装 ThreadPoolExecutor）</h3>
-<br>
 <figure class="highlight java"><pre><code class="language-java">public class MonitoredThreadPool extends ThreadPoolExecutor {
     
     private final ThreadLocal&lt;Long&gt; startTime = new ThreadLocal&lt;&gt;();
@@ -488,9 +452,7 @@ var GLOBAL_CONFIG = {
         );
     }
 }</code></pre></figure>
-<br>
 <h3 id="示例2-自定义拒绝策略-降级重试"><a href="#示例2-自定义拒绝策略-降级重试" class="headerlink" title="示例2：自定义拒绝策略——"降级重试""></a>示例2：自定义拒绝策略——"降级重试"</h3>
-<br>
 <figure class="highlight java"><pre><code class="language-java">public class DegradeAndRetryPolicy implements RejectedExecutionHandler {
     
     private final int maxRetries;
@@ -526,9 +488,7 @@ var GLOBAL_CONFIG = {
         // 实际项目中写入数据库或 Kafka 死信队列
     }
 }</code></pre></figure>
-<br>
 <h3 id="示例3-动态调整线程池参数"><a href="#示例3-动态调整线程池参数" class="headerlink" title="示例3：动态调整线程池参数"></a>示例3：动态调整线程池参数</h3>
-<br>
 <figure class="highlight java"><pre><code class="language-java">public class DynamicThreadPoolManager {
     
     private final ThreadPoolExecutor executor;
@@ -568,22 +528,16 @@ var GLOBAL_CONFIG = {
         executor.shutdown();
     }
 }</code></pre></figure>
-<br>
 <h2 id="方案对比-Executors-工厂方法的陷阱"><a href="#方案对比-Executors-工厂方法的陷阱" class="headerlink" title="方案对比：Executors 工厂方法的陷阱"></a>方案对比：Executors 工厂方法的陷阱</h2>
-<br>
 <p>| 工厂方法 | 队列类型 | 队列容量 | 风险 |</p>
 <p>|---------|---------|---------|------|</p>
 <p>| <code>newFixedThreadPool(n)</code> | LinkedBlockingQueue | <strong>Integer.MAX_VALUE</strong> | 队列无限增长 → OOM |</p>
 <p>| <code>newCachedThreadPool()</code> | SynchronousQueue | 0 | 线程数无限增长 → OOM（线程栈内存） |</p>
 <p>| <code>newSingleThreadExecutor()</code> | LinkedBlockingQueue | <strong>Integer.MAX_VALUE</strong> | 同 FixedThreadPool |</p>
 <p>| <code>newScheduledThreadPool(n)</code> | DelayedWorkQueue | <strong>Integer.MAX_VALUE</strong> | 同上 |</p>
-<br>
-<strong>核心问题</strong>：<code>Executors</code> 把"方便"建立在了"无界"之上，而"无界"在生产环境中就是一颗定时炸弹。
-<br>
+<p><strong>核心问题</strong>：<code>Executors</code> 把"方便"建立在了"无界"之上，而"无界"在生产环境中就是一颗定时炸弹。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
-<br>
 <h3 id="推荐做法"><a href="#推荐做法" class="headerlink" title="✅ 推荐做法"></a>✅ 推荐做法</h3>
-<br>
 <ol>
 <li><strong>显式构造线程池</strong>，所有参数了然于胸：</li>
 </ol>
@@ -595,7 +549,6 @@ var GLOBAL_CONFIG = {
     new ThreadFactoryBuilder().setNameFormat(&quot;biz-pool-%d&quot;).build(),  // 命名！
     new ThreadPoolExecutor.CallerRunsPolicy()  // 明确的拒绝策略
 );</code></pre></figure>
-<br>
 <ol>
 <li><strong>核心线程数计算公式</strong>：</li>
 </ol>
@@ -608,7 +561,6 @@ var GLOBAL_CONFIG = {
 <ul>
 <li>混合型：拆分为两个独立线程池分别处理</li>
 </ul>
-<br>
 <ol>
 <li><strong>必须给线程命名</strong>（出问题时你能快速定位）：</li>
 </ol>
@@ -617,40 +569,22 @@ var GLOBAL_CONFIG = {
     .setUncaughtExceptionHandler((t, e) -&gt; 
         log.error(&quot;线程 {} 异常退出&quot;, t.getName(), e))
     .build();</code></pre></figure>
-<br>
 <h3 id="常见陷阱"><a href="#常见陷阱" class="headerlink" title="❌ 常见陷阱"></a>❌ 常见陷阱</h3>
-<br>
 <ol>
 <li><strong>用 <code>submit()</code> 提交任务但忽略 <code>Future.get()</code> 返回</strong>：如果 <code>submit()</code> 的 <code>Runnable</code> 抛出异常，异常会被吞掉。要么用 <code>execute()</code>，要么检查 <code>Future.get()</code></li>
-</ol>
-<ol>
 <li><strong>shutdown() vs shutdownNow() 混淆</strong>：<code>shutdown()</code> 等队列任务执行完，<code>shutdownNow()</code> 直接中断并返回未执行任务列表</li>
-</ol>
-<ol>
 <li><strong>线程池隔离不够</strong>：一个慢查询可能拖死整个池。核心业务和非核心业务使用<strong>独立线程池</strong></li>
-</ol>
-<ol>
 <li><strong>在 Tomcat 等容器线程池中 fork 子任务再用 <code>.get()</code> 阻塞</strong>：可能造成线程饥饿死锁</li>
 </ol>
-<br>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
-<br>
-<code>ThreadPoolExecutor</code> 是 Java 并发编程中最常用的组件之一，但也是最容易被误用的。三个要点：
-<br>
+<p><code>ThreadPoolExecutor</code> 是 Java 并发编程中最常用的组件之一，但也是最容易被误用的。三个要点：</p>
 <ol>
 <li><strong>ctl 的位运算设计</strong>是用空间换安全，一个 CAS 操作就能原子地修改状态和计数</li>
-</ol>
-<ol>
 <li><strong>三步走的 execute()</strong> 方法用双重检查解决了入队和 shutdown 之间的并发竞态</li>
-</ol>
-<ol>
 <li><strong>Worker 的 AQS 锁</strong>巧妙地同时完成了"标记忙碌"和"安全中断"两个职责</li>
 </ol>
-<br>
 <p>理解这些设计原理之后，你在遇到线程池拒绝异常、任务堆积、内存溢出等问题时，就能快速定位根因而非盲目调参。</p>
-<br>
-<strong>思考题</strong>：如果让你用 Java 21 的虚拟线程（Virtual Thread）重新设计线程池，<code>getTask()</code> 中阻塞队列的 <code>poll(keepAliveTime, TimeUnit)</code> 是否可以去掉？为什么？欢迎在评论区讨论。
-<br>
+<p><strong>思考题</strong>：如果让你用 Java 21 的虚拟线程（Virtual Thread）重新设计线程池，<code>getTask()</code> 中阻塞队列的 <code>poll(keepAliveTime, TimeUnit)</code> 是否可以去掉？为什么？欢迎在评论区讨论。</p>
       </div>
     </article>
   </main>
@@ -662,7 +596,9 @@ var GLOBAL_CONFIG = {
   </div>
 </footer>
 <script src="/js/utils.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script><script>mermaid.initialize({startOnLoad:true,theme:"default",securityLevel:"loose"});</script><script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
 </body>
 </html>

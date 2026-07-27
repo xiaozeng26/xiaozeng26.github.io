@@ -330,12 +330,14 @@ def build_post_html(title, category, tags, date_str, content_html, cover_img=Non
     blog_url = "https://xiaozeng26.github.io"
     blog_title = "小曾博客"
     author = "小曾"
-    description = content_html[:200].replace('"', '\\"').replace('\n', ' ')
+
+    # 去除 HTML 标签生成纯文本描述
+    plain_desc = re.sub(r'<[^>]+>', '', content_html)
+    plain_desc = re.sub(r'\s+', ' ', plain_desc).strip()[:200]
+    description = plain_desc.replace('"', '\\"')
 
     if not cover_img:
-        # 随机选一张封面图
-        img_num = random.randint(1000, 5000)
-        cover_img = f"/img/{img_num}.jpg"
+        cover_img = get_cover_image(title)
 
     # URL 编码
     encoded_title = quote(title, safe='')
@@ -588,15 +590,58 @@ def generate_toc(content_html):
     return toc_html
 
 # ============================================================
-# Markdown → HTML 转换
+# 封面图片（picsum.photos 免费图库，按标题种子生成，每篇不同）
+# ============================================================
+def get_cover_image(title):
+    """根据文章标题生成唯一的封面图 URL，同一标题始终返回同一张图"""
+    seed = abs(hash(title)) % 10000
+    return f"https://picsum.photos/seed/{seed}/800/400"
+
+# ============================================================
+# Markdown → HTML 转换（改进版：正确处理列表组、引用块、段落）
 # ============================================================
 def markdown_to_html(md_text):
-    """简单的 Markdown 转 HTML（专注于代码块、mermaid 和高亮）"""
+    """将 Markdown 转为 HTML，匹配 Hexo/Butterfly 主题的预期格式"""
     import html as html_module
 
     lines = md_text.split('\n')
     result = []
     i = 0
+
+    def _inline(text):
+        """处理行内格式：粗体、代码、链接、图片"""
+        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+        text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+        text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1">', text)
+        text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2" target="_blank">\1</a>', text)
+        return text
+
+    def _anchor(text):
+        """生成标题的锚点 ID"""
+        a = re.sub(r'<[^>]+>', '', text)
+        a = re.sub(r'[^a-zA-Z0-9一-鿿]+', '-', a).strip('-')
+        return a or 'heading'
+
+    def _flush_block():
+        """将缓存的同类行合并输出"""
+        nonlocal pending_ul, pending_ol, pending_quote
+        if pending_ul:
+            items = '\n'.join(f'<li>{item}</li>' for item in pending_ul)
+            result.append(f'<ul>\n{items}\n</ul>')
+            pending_ul = []
+        if pending_ol:
+            items = '\n'.join(f'<li>{item}</li>' for item in pending_ol)
+            result.append(f'<ol>\n{items}\n</ol>')
+            pending_ol = []
+        if pending_quote:
+            text = '<br>\n'.join(pending_quote)
+            result.append(f'<blockquote>\n<p>{text}</p>\n</blockquote>')
+            pending_quote = []
+
+    pending_ul = []   # 缓存连续的无序列表项
+    pending_ol = []   # 缓存连续的有序列表项
+    pending_quote = []  # 缓存连续的引用行
+
     in_code_block = False
     code_lang = ""
     code_content = []
@@ -605,37 +650,37 @@ def markdown_to_html(md_text):
 
     while i < len(lines):
         line = lines[i]
+        stripped = line.strip()
 
-        # Mermaid 代码块
-        if line.strip().startswith('```mermaid'):
+        # --- Mermaid 代码块 ---
+        if stripped.startswith('```mermaid'):
+            _flush_block()
             in_mermaid = True
             mermaid_content = []
             i += 1
             continue
 
-        if in_mermaid and line.strip() == '```':
-            in_mermaid = False
-            mermaid_div = f'<div class="mermaid">{chr(10).join(mermaid_content)}</div>'
-            result.append(mermaid_div)
-            i += 1
-            continue
-
         if in_mermaid:
-            mermaid_content.append(line)
+            if stripped == '```':
+                in_mermaid = False
+                result.append(f'<div class="mermaid">\n{chr(10).join(mermaid_content)}\n</div>')
+            else:
+                mermaid_content.append(line)
             i += 1
             continue
 
-        # 普通代码块
-        if line.strip().startswith('```'):
+        # --- 普通代码块 ---
+        if stripped.startswith('```'):
+            _flush_block()
             if not in_code_block:
                 in_code_block = True
-                code_lang = line.strip()[3:].strip()
+                code_lang = stripped[3:].strip()
                 code_content = []
             else:
                 in_code_block = False
-                lang_class = f' class="language-{code_lang}"' if code_lang else ''
+                lang_cls = f' class="language-{code_lang}"' if code_lang else ''
                 escaped = html_module.escape('\n'.join(code_content))
-                result.append(f'<figure class="highlight {code_lang}"><pre><code{lang_class}>{escaped}</code></pre></figure>')
+                result.append(f'<figure class="highlight {code_lang}"><pre><code{lang_cls}>{escaped}</code></pre></figure>')
             i += 1
             continue
 
@@ -644,52 +689,69 @@ def markdown_to_html(md_text):
             i += 1
             continue
 
-        # 标题
+        # --- 空行：结束列表组和引用组 ---
+        if not stripped:
+            _flush_block()
+            i += 1
+            continue
+
+        # --- 标题 ---
         if line.startswith('### '):
-            text = line[4:]
-            anchor = re.sub(r'[^a-zA-Z0-9一-鿿]+', '-', text).strip('-')
+            _flush_block()
+            text = _inline(line[4:])
+            anchor = _anchor(text)
             result.append(f'<h3 id="{anchor}"><a href="#{anchor}" class="headerlink" title="{text}"></a>{text}</h3>')
         elif line.startswith('## '):
-            text = line[3:]
-            anchor = re.sub(r'[^a-zA-Z0-9一-鿿]+', '-', text).strip('-')
+            _flush_block()
+            text = _inline(line[3:])
+            anchor = _anchor(text)
             result.append(f'<h2 id="{anchor}"><a href="#{anchor}" class="headerlink" title="{text}"></a>{text}</h2>')
         elif line.startswith('# '):
-            text = line[2:]
-            anchor = re.sub(r'[^a-zA-Z0-9一-鿿]+', '-', text).strip('-')
+            _flush_block()
+            text = _inline(line[2:])
+            anchor = _anchor(text)
             result.append(f'<h1 id="{anchor}"><a href="#{anchor}" class="headerlink" title="{text}"></a>{text}</h1>')
 
-        # 无序列表
-        elif line.strip().startswith('- ') or line.strip().startswith('* '):
-            text = line.strip()[2:]
-            # 处理粗体和代码
-            text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-            text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
-            text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
-            result.append(f'<ul>\n<li>{text}</li>\n</ul>')
+        # --- 无序列表 ---
+        elif re.match(r'^[\s]*[-*]\s+', line):
+            _flush_block()  # 不 flush ol（不同类型列表不互斥）
+            if pending_ol:
+                _flush_block()
+            text = _inline(re.sub(r'^[\s]*[-*]\s+', '', line))
+            pending_ul.append(text)
 
-        # 有序列表
-        elif re.match(r'^\d+\.\s', line.strip()):
-            text = re.sub(r'^\d+\.\s', '', line.strip())
-            text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-            text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
-            text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
-            result.append(f'<ol>\n<li>{text}</li>\n</ol>')
+        # --- 有序列表 ---
+        elif re.match(r'^[\s]*\d+\.\s', line):
+            if pending_ul:
+                _flush_block()
+            text = _inline(re.sub(r'^[\s]*\d+\.\s', '', line))
+            pending_ol.append(text)
 
-        # 普通段落
-        elif line.strip():
-            processed = line
-            processed = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', processed)
-            processed = re.sub(r'`([^`]+)`', r'<code>\1</code>', processed)
-            processed = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1">', processed)
-            processed = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', processed)
-            if not processed.startswith('<'):
-                result.append(f'<p>{processed}</p>')
-            else:
-                result.append(processed)
+        # --- 引用块 ---
+        elif stripped.startswith('> '):
+            if pending_ul or pending_ol:
+                _flush_block()
+            text = _inline(stripped[2:])
+            pending_quote.append(text)
+
+        # --- 分隔线 ---
+        elif stripped in ('---', '***', '___', '* * *'):
+            _flush_block()
+            result.append('<hr>')
+
+        # --- 普通段落 ---
         else:
-            result.append('<br>')
+            _flush_block()
+            processed = _inline(stripped)
+            result.append(f'<p>{processed}</p>')
 
         i += 1
+
+    # 处理文件末尾未闭合的块
+    _flush_block()
+    if in_code_block:
+        escaped = html_module.escape('\n'.join(code_content))
+        result.append(f'<figure class="highlight"><pre><code>{escaped}</code></pre></figure>')
 
     return '\n'.join(result)
 
@@ -711,7 +773,7 @@ def update_index_html(post_title, post_url_path, date_str, content_preview, cate
         print(f"[INFO] 文章链接 {post_url_path} 已存在于首页，跳过插入")
         return
 
-    img_src = cover_img or f"/img/{random.randint(1000, 5000)}.jpg"
+    img_src = cover_img or get_cover_image(post_title)
     preview_text = content_preview[:200].replace('"', '\\"').replace('\n', ' ')
 
     # 构建新文章卡片 HTML
