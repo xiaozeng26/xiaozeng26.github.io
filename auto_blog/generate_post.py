@@ -563,6 +563,8 @@ var GLOBAL_CONFIG = {{
   </div>
 </footer>
 <script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({{startOnLoad:true, theme:'default', securityLevel:'loose'}});</script>
 <script src="/js/main.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
 </body>
