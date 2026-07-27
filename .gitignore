@@ -1,0 +1,16 @@
+# API 密钥文件 - 绝对不能提交到仓库
+auto_blog/.apikey
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行日志
+auto_blog/logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

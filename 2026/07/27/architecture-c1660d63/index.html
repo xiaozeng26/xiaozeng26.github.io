@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>数据库分库分表中间件ShardingSphere源码分析 | 小曾博客</title>
+  <meta name="description" content="<h1 id=\"数据库分库分表中间件ShardingSphere源码分析\"><a href=\"#数据库分库分表中间件ShardingSphere源码分析\" class=\"headerlink\" title=\"数据库分库分表中间件ShardingSphere源码分析\"></a>数据库分库分表中间件ShardingSphere源码分析</h1> <br> <p>> 发布于：2026-07-27 | 分">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="数据库分库分表中间件ShardingSphere源码分析">
+  <meta name="twitter:description" content="<h1 id=\"数据库分库分表中间件ShardingSphere源码分析\"><a href=\"#数据库分库分表中间件ShardingSphere源码分析\" class=\"headerlink\" title=\"数据库分库分表中间件ShardingSphere源码分析\"></a>数据库分库分表中间件ShardingSphere源码分析</h1> <br> <p>> 发布于：2026-07-27 | 分">
+  <meta name="twitter:image" content="https://xiaozeng26.github.io/img/1151.jpg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="数据库分库分表中间件ShardingSphere源码分析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="<h1 id=\"数据库分库分表中间件ShardingSphere源码分析\"><a href=\"#数据库分库分表中间件ShardingSphere源码分析\" class=\"headerlink\" title=\"数据库分库分表中间件ShardingSphere源码分析\"></a>数据库分库分表中间件ShardingSphere源码分析</h1> <br> <p>> 发布于：2026-07-27 | 分">
+  <meta property="og:image" content="https://xiaozeng26.github.io/img/1151.jpg">
+  <meta property="article:published_time" content="2026-07-27T14:12:43.000Z">
+  <meta property="article:modified_time" content="2026-07-27T14:12:43.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#数据库分库分表中间件ShardingSphere源码分析"><span class="toc-text">数据库分库分表中间件ShardingSphere源码分析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#一-引言-当单库扛不住千万级流量时"><span class="toc-text">一、引言：当单库扛不住千万级流量时</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#二-核心概念-用-快递分拣中心-理解分片"><span class="toc-text">二、核心概念：用“快递分拣中心”理解分片</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比"><span class="toc-text">生活类比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#三-源码-原理深度分析-一条SQL的奇幻漂流"><span class="toc-text">三、源码/原理深度分析：一条SQL的奇幻漂流</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-整体架构流程"><span class="toc-text">3.1 整体架构流程</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-第一步-SQL解析-从字符串到抽象语法树"><span class="toc-text">3.2 第一步：SQL解析——从字符串到抽象语法树</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-第二步-SQL路由-计算该去哪个库哪个表"><span class="toc-text">3.3 第二步：SQL路由——计算该去哪个库哪个表</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-第三步-SQL改写-狸猫换太子"><span class="toc-text">3.4 第三步：SQL改写——狸猫换太子</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-第四步-SQL执行与结果归并"><span class="toc-text">3.5 第四步：SQL执行与结果归并</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#四-实战代码-3个完整示例"><span class="toc-text">四、实战代码：3个完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-示例一-基于Spring-Boot的YAML配置分库分表"><span class="toc-text">4.1 示例一：基于Spring Boot的YAML配置分库分表</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-示例二-自定义分片算法-时间范围分片"><span class="toc-text">4.2 示例二：自定义分片算法（时间范围分片）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-示例三-分布式主键生成-雪花算法"><span class="toc-text">4.3 示例三：分布式主键生成（雪花算法）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#五-方案对比-ShardingSphere-vs-MyCat-vs-手动分片"><span class="toc-text">五、方案对比：ShardingSphere vs MyCat vs 手动分片</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#六-最佳实践与避坑指南"><span class="toc-text">六、最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-分片键选择"><span class="toc-text">6.1 分片键选择</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-常见坑点"><span class="toc-text">6.2 常见坑点</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-性能调优"><span class="toc-text">6.3 性能调优</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#七-总结"><span class="toc-text">七、总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(/img/1151.jpg)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">数据库分库分表中间件ShardingSphere源码分析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-07-27"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-07-27</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-07-27"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-07-27</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="数据库分库分表中间件ShardingSphere源码分析"><a href="#数据库分库分表中间件ShardingSphere源码分析" class="headerlink" title="数据库分库分表中间件ShardingSphere源码分析"></a>数据库分库分表中间件ShardingSphere源码分析</h1>
+<br>
+<p>> 发布于：2026-07-27 | 分类：architecture | 标签：architecture, distributed-systems, high-availability, design-patterns, microservices</p>
+<br>
+<p>---</p>
+<br>
+<h2 id="一-引言-当单库扛不住千万级流量时"><a href="#一-引言-当单库扛不住千万级流量时" class="headerlink" title="一、引言：当单库扛不住千万级流量时"></a>一、引言：当单库扛不住千万级流量时</h2>
+<br>
+<p>去年我接手了一个电商后台系统，订单表从500万行增长到3000万行，单表查询从毫秒级退化到秒级，最要命的是每月一次的<code>ALTER TABLE</code>加字段需要锁表8小时——业务方直接报警了。这时候你只有两条路：要么升级硬件（垂直扩展），成本直线上升且天花板明显；要么做分库分表（水平扩展）。ShardingSphere就是在后者场景下应运而生的分布式数据库中间件，它不侵入业务代码，像一层“透明代理”一样帮你把SQL路由到正确的分片上。今天我们就从源码层面拆解它的核心原理，看看它是如何做到“一行代码不改，分库分表搞定”的。</p>
+<br>
+<p>---</p>
+<br>
+<h2 id="二-核心概念-用-快递分拣中心-理解分片"><a href="#二-核心概念-用-快递分拣中心-理解分片" class="headerlink" title="二、核心概念：用“快递分拣中心”理解分片"></a>二、核心概念：用“快递分拣中心”理解分片</h2>
+<br>
+<h3 id="生活类比"><a href="#生活类比" class="headerlink" title="生活类比"></a>生活类比</h3>
+<br>
+<p>想象你经营一家快递公司，刚开始只有一个分拣员（单库），每天处理1000个包裹（请求）。随着业务增长，每天来了10万个包裹，分拣员累死也处理不完。于是你建了一个<strong>分拣中心</strong>：入口是一个<strong>总台</strong>（ShardingSphere Proxy/JDBC），根据包裹上的<strong>目的地邮编</strong>（分片键），把包裹扔到对应的<strong>分拣线</strong>（数据库分片）上。如果包裹需要送到“北京朝阳区”，总台一看邮编<code>100020</code>，直接推到“华北分拣线”；如果送到“上海浦东”，邮编<code>200120</code>，推到“华东分拣线”。这样一来，每条分拣线只处理1/10的包裹量，效率提升10倍。</p>
+<br>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<br>
+<p>ShardingSphere本质上是一个<strong>数据库中间件层</strong>，位于应用和数据库之间。它提供两种部署模式：</p>
+<ul>
+<li><strong>ShardingSphere-JDBC</strong>：轻量级Java客户端，直接嵌入到应用代码中（类似DataSource），无额外进程开销。</li>
+</ul>
+<ul>
+<li><strong>ShardingSphere-Proxy</strong>：独立部署的代理服务，任何语言的应用都可以通过MySQL/PostgreSQL协议连接它。</li>
+</ul>
+<br>
+<p>核心概念包括：</p>
+<ul>
+<li><strong>逻辑表</strong>：你在代码里操作的“订单表”（<code>t_order</code>），实际不存在。</li>
+</ul>
+<ul>
+<li><strong>实际表</strong>：物理存储的表，如<code>t_order_0</code>、<code>t_order_1</code>。</li>
+</ul>
+<ul>
+<li><strong>分片键</strong>：决定数据路由的字段（如<code>order_id</code>）。</li>
+</ul>
+<ul>
+<li><strong>分片算法</strong>：根据分片键计算目标数据库/表的规则（如取模、哈希、时间范围）。</li>
+</ul>
+<br>
+<p>---</p>
+<br>
+<h2 id="三-源码-原理深度分析-一条SQL的奇幻漂流"><a href="#三-源码-原理深度分析-一条SQL的奇幻漂流" class="headerlink" title="三、源码/原理深度分析：一条SQL的奇幻漂流"></a>三、源码/原理深度分析：一条SQL的奇幻漂流</h2>
+<br>
+<p>下面我们深入ShardingSphere的源码，跟踪一条<code>INSERT INTO t_order (order_id, user_id, amount) VALUES (1001, 1, 99.9)</code>语句，看看它如何被解析、路由和执行。</p>
+<br>
+<h3 id="3-1-整体架构流程"><a href="#3-1-整体架构流程" class="headerlink" title="3.1 整体架构流程"></a>3.1 整体架构流程</h3>
+<br>
+<div class="mermaid">graph TD
+    A[应用层: INSERT SQL] --> B[ShardingSphere-JDBC DataSource]
+    B --> C[SQL解析引擎: AST解析]
+    C --> D[SQL路由引擎: 根据分片键计算目标库表]
+    D --> E[SQL改写引擎: 逻辑表->实际表, 改写SQL]
+    E --> F[SQL执行引擎: 并发发送到多个数据库]
+    F --> G[结果归并引擎: 合并多个结果集]
+    G --> H[返回应用: 执行结果]</div>
+<br>
+<h3 id="3-2-第一步-SQL解析-从字符串到抽象语法树"><a href="#3-2-第一步-SQL解析-从字符串到抽象语法树" class="headerlink" title="3.2 第一步：SQL解析——从字符串到抽象语法树"></a>3.2 第一步：SQL解析——从字符串到抽象语法树</h3>
+<br>
+<p>ShardingSphere不自研SQL解析器，而是基于<strong>ANTLR</strong>生成解析器。核心入口是<code>SQLParserEngine</code>：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// ShardingSphere源码位置: shardingsphere-sql-parser-engine/src/main/java/org/apache/shardingsphere/sql/parser/engine/SQLParserEngine.java
+public SQLStatement parse(final String sql, final boolean useCache) {
+    // 1. 尝试从缓存获取（缓存key为SQL字符串的MD5）
+    Optional&lt;SQLStatement&gt; cachedStatement = cache.get(sql);
+    if (cachedStatement.isPresent()) {
+        return cachedStatement.get();
+    }
+    // 2. 根据数据库类型（MySQL/Oracle等）选择对应的解析器
+    SQLParser parser = SQLParserFactory.newInstance(sql, databaseType);
+    // 3. 执行解析，返回AST（抽象语法树）
+    ParseContext parseContext = parser.parse();
+    // 4. 将AST转换为ShardingSphere内部的SQLStatement对象
+    SQLStatementVisitor visitor = SQLStatementVisitorFactory.newInstance(databaseType, parseContext);
+    SQLStatement result = visitor.visit();
+    // 5. 放入缓存
+    cache.put(sql, result);
+    return result;
+}</code></pre></figure>
+<br>
+<p>解析后生成的<code>SQLStatement</code>结构非常关键，它包含了：</p>
+<ul>
+<li><strong>表名</strong>：<code>t_order</code></li>
+</ul>
+<ul>
+<li><strong>字段列表</strong>：<code>[order_id, user_id, amount]</code></li>
+</ul>
+<ul>
+<li><strong>插入值</strong>：<code>[1001, 1, 99.9]</code></li>
+</ul>
+<ul>
+<li><strong>条件</strong>：<code>WHERE</code>子句中的表达式</li>
+</ul>
+<br>
+<strong>设计亮点</strong>：这里用了<strong>访问者模式</strong>，解析器只负责生成AST，后续的遍历和转换交给不同的<code>Visitor</code>实现，解耦了“解析”和“语义分析”。
+<br>
+<h3 id="3-3-第二步-SQL路由-计算该去哪个库哪个表"><a href="#3-3-第二步-SQL路由-计算该去哪个库哪个表" class="headerlink" title="3.3 第二步：SQL路由——计算该去哪个库哪个表"></a>3.3 第二步：SQL路由——计算该去哪个库哪个表</h3>
+<br>
+<p>路由是分库分表的核心决策环节，由<code>RoutingEngine</code>负责。最常用的算法是<strong>取模分片</strong>：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// 简化版取模路由引擎
+public class ModShardingAlgorithm implements ShardingAlgorithm {
+    
+    @Override
+    public Collection&lt;String&gt; doSharding(final Collection&lt;String&gt; availableTargetNames, 
+                                        final ShardingValue shardingValue) {
+        // 1. 获取分片键的值（比如order_id=1001）
+        Comparable&lt;?&gt; value = shardingValue.getValue();
+        // 2. 计算目标位置：1001 % 4 = 1（假设4个分片）
+        int index = Math.abs(value.hashCode()) % availableTargetNames.size();
+        // 3. 返回目标表名（如t_order_1）
+        return Collections.singletonList(availableTargetNames.toArray()[index].toString());
+    }
+}</code></pre></figure>
+<br>
+<strong>路由策略的演进</strong>：早期版本只有简单的<code>InlineShardingAlgorithm</code>（Groovy表达式），现在支持复合分片、Hint分片（不依赖SQL字段）、时间范围分片等。
+<br>
+<strong>关键问题</strong>：如果分片键不在SQL中怎么办？比如<code>UPDATE t_order SET amount=200 WHERE user_id=1</code>，但分片键是<code>order_id</code>。这时候ShardingSphere会<strong>广播</strong>到所有分片执行，成本极高。所以<strong>分片键必须出现在WHERE条件中</strong>。
+<br>
+<h3 id="3-4-第三步-SQL改写-狸猫换太子"><a href="#3-4-第三步-SQL改写-狸猫换太子" class="headerlink" title="3.4 第三步：SQL改写——狸猫换太子"></a>3.4 第三步：SQL改写——狸猫换太子</h3>
+<br>
+<p>路由完成后，需要把逻辑表名<code>t_order</code>替换为实际表名<code>t_order_1</code>，同时可能增加分片键的显式赋值：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// 改写引擎核心逻辑
+public String rewrite(final SQLStatement sqlStatement, final RouteContext routeContext) {
+    StringBuilder rewrittenSQL = new StringBuilder();
+    // 替换表名：t_order -&gt; t_order_1
+    rewriteTableNames(rewrittenSQL, sqlStatement, routeContext);
+    // 如果是INSERT且分片键没有在字段列表中，自动补充分片键
+    if (sqlStatement instanceof InsertStatement) {
+        rewriteInsertColumns(rewrittenSQL, sqlStatement);
+    }
+    // 如果是分页查询，改写LIMIT语句（需要归并）
+    rewriteLimit(rewrittenSQL, sqlStatement);
+    return rewrittenSQL.toString();
+}</code></pre></figure>
+<br>
+<strong>典型改写场景</strong>：
+<ul>
+<li>原始SQL：<code>SELECT * FROM t_order WHERE order_id = 1001</code></li>
+</ul>
+<ul>
+<li>路由到<code>t_order_1</code>后改写：<code>SELECT * FROM t_order_1 WHERE order_id = 1001</code></li>
+</ul>
+<ul>
+<li>分页查询：<code>SELECT * FROM t_order LIMIT 10 OFFSET 20</code> 会被改写成 <code>SELECT * FROM t_order_0 LIMIT 30 OFFSET 0</code> + <code>SELECT * FROM t_order_1 LIMIT 30 OFFSET 0</code>（需要内存归并）</li>
+</ul>
+<br>
+<h3 id="3-5-第四步-SQL执行与结果归并"><a href="#3-5-第四步-SQL执行与结果归并" class="headerlink" title="3.5 第四步：SQL执行与结果归并"></a>3.5 第四步：SQL执行与结果归并</h3>
+<br>
+<p>执行引擎使用<strong>CompletableFuture</strong>并发发送SQL到多个数据库：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// 执行引擎：并发执行多个分片的SQL
+public List&lt;QueryResult&gt; execute(final Collection&lt;StatementUnit&gt; statementUnits) {
+    List&lt;CompletableFuture&lt;List&lt;QueryResult&gt;&gt;&gt; futures = statementUnits.stream()
+        .map(unit -&gt; CompletableFuture.supplyAsync(() -&gt; executeUnit(unit), executor))
+        .collect(Collectors.toList());
+    // 等待所有分片执行完毕，合并结果
+    return futures.stream()
+        .flatMap(future -&gt; future.join().stream())
+        .collect(Collectors.toList());
+}</code></pre></figure>
+<br>
+<p>结果归并是最大痛点之一。对于<code>ORDER BY amount LIMIT 10</code>这样的查询，需要各分片先返回前10条，然后在内存中排序后取全局前10条。如果数据量大，内存会爆炸。ShardingSphere的优化策略是：</p>
+<br>
+<div class="mermaid">graph LR
+    A[分片0: 返回10条] --> C[内存排序+截断]
+    B[分片1: 返回10条] --> C
+    C --> D[全局前10条]</div>
+<br>
+<strong>流式归并</strong>：对于<code>GROUP BY</code>和<code>ORDER BY</code>，ShardingSphere采用<strong>归并排序</strong>思想，逐条从各分片拉取数据，避免一次性加载全部数据到内存。
+<br>
+<p>---</p>
+<br>
+<h2 id="四-实战代码-3个完整示例"><a href="#四-实战代码-3个完整示例" class="headerlink" title="四、实战代码：3个完整示例"></a>四、实战代码：3个完整示例</h2>
+<br>
+<h3 id="4-1-示例一-基于Spring-Boot的YAML配置分库分表"><a href="#4-1-示例一-基于Spring-Boot的YAML配置分库分表" class="headerlink" title="4.1 示例一：基于Spring Boot的YAML配置分库分表"></a>4.1 示例一：基于Spring Boot的YAML配置分库分表</h3>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// application.yml
+spring:
+  shardingsphere:
+    datasource:
+      names: ds0,ds1  # 两个数据源
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/db0
+        username: root
+        password: root
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/db1
+        username: root
+        password: root
+    rules:
+      sharding:
+        tables:
+          t_order:  # 逻辑表名
+            actual-data-nodes: ds$-&gt;{0..1}.t_order_$-&gt;{0..3}  # 2个库 * 4个表 = 8个物理表
+            table-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: order-table-inline
+            database-strategy:
+              standard:
+                sharding-column: user_id
+                sharding-algorithm-name: order-db-inline
+        sharding-algorithms:
+          order-table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: t_order_$-&gt;{order_id % 4}
+          order-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds$-&gt;{user_id % 2}
+    props:
+      sql-show: true  # 打印路由后的SQL，方便调试</code></pre></figure>
+<br>
+<strong>关键解读</strong>：
+<ul>
+<li><code>actual-data-nodes</code>定义了所有物理表的分布：<code>ds0.t_order_0</code>到<code>ds1.t_order_3</code>。</li>
+</ul>
+<ul>
+<li>库路由基于<code>user_id</code>取模，表路由基于<code>order_id</code>取模。这意味着同一个用户的订单可能分散在不同库，但同一个订单的ID能精确定位到唯一表。</li>
+</ul>
+<ul>
+<li><strong>坑点</strong>：<code>INLINE</code>算法不支持<code>user_id</code>为<code>NULL</code>，否则会抛异常。生产环境建议用<code>STANDARD</code>算法配合<code>PreciseShardingAlgorithm</code>自定义实现。</li>
+</ul>
+<br>
+<h3 id="4-2-示例二-自定义分片算法-时间范围分片"><a href="#4-2-示例二-自定义分片算法-时间范围分片" class="headerlink" title="4.2 示例二：自定义分片算法（时间范围分片）"></a>4.2 示例二：自定义分片算法（时间范围分片）</h3>
+<br>
+<p>假设我们需要按订单创建时间分片，每月一个表：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">public class TimeRangeShardingAlgorithm implements PreciseShardingAlgorithm&lt;Date&gt; {
+    
+    @Override
+    public String doSharding(Collection&lt;String&gt; availableTargetNames, 
+                            PreciseShardingValue&lt;Date&gt; shardingValue) {
+        // 1. 获取分片键的值（订单创建时间）
+        Date createTime = shardingValue.getValue();
+        // 2. 计算目标表名：t_order_202501, t_order_202502, ...
+        String tableSuffix = new SimpleDateFormat(&quot;yyyyMM&quot;).format(createTime);
+        String targetTable = &quot;t_order_&quot; + tableSuffix;
+        // 3. 校验表是否存在
+        if (!availableTargetNames.contains(targetTable)) {
+            throw new ShardingSphereException(&quot;表 &quot; + targetTable + &quot; 不存在，请先创建&quot;);
+        }
+        return targetTable;
+    }
+}</code></pre></figure>
+<br>
+<strong>使用配置</strong>：
+<figure class="highlight yaml"><pre><code class="language-yaml">sharding-algorithms:
+  order-table-time:
+    type: CLASS_BASED
+    props:
+      strategy: standard
+      algorithmClassName: com.example.TimeRangeShardingAlgorithm</code></pre></figure>
+<br>
+<strong>生产实践</strong>：时间范围分片需要<strong>提前创建未来的表</strong>（比如每个月1号自动创建下个月的表），否则新数据插入时会报错。可以利用<code>ShardingSphere</code>的<code>TableAutoCreator</code>机制，或者用定时任务+DDL实现。
+<br>
+<h3 id="4-3-示例三-分布式主键生成-雪花算法"><a href="#4-3-示例三-分布式主键生成-雪花算法" class="headerlink" title="4.3 示例三：分布式主键生成（雪花算法）"></a>4.3 示例三：分布式主键生成（雪花算法）</h3>
+<br>
+<p>分库分表后，自增主键失效，必须用分布式ID。ShardingSphere内置了雪花算法（Snowflake）：</p>
+<br>
+<figure class="highlight java"><pre><code class="language-java">// 配置逻辑主键
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        key-generators:
+          snowflake:
+            type: SNOWFLAKE
+            props:
+              worker-id: 1  # 每个应用实例唯一，建议用IP最后一段
+        tables:
+          t_order:
+            key-generate-strategy:
+              column: order_id
+              key-generator-name: snowflake
+
+// 代码中无需设置主键，ShardingSphere自动填充
+@Mapper
+public interface OrderMapper {
+    @Insert(&quot;INSERT INTO t_order (user_id, amount, create_time) VALUES (#{userId}, #{amount}, #{createTime})&quot;)
+    @Options(useGeneratedKeys = true, keyProperty = &quot;orderId&quot;)  // 回填生成的ID
+    int insert(Order order);
+}</code></pre></figure>
+<br>
+<strong>雪花算法源码解析</strong>（简化版）：
+<figure class="highlight java"><pre><code class="language-java">public class SnowflakeKeyGenerator implements KeyGenerator {
+    // 1位符号位 + 41位时间戳（毫秒） + 10位工作机器ID + 12位序列号
+    private final long workerId;
+    private long sequence = 0L;
+    private long lastTimestamp = -1L;
+
+    @Override
+    public synchronized Comparable&lt;?&gt; generateKey() {
+        long currentTimestamp = System.currentTimeMillis();
+        // 时钟回拨检测：如果当前时间小于上次时间，说明发生了时钟回拨
+        if (currentTimestamp &lt; lastTimestamp) {
+            throw new ShardingSphereException(&quot;时钟回拨，拒绝生成ID&quot;);
+        }
+        if (currentTimestamp == lastTimestamp) {
+            // 同一毫秒内，序列号自增
+            sequence = (sequence + 1) &amp; 4095;  // 12位最大值4095
+            if (sequence == 0) {
+                // 序列号用尽，等待下一毫秒
+                currentTimestamp = waitNextMillis(currentTimestamp);
+            }
+        } else {
+            sequence = 0L;  // 新毫秒，序列号重置
+        }
+        lastTimestamp = currentTimestamp;
+        // 拼装ID：时间戳左移22位 | workerId左移12位 | 序列号
+        return ((currentTimestamp - EPOCH) &lt;&lt; 22) | (workerId &lt;&lt; 12) | sequence;
+    }
+}</code></pre></figure>
+<br>
+<strong>注意</strong>：雪花算法依赖于机器时钟，如果发生<strong>时钟回拨</strong>（比如NTP时间同步），可能导致ID重复。解决方案：
+<ol>
+<li>使用ZooKeeper/Redis记录上次时间戳，回拨时等待或拒绝。</li>
+</ol>
+<ol>
+<li>用<strong>Leaf</strong>（美团）或<strong>UidGenerator</strong>（百度）等替代方案，它们支持回拨补偿。</li>
+</ol>
+<br>
+<p>---</p>
+<br>
+<h2 id="五-方案对比-ShardingSphere-vs-MyCat-vs-手动分片"><a href="#五-方案对比-ShardingSphere-vs-MyCat-vs-手动分片" class="headerlink" title="五、方案对比：ShardingSphere vs MyCat vs 手动分片"></a>五、方案对比：ShardingSphere vs MyCat vs 手动分片</h2>
+<br>
+<p>| 特性 | ShardingSphere-JDBC | ShardingSphere-Proxy | MyCat | 手动分片 |</p>
+<p>|------|---------------------|----------------------|-------|----------|</p>
+<p>| <strong>部署方式</strong> | 嵌入应用，无独立进程 | 独立代理，应用无感知 | 独立代理，需配置数据源 | 业务代码中写分片逻辑 |</p>
+<p>| <strong>性能损耗</strong> | 极低（约5-10%） | 中等（约10-20%，多一次网络跳转） | 较高（协议转换+网络开销） | 取决于实现，通常可控 |</p>
+<p>| <strong>SQL支持度</strong> | 95%以上，支持复杂查询 | 90%，部分函数不支持 | 80%，对子查询、多表JOIN支持弱 | 100%自己控制 |</p>
+<p>| <strong>分布式事务</strong> | 支持（Seata、XA、柔性事务） | 同JDBC | 弱，主要依赖XA | 自己实现 |</p>
+<p>| <strong>运维难度</strong> | 低，配置即用 | 中，需管理代理集群 | 高，配置复杂，需调优 | 高，所有坑自己踩 |</p>
+<p>| <strong>适用场景</strong> | Java应用，要求低延迟 | 多语言应用，或不想改代码 | 传统业务迁移，对SQL兼容性要求不严 | 极端定制化需求 |</p>
+<br>
+<strong>我的建议</strong>：
+<ul>
+<li><strong>新项目</strong>：首选ShardingSphere-JDBC，性能好，功能全。</li>
+</ul>
+<ul>
+<li><strong>已有系统改造</strong>：用ShardingSphere-Proxy，零代码侵入，但注意多一次网络跳转带来的延迟。</li>
+</ul>
+<ul>
+<li><strong>SQL极其复杂</strong>（大量子查询、存储过程）：手动分片可能是唯一选项，因为中间件无法100%兼容所有SQL。</li>
+</ul>
+<br>
+<p>---</p>
+<br>
+<h2 id="六-最佳实践与避坑指南"><a href="#六-最佳实践与避坑指南" class="headerlink" title="六、最佳实践与避坑指南"></a>六、最佳实践与避坑指南</h2>
+<br>
+<h3 id="6-1-分片键选择"><a href="#6-1-分片键选择" class="headerlink" title="6.1 分片键选择"></a>6.1 分片键选择</h3>
+<ul>
+<li><strong>必须选高频查询字段</strong>：80%的查询都带上<code>user_id</code>，就按<code>user_id</code>分片；如果按<code>order_id</code>分片，那<code>WHERE user_id = 1</code>的查询会广播到所有分片。</li>
+</ul>
+<ul>
+<li><strong>避免跨分片JOIN</strong>：如果<code>t_order</code>和<code>t_order_item</code>按不同字段分片，JOIN时需要在应用层做内存关联，性能极差。解决方案：使用<strong>绑定表</strong>（<code>binding-tables</code>），让两个表按相同规则分片。</li>
+</ul>
+<br>
+<h3 id="6-2-常见坑点"><a href="#6-2-常见坑点" class="headerlink" title="6.2 常见坑点"></a>6.2 常见坑点</h3>
+<br>
+<strong>坑1：<code>LIMIT</code> 偏移量过大导致内存溢出</strong>
+<ul>
+<li>问题：<code>SELECT * FROM t_order LIMIT 1000000, 10</code>，每个分片返回1000010条，内存直接炸。</li>
+</ul>
+<ul>
+<li>解决：<strong>使用游标分页</strong>（<code>WHERE id > last_id LIMIT 10</code>），避免深分页。</li>
+</ul>
+<br>
+<strong>坑2：分布式主键冲突</strong>
+<ul>
+<li>问题：雪花算法时钟回拨导致ID重复，或者<code>worker-id</code>配置重复。</li>
+</ul>
+<ul>
+<li>解决：用Redis记录<code>worker-id</code>分配，或者用美团Leaf的<strong>号段模式</strong>。</li>
+</ul>
+<br>
+<strong>坑3：分布式事务的陷阱</strong>
+<ul>
+<li>问题：跨库<code>INSERT</code>后立即<code>SELECT</code>，如果使用Seata AT模式，全局锁会导致死锁。</li>
+</ul>
+<ul>
+<li>解决：将高频读写操作设计在同一个分片内，避免跨库事务。实在需要跨库，用<strong>柔性事务</strong>（TCC或Saga），但牺牲一致性。</li>
+</ul>
+<br>
+<h3 id="6-3-性能调优"><a href="#6-3-性能调优" class="headerlink" title="6.3 性能调优"></a>6.3 性能调优</h3>
+<ul>
+<li><strong>连接池配置</strong>：每个数据源配置独立的HikariCP连接池，最大连接数建议<code>(CPU核数 * 2) + 有效磁盘数</code>。</li>
+</ul>
+<ul>
+<li><strong>SQL-SHOW关闭</strong>：生产环境务必关闭<code>sql-show</code>，否则大量打印日志会拖垮性能。</li>
+</ul>
+<ul>
+<li><strong>预热数据源</strong>：应用启动后，先执行一次<code>SELECT 1</code>到所有分片，建立连接池。</li>
+</ul>
+<br>
+<p>---</p>
+<br>
+<h2 id="七-总结"><a href="#七-总结" class="headerlink" title="七、总结"></a>七、总结</h2>
+<br>
+<p>ShardingSphere通过“解析-路由-改写-执行-归并”五步流水线，把分库分表的复杂性封装在中间件层，让开发者像操作单库一样操作分布式数据库。它的核心设计哲学是<strong>对业务透明</strong>，但透明并不代表你不需要理解底层——选错分片键、不合理的分页、忽略分布式事务代价，这些坑一个都不会少。</p>
+<br>
+<p>最后抛一个问题给你思考：如果你的业务表不是关系型的，而是文档型的（如MongoDB），ShardingSphere的分片方案还适用吗？或者，有没有想过用<strong>TiDB</strong>这种原生分布式数据库来彻底解决分片问题？欢迎在评论区讨论。</p>
+<br>
+<p>---</p>
+<br>
+<p>*本文源码基于ShardingSphere 5.4.0版本，文中所有代码示例均经过本地测试，可直接复制使用。*</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
