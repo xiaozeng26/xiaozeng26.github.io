@@ -1,0 +1,5 @@
+# 自动博客生成系统依赖
+# 安装: pip install -r requirements.txt
+
+# Python 3.10+ 自带 json, os, re, sys, random, subprocess, hashlib, urllib, pathlib, datetime
+# 无需额外依赖，使用标准库即可运行
