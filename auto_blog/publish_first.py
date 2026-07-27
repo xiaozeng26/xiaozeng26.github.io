@@ -70,7 +70,7 @@ def main():
     success = git_commit_and_push(post_title)
 
     if success:
-        print(f"\n✅ 第一篇博客发布成功！")
+        print(f"\n[SUCCESS] 第一篇博客发布成功!")
         print(f"   标题: {post_title}")
         print(f"   访问: https://xiaozeng26.github.io{url_path}")
     else:

@@ -752,7 +752,7 @@ def main():
 
     if success:
         print(f"\n{'=' * 60}")
-        print(f"  ✅ 博客发布成功！")
+        print(f"  [SUCCESS] 博客发布成功!")
         print(f"  标题: {post_title}")
         print(f"  访问: https://xiaozeng26.github.io{url_path}")
         print(f"{'=' * 60}")

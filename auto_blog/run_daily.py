@@ -56,14 +56,14 @@ def main():
                 log(f"  {line}")
 
         if result.returncode == 0:
-            log("✅ 博客生成成功")
+            log("[SUCCESS] 博客生成成功")
         else:
-            log(f"❌ 博客生成失败，返回码: {result.returncode}")
+            log(f"[FAILED] 博客生成失败，返回码: {result.returncode}")
 
     except subprocess.TimeoutExpired:
-        log("❌ 博客生成超时（超过10分钟）")
+        log("[TIMEOUT] 博客生成超时（超过10分钟）")
     except Exception as e:
-        log(f"❌ 运行异常: {e}")
+        log(f"[ERROR] 运行异常: {e}")
         import traceback
         log(traceback.format_exc())
 
