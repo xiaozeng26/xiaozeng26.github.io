@@ -13,6 +13,13 @@
       "subtopic": "数据库分库分表中间件ShardingSphere源码分析",
       "date": "2026-07-27",
       "url": "/2026/07/27/architecture-c1660d63/"
+    },
+    {
+      "title": "Go项目工程化：wire依赖注入与分层架构",
+      "category": "golang",
+      "subtopic": "Go项目工程化：wire依赖注入与分层架构",
+      "date": "2026-07-27",
+      "url": "/2026/07/27/golang-47d6135a/"
     }
   ],
   "used_subtopics": {
@@ -21,9 +28,13 @@
     ],
     "architecture": [
       "数据库分库分表中间件ShardingSphere源码分析"
+    ],
+    "go": [
+      "Go项目工程化：wire依赖注入与分层架构"
     ]
   },
   "content_hashes": {
-    "数据库分库分表中间件ShardingSphere源码分析": "a5223ab1b1040d3b388856821f995f95aceca16a4fabc601b2299731229016ec"
+    "数据库分库分表中间件ShardingSphere源码分析": "a5223ab1b1040d3b388856821f995f95aceca16a4fabc601b2299731229016ec",
+    "Go项目工程化：wire依赖注入与分层架构": "cc3ed0b9611d0a2dea7511fe38aeabda41877d658c9e1fb11e2f981fc361a62b"
   }
 }
