@@ -49,19 +49,31 @@ GitHub Actions (云端, 每天20:00触发)
 
 ---
 
-## 本地运行
+## 本地运行（跨平台：Windows / macOS / Linux）
 
-```powershell
-# 方式一：环境变量
-set DEEPSEEK_API_KEY=sk-xxx
-cd D:\xiaozeng26.github.io\auto_blog
-python generate_post.py
-
-# 方式二：写入密钥文件
-echo DEEPSEEK_API_KEY=sk-xxx > D:\xiaozeng26.github.io\auto_blog\.apikey
-cd D:\xiaozeng26.github.io\auto_blog
-python generate_post.py
+### 一次性：配置 API Key
+```bash
+echo DEEPSEEK_API_KEY=sk-xxx > auto_blog/.apikey
 ```
+
+### 手动运行
+```bash
+python run_blog.py                    # 生成一篇并推送
+python auto_blog/generate_post.py     # 直接调用核心脚本
+```
+
+### 配置本地定时任务（每天 20:00）
+```bash
+python run_blog.py --schedule        # 自动检测系统并配置定时任务
+```
+
+| 系统 | 定时方式 |
+|------|---------|
+| macOS | launchd（`~/Library/LaunchAgents/`） |
+| Linux | crontab（`crontab -e` 手动添加） |
+| Windows | 任务计划器（`schtasks`） |
+
+> **换电脑后只需要两步**：① `git clone` ② `echo KEY > .apikey && python run_blog.py --schedule`
 
 ---
 
@@ -172,7 +184,7 @@ D:\xiaozeng26.github.io\
 │   ├── history.json           # 已生成记录（自动维护）
 │   ├── .apikey                # 本地 API Key（仅本地使用）
 │   └── logs/                  # 运行日志
-├── run_blog.bat               # Windows 定时任务入口
+├── run_blog.py                # 跨平台运行入口（替代旧的 .bat）
 ├── index.html                 # 博客首页（自动更新）
 ├── 2026/07/27/...             # 生成的文章目录
 └── img/                       # 封面图片资源
