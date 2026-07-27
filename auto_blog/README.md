@@ -5,7 +5,7 @@
 ```
 GitHub Actions (云端, 每天20:00触发)
     │
-    ├─→ 调用 Claude API 生成博客内容
+    ├─→ 调用 DeepSeek API 生成博客内容
     ├─→ 生成 HTML 页面（匹配现有 Hexo 模板）
     ├─→ 更新首页文章列表
     ├─→ Git commit & push → GitHub Pages 自动部署
@@ -13,32 +13,29 @@ GitHub Actions (云端, 每天20:00触发)
     └─→ 访问: https://xiaozeng26.github.io
 ```
 
-**核心优势**：workflow 文件随仓库一起克隆，换任何电脑都不需要重新配置定时任务。只要仓库在，每天自动运行。
+**默认 AI Provider: DeepSeek**（也支持切换到 Claude，修改 config.json 即可）
 
 ---
 
 ## 快速开始
 
-### 第一步：获取 API Key
+### 第一步：获取 DeepSeek API Key
 
-1. 打开 https://console.anthropic.com/ → 注册/登录
-2. 点击 **Settings → API Keys**
-3. 点击 **Create Key**，复制 `sk-ant-api03-xxx...`
+1. 打开 https://platform.deepseek.com/api_keys → 注册/登录
+2. 点击 **创建 API Key**，复制 `sk-xxx...`
 
-> 费用预估：每篇博客约 $0.03-0.10，一个月约 $1-3
+> DeepSeek 价格极低：约 ￥1/百万 tokens，每篇博客约 ￥0.01-0.02
 
-### 第二步：配置到 GitHub（必须）
+### 第二步：配置到 GitHub
 
 1. 打开仓库 Secrets 页面：
    ```
    https://github.com/xiaozeng26/xiaozeng26.github.io/settings/secrets/actions
    ```
 2. 点击 **New repository secret**
-3. Name 填：`ANTHROPIC_API_KEY`
-4. Value 填：你的 API Key（`sk-ant-api03-xxx...`）
+3. **Name** 填：`DEEPSEEK_API_KEY`
+4. **Value** 填：你的 DeepSeek API Key（`sk-xxx...`）
 5. 点击 **Add secret**
-
-> 配置后，GitHub Actions 每天 20:00 就能自动调用 AI 生成博客了。
 
 ### 第三步：手动触发测试
 
@@ -48,27 +45,47 @@ GitHub Actions (云端, 每天20:00触发)
    ```
 2. 点击左侧 **Daily Blog Generation**
 3. 点击右侧 **Run workflow → Run workflow**
-4. 等待 ~2 分钟，查看结果
+4. 等待 ~2 分钟，查看文章是否生成成功
 
 ---
 
-## 本地运行（可选）
+## 本地运行
 
-如果想在本地手动生成一篇：
-
-### 方式一：设置环境变量
 ```powershell
-set ANTHROPIC_API_KEY=sk-ant-api03-xxx
+# 方式一：环境变量
+set DEEPSEEK_API_KEY=sk-xxx
+cd D:\xiaozeng26.github.io\auto_blog
+python generate_post.py
+
+# 方式二：写入密钥文件
+echo DEEPSEEK_API_KEY=sk-xxx > D:\xiaozeng26.github.io\auto_blog\.apikey
 cd D:\xiaozeng26.github.io\auto_blog
 python generate_post.py
 ```
 
-### 方式二：写入密钥文件
-```powershell
-echo sk-ant-api03-xxx > D:\xiaozeng26.github.io\auto_blog\.apikey
-cd D:\xiaozeng26.github.io\auto_blog
-python generate_post.py
+---
+
+## 切换 AI Provider
+
+编辑 `auto_blog/config.json` 中 `generation` 部分：
+
+```json
+// 使用 DeepSeek（默认）
+"generation": {
+    "api_provider": "deepseek",
+    "model": "deepseek-chat",
+    ...
+}
+
+// 切换到 Claude（需要能注册 Anthropic 账号）
+"generation": {
+    "api_provider": "claude",
+    "model": "claude-sonnet-4-20250514",
+    ...
+}
 ```
+
+切换后对应的 GitHub Secret 也需要改为 `ANTHROPIC_API_KEY`。
 
 ---
 

@@ -121,39 +121,96 @@ def choose_topic(config, history):
     return cat, chosen, topics[cat]
 
 # ============================================================
-# Claude API 调用
+# AI API 调用（支持多Provider: deepseek / claude）
 # ============================================================
-def call_claude_api(prompt, config):
-    """调用 Anthropic Claude API 生成博客内容"""
+SYSTEM_PROMPT = "你是一位资深技术博客作者，拥有10年以上Java/Go/Python全栈开发经验，擅长将复杂的技术原理用通俗易懂的方式讲清楚。文章内容要有源码级深度，同时用生活化类比降低理解门槛。"
+
+def _get_api_key(config):
+    """获取 API Key，优先级：环境变量 > .apikey 文件"""
+    provider = config["generation"].get("api_provider", "deepseek")
+    env_key_map = {
+        "deepseek": "DEEPSEEK_API_KEY",
+        "claude": "ANTHROPIC_API_KEY",
+    }
+    env_var = env_key_map.get(provider, "DEEPSEEK_API_KEY")
+
+    api_key = os.environ.get(env_var, "")
+    if api_key:
+        return api_key
+
+    # 从 .apikey 文件读取
+    key_file = SCRIPT_DIR / ".apikey"
+    if key_file.exists():
+        content = key_file.read_text().strip()
+        # 如果有等号，取=后面的值
+        if "=" in content and not content.startswith("sk-"):
+            api_key = content.split("=", 1)[1].strip()
+        elif content.startswith("sk-"):
+            api_key = content
+        if api_key:
+            return api_key
+
+    raise RuntimeError(
+        f"未找到 {env_var}！请设置环境变量或在 auto_blog/.apikey 文件中写入 API Key\n"
+        f"获取 DeepSeek API Key: https://platform.deepseek.com/api_keys\n"
+        f"获取 Claude API Key: https://console.anthropic.com/settings/keys"
+    )
+
+def call_deepseek_api(prompt, config):
+    """调用 DeepSeek API（兼容 OpenAI 格式）"""
     import urllib.request
     import urllib.error
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        # 尝试从文件读取
-        key_file = SCRIPT_DIR / ".apikey"
-        if key_file.exists():
-            api_key = key_file.read_text().strip()
-        else:
-            # 尝试从 ~/.claude.json 读取
-            claude_json = Path(os.environ.get("HOME", "~")) / ".claude.json"
-            if claude_json.exists():
-                try:
-                    cj = json.loads(claude_json.read_text())
-                    # 查找 anthropic 相关的 key
-                    for k, v in cj.items():
-                        if "api" in k.lower() and "key" in k.lower():
-                            api_key = v
-                            break
-                except:
-                    pass
+    api_key = _get_api_key(config)
+    gen_cfg = config["generation"]
+    model = gen_cfg.get("model", "deepseek-chat")
 
-    if not api_key:
-        raise RuntimeError(
-            "未找到 ANTHROPIC_API_KEY！请设置环境变量 ANTHROPIC_API_KEY=your-key\n"
-            "或在 auto_blog/.apikey 文件中写入 API Key"
-        )
+    body = json.dumps({
+        "model": model,
+        "max_tokens": gen_cfg.get("max_tokens", 8000),
+        "temperature": gen_cfg.get("temperature", 0.8),
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ]
+    })
 
+    req = urllib.request.Request(
+        "https://api.deepseek.com/v1/chat/completions",
+        data=body.encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+    )
+
+    for attempt in range(gen_cfg.get("retry_count", 3)):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                return result["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8") if e.fp else ""
+            if attempt < gen_cfg.get("retry_count", 3) - 1:
+                print(f"[重试] API 请求失败（第{attempt+1}次）: {e.code}，等待重试...")
+                import time
+                time.sleep((attempt + 1) * 5)
+            else:
+                raise RuntimeError(f"DeepSeek API 请求失败: {e.code} - {error_body}")
+        except Exception as e:
+            if attempt < gen_cfg.get("retry_count", 3) - 1:
+                print(f"[重试] 网络错误（第{attempt+1}次）: {e}，等待重试...")
+                import time
+                time.sleep((attempt + 1) * 5)
+            else:
+                raise RuntimeError(f"DeepSeek API 网络错误: {e}")
+
+def call_claude_api(prompt, config):
+    """调用 Anthropic Claude API"""
+    import urllib.request
+    import urllib.error
+
+    api_key = _get_api_key(config)
     gen_cfg = config["generation"]
     model = gen_cfg.get("model", "claude-sonnet-4-20250514")
 
@@ -161,7 +218,7 @@ def call_claude_api(prompt, config):
         "model": model,
         "max_tokens": gen_cfg.get("max_tokens", 8000),
         "temperature": gen_cfg.get("temperature", 0.8),
-        "system": "你是一位资深技术博客作者，拥有10年以上Java/Go/Python全栈开发经验，擅长将复杂的技术原理用通俗易懂的方式讲清楚。",
+        "system": SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": prompt}]
     })
 
@@ -175,17 +232,40 @@ def call_claude_api(prompt, config):
         }
     )
 
-    try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            # Claude API 返回 content[0].text
-            for content_item in result.get("content", []):
-                if content_item.get("type") == "text":
-                    return content_item["text"]
-            raise RuntimeError(f"Claude API 返回格式异常: {result}")
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8") if e.fp else ""
-        raise RuntimeError(f"Claude API 请求失败: {e.code} - {error_body}")
+    for attempt in range(gen_cfg.get("retry_count", 3)):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                for content_item in result.get("content", []):
+                    if content_item.get("type") == "text":
+                        return content_item["text"]
+                raise RuntimeError(f"Claude API 返回格式异常: {result}")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8") if e.fp else ""
+            if attempt < gen_cfg.get("retry_count", 3) - 1:
+                print(f"[重试] API 请求失败（第{attempt+1}次）: {e.code}，等待重试...")
+                import time
+                time.sleep((attempt + 1) * 5)
+            else:
+                raise RuntimeError(f"Claude API 请求失败: {e.code} - {error_body}")
+        except Exception as e:
+            if attempt < gen_cfg.get("retry_count", 3) - 1:
+                print(f"[重试] 网络错误（第{attempt+1}次）: {e}，等待重试...")
+                import time
+                time.sleep((attempt + 1) * 5)
+            else:
+                raise RuntimeError(f"Claude API 网络错误: {e}")
+
+def call_ai_api(prompt, config):
+    """统一的 AI API 调用入口，根据配置选择 provider"""
+    provider = config["generation"].get("api_provider", "deepseek")
+    print(f"[API] Provider: {provider}, Model: {config['generation'].get('model', 'default')}")
+
+    if provider == "claude":
+        return call_claude_api(prompt, config)
+    else:
+        # 默认使用 DeepSeek
+        return call_deepseek_api(prompt, config)
 
 # ============================================================
 # Prompt 构建
@@ -741,16 +821,19 @@ def main():
     print(f"[Prompt] 长度: {len(prompt)} 字符")
 
     # 4. 调用 AI 生成内容
-    print("\n[生成] 正在调用 Claude API 生成博客内容...")
+    provider = config["generation"].get("api_provider", "deepseek")
+    print(f"\n[生成] 正在调用 {provider.upper()} API 生成博客内容...")
     try:
-        md_content = call_claude_api(prompt, config)
+        md_content = call_ai_api(prompt, config)
         print(f"[生成] 内容长度: {len(md_content)} 字符")
     except RuntimeError as e:
         print(f"\n[ERROR] {e}")
-        print("\n请确保已设置 ANTHROPIC_API_KEY 环境变量")
-        print("GitHub Actions: 在仓库 Settings → Secrets → Actions 中添加 ANTHROPIC_API_KEY")
-        print("本地运行: 设置环境变量或在 auto_blog/.apikey 文件中写入")
-        print("获取 API Key: https://console.anthropic.com/settings/keys")
+        print("\n请确保已设置 API Key：")
+        print("  DeepSeek: https://platform.deepseek.com/api_keys")
+        print("  Claude:   https://console.anthropic.com/settings/keys")
+        print("配置方法:")
+        print("  GitHub Actions: Settings → Secrets → Actions → 添加 DEEPSEEK_API_KEY")
+        print("  本地: 在 auto_blog/.apikey 文件中写入 API Key")
         sys.exit(1)
 
     # 5. 提取标题

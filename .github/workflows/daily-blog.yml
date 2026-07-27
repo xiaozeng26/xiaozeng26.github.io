@@ -6,7 +6,8 @@ name: Daily Blog Generation
 #
 # 便携性说明：
 #   此 workflow 文件随仓库一起克隆，换任何电脑都不需要重新配置。
-#   唯一需要的是在 GitHub 仓库设置中配置 ANTHROPIC_API_KEY 密钥。
+#   唯一需要的是在 GitHub 仓库设置中配置 DEEPSEEK_API_KEY 密钥。
+#   获取 Key: https://platform.deepseek.com/api_keys
 # ============================================================
 on:
   schedule:
@@ -37,7 +38,7 @@ jobs:
 
       - name: Generate blog post
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           cd auto_blog
           python generate_post.py --no-git
