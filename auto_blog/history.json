@@ -41,6 +41,13 @@
       "subtopic": "Go泛型的设计哲学与实战应用",
       "date": "2026-07-29",
       "url": "/2026/07/29/Go泛型的设计哲学与实战应用/"
+    },
+    {
+      "title": "Go Embed静态资源嵌入实战",
+      "category": "golang",
+      "subtopic": "Go Embed静态资源嵌入实战",
+      "date": "2026-07-30",
+      "url": "/2026/07/30/Go Embed静态资源嵌入实战/"
     }
   ],
   "used_subtopics": {
@@ -60,7 +67,8 @@
       "K8s RBAC权限控制与安全上下文"
     ],
     "go": [
-      "Go泛型的设计哲学与实战应用"
+      "Go泛型的设计哲学与实战应用",
+      "Go Embed静态资源嵌入实战"
     ]
   },
   "content_hashes": {
@@ -68,6 +76,7 @@
     "RAG（检索增强生成）系统设计与实现": "552fbbd1f13297174ec4768a1534a54e36e51f0553e1d84052c4c356dfed107f",
     "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案": "f28950b21361328afc8f6ad68ddc0cfadddd0ac37d6743df7be8e9a914e11063",
     "K8s RBAC权限控制与安全上下文": "4fbd32defcd399ab711c78eda90f83e6e32aca0c5338e391dd07157b0e60f8ee",
-    "Go泛型的设计哲学与实战应用": "a0c15c5d896b50455e77cda85e3713fc3ab98a4032526a529598ea991bbeba1a"
+    "Go泛型的设计哲学与实战应用": "a0c15c5d896b50455e77cda85e3713fc3ab98a4032526a529598ea991bbeba1a",
+    "Go Embed静态资源嵌入实战": "c28094ef100262d07ac5030d1e201127403bc415d0b3471387715d4d8b3a67c6"
   }
 }
