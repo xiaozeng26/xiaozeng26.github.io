@@ -55,6 +55,13 @@
       "subtopic": "多模态AI应用开发：GPT-4V + LangChain",
       "date": "2026-07-31",
       "url": "/2026/07/31/多模态AI应用开发：GPT-4V + LangChain，让机器真正“看懂”世界/"
+    },
+    {
+      "title": "Istio服务网格Sidecar注入与流量管理：从源码到实战的深度剖析",
+      "category": "cloud-native",
+      "subtopic": "Istio服务网格Sidecar注入与流量管理",
+      "date": "2026-08-01",
+      "url": "/2026/08/01/Istio服务网格Sidecar注入与流量管理：从源码到实战的深度剖析/"
     }
   ],
   "used_subtopics": {
@@ -72,7 +79,8 @@
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案"
     ],
     "docker_kubernetes": [
-      "K8s RBAC权限控制与安全上下文"
+      "K8s RBAC权限控制与安全上下文",
+      "Istio服务网格Sidecar注入与流量管理"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -86,6 +94,7 @@
     "K8s RBAC权限控制与安全上下文": "4fbd32defcd399ab711c78eda90f83e6e32aca0c5338e391dd07157b0e60f8ee",
     "Go泛型的设计哲学与实战应用": "a0c15c5d896b50455e77cda85e3713fc3ab98a4032526a529598ea991bbeba1a",
     "Go Embed静态资源嵌入实战": "c28094ef100262d07ac5030d1e201127403bc415d0b3471387715d4d8b3a67c6",
-    "多模态AI应用开发：GPT-4V + LangChain": "5904ee9fedfd19ec3b04be30923ff26e7f0b0a6317c96fd0b15689616fbe857f"
+    "多模态AI应用开发：GPT-4V + LangChain": "5904ee9fedfd19ec3b04be30923ff26e7f0b0a6317c96fd0b15689616fbe857f",
+    "Istio服务网格Sidecar注入与流量管理": "908ef2344a0fc40cfe64d658cb400ac5b95d12ab06c0fa821ac6cc7d49be3d1f"
   }
 }
