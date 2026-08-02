@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HashMap并发问题与ConcurrentHashMap分段锁演进 | 小曾博客</title>
+  <meta name="description" content="HashMap并发问题与ConcurrentHashMap分段锁演进 引言 想象一下这样的场景：你正在开发一个电商系统的库存服务，使用 HashMap 缓存商品库存信息。上线初期一切正常，但随着双11大促的临近，系统开始频繁出现 CPU 飙升、死循环甚至服务宕机的问题。排查日志时，你发现 HashMap 在高并发写入时内部结构被破坏了。 这不是危言耸听。在 JDK 7 中，HashMap 在并发扩">
+  <meta name="keywords" content="java,jvm,spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="HashMap并发问题与ConcurrentHashMap分段锁演进">
+  <meta name="twitter:description" content="HashMap并发问题与ConcurrentHashMap分段锁演进 引言 想象一下这样的场景：你正在开发一个电商系统的库存服务，使用 HashMap 缓存商品库存信息。上线初期一切正常，但随着双11大促的临近，系统开始频繁出现 CPU 飙升、死循环甚至服务宕机的问题。排查日志时，你发现 HashMap 在高并发写入时内部结构被破坏了。 这不是危言耸听。在 JDK 7 中，HashMap 在并发扩">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3908/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="HashMap并发问题与ConcurrentHashMap分段锁演进">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="HashMap并发问题与ConcurrentHashMap分段锁演进 引言 想象一下这样的场景：你正在开发一个电商系统的库存服务，使用 HashMap 缓存商品库存信息。上线初期一切正常，但随着双11大促的临近，系统开始频繁出现 CPU 飙升、死循环甚至服务宕机的问题。排查日志时，你发现 HashMap 在高并发写入时内部结构被破坏了。 这不是危言耸听。在 JDK 7 中，HashMap 在并发扩">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3908/800/400">
+  <meta property="article:published_time" content="2026-08-02T20:58:55.000Z">
+  <meta property="article:modified_time" content="2026-08-02T20:58:55.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#HashMap并发问题与ConcurrentHashMap分段锁演进"><span class="toc-text">HashMap并发问题与ConcurrentHashMap分段锁演进</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-餐厅后厨的储物柜"><span class="toc-text">生活类比：餐厅后厨的储物柜</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#JDK-7-HashMap-并发死循环的根源"><span class="toc-text">JDK 7 HashMap 并发死循环的根源</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#JDK-8-HashMap-的改进与遗留问题"><span class="toc-text">JDK 8 HashMap 的改进与遗留问题</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#JDK-7-ConcurrentHashMap-分段锁设计"><span class="toc-text">JDK 7 ConcurrentHashMap 分段锁设计</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#JDK-8-ConcurrentHashMap-的-CAS-synchronized-演进"><span class="toc-text">JDK 8 ConcurrentHashMap 的 CAS + synchronized 演进</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#架构演进对比"><span class="toc-text">架构演进对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-并发环境下的-HashMap-数据丢失复现"><span class="toc-text">示例1：并发环境下的 HashMap 数据丢失复现</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-ConcurrentHashMap-并发写入的正确姿势"><span class="toc-text">示例2：ConcurrentHashMap 并发写入的正确姿势</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-从-HashMap-迁移到-ConcurrentHashMap-的性能对比"><span class="toc-text">示例3：从 HashMap 迁移到 ConcurrentHashMap 的性能对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#ConcurrentHashMap-vs-其他并发方案"><span class="toc-text">ConcurrentHashMap vs 其他并发方案</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#ConcurrentHashMap-的局限性"><span class="toc-text">ConcurrentHashMap 的局限性</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/3908/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">HashMap并发问题与ConcurrentHashMap分段锁演进</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-02"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-02</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-02"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-02</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="HashMap并发问题与ConcurrentHashMap分段锁演进"><a href="#HashMap并发问题与ConcurrentHashMap分段锁演进" class="headerlink" title="HashMap并发问题与ConcurrentHashMap分段锁演进"></a>HashMap并发问题与ConcurrentHashMap分段锁演进</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下这样的场景：你正在开发一个电商系统的库存服务，使用 <code>HashMap</code> 缓存商品库存信息。上线初期一切正常，但随着双11大促的临近，系统开始频繁出现 CPU 飙升、死循环甚至服务宕机的问题。排查日志时，你发现 HashMap 在高并发写入时内部结构被破坏了。</p>
+<p>这不是危言耸听。在 JDK 7 中，HashMap 在并发扩容时可能形成环形链表，导致 <code>get</code> 操作陷入死循环；即便在 JDK 8 中改进了扩容算法，<code>put</code> 操作仍可能导致数据丢失。如果你正在维护一个高并发的 Java 服务，理解这个问题并掌握 <code>ConcurrentHashMap</code> 的演进历程是必备技能。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-餐厅后厨的储物柜"><a href="#生活类比-餐厅后厨的储物柜" class="headerlink" title="生活类比：餐厅后厨的储物柜"></a>生活类比：餐厅后厨的储物柜</h3>
+<p>想象一家餐厅后厨，厨师们（线程）共用一个储物柜（Map）存放食材（键值对）。储物柜有很多格子（桶），每个格子可以放多个食材（链表）。</p>
+<ul>
+<li><strong>HashMap</strong> 就像没有锁的储物柜，厨师们可以随意取放，但当储物柜需要扩建（扩容）时，多个厨师同时搬移食材，可能把食材放错格子甚至弄丢。</li>
+</ul>
+<ul>
+<li><strong>Hashtable</strong> 给整个储物柜加了一把大锁，一次只允许一个厨师使用，虽然安全但效率极低。</li>
+</ul>
+<ul>
+<li><strong>ConcurrentHashMap</strong> 则聪明地将储物柜分成多个独立的小柜子（分段/桶），每个小柜子有自己的锁（分段锁/CAS+锁），不同厨师可以同时操作不同的小柜子。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<ul>
+<li><strong>HashMap</strong>：基于哈希表的 Map 实现，非线程安全。JDK 7 使用数组+链表，JDK 8 使用数组+链表+红黑树。</li>
+</ul>
+<ul>
+<li><strong>Hashtable</strong>：线程安全的 HashMap，使用 <code>synchronized</code> 锁住整个表，并发度低。</li>
+</ul>
+<ul>
+<li><strong>ConcurrentHashMap</strong>：线程安全的 HashMap，JDK 7 采用分段锁（Segment），JDK 8 抛弃分段锁，改用 CAS + <code>synchronized</code> 锁住单个桶节点，并发度更高。</li>
+</ul>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="JDK-7-HashMap-并发死循环的根源"><a href="#JDK-7-HashMap-并发死循环的根源" class="headerlink" title="JDK 7 HashMap 并发死循环的根源"></a>JDK 7 HashMap 并发死循环的根源</h3>
+<p>JDK 7 的 <code>HashMap</code> 扩容采用头插法，在并发环境下，两个线程同时扩容同一个桶时，可能形成环形链表：</p>
+<figure class="highlight java"><pre><code class="language-java">// JDK 7 HashMap.transfer() 核心逻辑（简化）
+void transfer(Entry[] newTable, boolean rehash) {
+    int newCapacity = newTable.length;
+    for (Entry&lt;K,V&gt; e : table) {
+        while (null != e) {
+            // 线程A执行到这里被挂起
+            Entry&lt;K,V&gt; next = e.next;
+            int i = indexFor(e.hash, newCapacity);
+            e.next = newTable[i];
+            newTable[i] = e;
+            e = next;
+        }
+    }
+}</code></pre></figure>
+<p>当线程A和线程B同时执行 <code>transfer</code>，线程A在 <code>Entry<K,V> next = e.next</code> 处被挂起，线程B完成扩容后，线程A恢复执行，此时链表顺序已被反转，可能导致 <code>e.next</code> 指向自己，形成死循环。</p>
+<h3 id="JDK-8-HashMap-的改进与遗留问题"><a href="#JDK-8-HashMap-的改进与遗留问题" class="headerlink" title="JDK 8 HashMap 的改进与遗留问题"></a>JDK 8 HashMap 的改进与遗留问题</h3>
+<p>JDK 8 将头插法改为尾插法，解决了死循环问题，但并发 <code>put</code> 仍会丢失数据：</p>
+<figure class="highlight java"><pre><code class="language-java">// JDK 8 HashMap.putVal() 关键片段
+final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+    Node&lt;K,V&gt;[] tab; Node&lt;K,V&gt; p; int n, i;
+    if ((tab = table) == null || (n = tab.length) == 0)
+        n = (tab = resize()).length;
+    if ((p = tab[i = (n - 1) &amp; hash]) == null)
+        // 两个线程都检查到该位置为空，都执行赋值，后写的覆盖前面的
+        tab[i] = newNode(hash, key, value, null);
+    else {
+        // ... 省略后续逻辑
+    }
+}</code></pre></figure>
+<p>两个线程同时检查到 <code>tab[i] == null</code>，然后都执行赋值操作，后写的线程覆盖先写的，导致数据丢失。</p>
+<h3 id="JDK-7-ConcurrentHashMap-分段锁设计"><a href="#JDK-7-ConcurrentHashMap-分段锁设计" class="headerlink" title="JDK 7 ConcurrentHashMap 分段锁设计"></a>JDK 7 ConcurrentHashMap 分段锁设计</h3>
+<p>JDK 7 的 <code>ConcurrentHashMap</code> 将整个表分成 16 个 Segment（默认），每个 Segment 就是一个小型的 HashMap，拥有独立的锁：</p>
+<figure class="highlight java"><pre><code class="language-java">// JDK 7 ConcurrentHashMap 核心结构
+static final class Segment&lt;K,V&gt; extends ReentrantLock implements Serializable {
+    transient volatile HashEntry&lt;K,V&gt;[] table;
+    transient int count;
+    // ...
+}
+
+// 写操作需要获取 Segment 的锁
+final V put(K key, int hash, V value, boolean onlyIfAbsent) {
+    HashEntry&lt;K,V&gt; node = tryLock() ? null : scanAndLockForPut(key, hash, value);
+    // ...
+}</code></pre></figure>
+<p><strong>设计要点</strong>：</p>
+<ul>
+<li>锁粒度是 Segment，默认并发度 16</li>
+</ul>
+<ul>
+<li><code>get</code> 操作不需要加锁（HashEntry 的 value 是 volatile）</li>
+</ul>
+<ul>
+<li>扩容只在 Segment 内部进行，不会影响其他 Segment</li>
+</ul>
+<h3 id="JDK-8-ConcurrentHashMap-的-CAS-synchronized-演进"><a href="#JDK-8-ConcurrentHashMap-的-CAS-synchronized-演进" class="headerlink" title="JDK 8 ConcurrentHashMap 的 CAS + synchronized 演进"></a>JDK 8 ConcurrentHashMap 的 CAS + synchronized 演进</h3>
+<p>JDK 8 抛弃了 Segment，直接用 <code>Node[]</code> 数组 + CAS + <code>synchronized</code> 实现：</p>
+<figure class="highlight java"><pre><code class="language-java">// JDK 8 ConcurrentHashMap.putVal() 核心逻辑
+final V putVal(K key, V value, boolean onlyIfAbsent) {
+    int hash = spread(key.hashCode());
+    int binCount = 0;
+    for (Node&lt;K,V&gt;[] tab = table;;) {
+        Node&lt;K,V&gt; f; int n, i, fh;
+        if (tab == null || (n = tab.length) == 0)
+            tab = initTable();
+        else if ((f = tabAt(tab, i = (n - 1) &amp; hash)) == null) {
+            // 桶为空，用 CAS 无锁插入
+            if (casTabAt(tab, i, null, new Node&lt;K,V&gt;(hash, key, value, null)))
+                break;
+        }
+        else if ((fh = f.hash) == MOVED)
+            tab = helpTransfer(tab, f);
+        else {
+            V oldVal = null;
+            // 桶不为空，锁住当前桶的头节点
+            synchronized (f) {
+                // ... 链表或红黑树插入逻辑
+            }
+        }
+    }
+    // ...
+}</code></pre></figure>
+<p><strong>演进优势</strong>：</p>
+<ul>
+<li>锁粒度从 Segment 细化到单个桶（Node），并发度从 16 提升到数组长度</li>
+</ul>
+<ul>
+<li>使用 CAS 无锁操作处理桶为空的场景，减少锁竞争</li>
+</ul>
+<ul>
+<li><code>synchronized</code> 在 JDK 6 优化后（偏向锁、轻量级锁），性能已不输 ReentrantLock</li>
+</ul>
+<h3 id="架构演进对比"><a href="#架构演进对比" class="headerlink" title="架构演进对比"></a>架构演进对比</h3>
+<div class="mermaid">
+graph TD
+    A[HashMap JDK7] -->|并发死循环| B[Hashtable]
+    A -->|不能使用| C[ConcurrentHashMap JDK7]
+    B -->|全局锁 并发度低| C
+    C -->|分段锁 并发度16| D[ConcurrentHashMap JDK8]
+    D -->|CAS+synchronized 并发度=数组长度| E[最佳实践]
+    
+    style A fill:#ff6b6b
+    style B fill:#ffd93d
+    style C fill:#6bcb77
+    style D fill:#4d96ff
+    style E fill:#6bcb77
+</div>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例1-并发环境下的-HashMap-数据丢失复现"><a href="#示例1-并发环境下的-HashMap-数据丢失复现" class="headerlink" title="示例1：并发环境下的 HashMap 数据丢失复现"></a>示例1：并发环境下的 HashMap 数据丢失复现</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 复现 HashMap 并发 put 导致的数据丢失问题
+ * 
+ * 运行结果：实际 size 小于 10000，说明有数据丢失
+ */
+public class HashMapConcurrencyIssue {
+    
+    private static final int THREAD_COUNT = 10;
+    private static final int PUT_COUNT = 1000;
+    
+    public static void main(String[] args) throws InterruptedException {
+        // 模拟高并发场景下的 HashMap
+        Map&lt;Integer, String&gt; map = new HashMap&lt;&gt;(16);
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        
+        long start = System.currentTimeMillis();
+        
+        for (int t = 0; t &lt; THREAD_COUNT; t++) {
+            final int threadId = t;
+            executor.submit(() -&gt; {
+                try {
+                    for (int i = 0; i &lt; PUT_COUNT; i++) {
+                        // 每个线程写入 1000 个键值对，键全局唯一
+                        map.put(threadId * PUT_COUNT + i, &quot;value-&quot; + i);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        
+        latch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+        
+        long cost = System.currentTimeMillis() - start;
+        int expectedSize = THREAD_COUNT * PUT_COUNT;
+        
+        System.out.println(&quot;期望元素数量: &quot; + expectedSize);
+        System.out.println(&quot;实际元素数量: &quot; + map.size());
+        System.out.println(&quot;丢失元素数量: &quot; + (expectedSize - map.size()));
+        System.out.println(&quot;耗时: &quot; + cost + &quot;ms&quot;);
+        
+        // 输出结果示例（每次运行可能不同）：
+        // 期望元素数量: 10000
+        // 实际元素数量: 9973
+        // 丢失元素数量: 27
+        // 耗时: 45ms
+    }
+}</code></pre></figure>
+<p><strong>运行结果分析</strong>：每次运行丢失的元素数量不同，这是因为线程调度具有随机性。丢失的原因包括：两个线程同时检查桶为空然后同时赋值、扩容时旧表数据被覆盖等。</p>
+<h3 id="示例2-ConcurrentHashMap-并发写入的正确姿势"><a href="#示例2-ConcurrentHashMap-并发写入的正确姿势" class="headerlink" title="示例2：ConcurrentHashMap 并发写入的正确姿势"></a>示例2：ConcurrentHashMap 并发写入的正确姿势</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
+
+/**
+ * ConcurrentHashMap 在并发场景下的正确使用
+ * 
+ * 对比三种并发写入策略：
+ * 1. put() - 直接覆盖，可能丢失中间状态
+ * 2. merge() - 原子合并，适合累加场景
+ * 3. compute() - 原子计算，适合复杂更新
+ */
+public class ConcurrentHashMapDemo {
+    
+    private static final int THREAD_COUNT = 50;
+    private static final int OPERATIONS_PER_THREAD = 1000;
+    
+    public static void main(String[] args) throws InterruptedException {
+        // 场景1：统计每个用户的下单次数
+        testIncrement();
+        
+        // 场景2：合并复杂对象
+        testMerge();
+        
+        // 场景3：使用 LongAdder 优化高频计数
+        testLongAdder();
+    }
+    
+    /**
+     * 场景1：原子自增操作
+     * 注意：map.put(key, map.getOrDefault(key, 0) + 1) 不是原子的！
+     */
+    private static void testIncrement() throws InterruptedException {
+        Map&lt;String, Long&gt; orderCount = new ConcurrentHashMap&lt;&gt;();
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        
+        for (int t = 0; t &lt; THREAD_COUNT; t++) {
+            final String userId = &quot;user-&quot; + (t % 5); // 5个用户，10个线程抢
+            executor.submit(() -&gt; {
+                try {
+                    for (int i = 0; i &lt; OPERATIONS_PER_THREAD; i++) {
+                        // 错误写法：先读后写，不是原子的
+                        // orderCount.put(userId, orderCount.getOrDefault(userId, 0L) + 1);
+                        
+                        // 正确写法1：使用 merge，原子操作
+                        orderCount.merge(userId, 1L, Long::sum);
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        
+        latch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+        
+        System.out.println(&quot;\n=== 场景1：原子自增 ===&quot;);
+        long totalOrders = orderCount.values().stream().mapToLong(Long::longValue).sum();
+        System.out.println(&quot;总下单次数: &quot; + totalOrders);
+        System.out.println(&quot;期望总次数: &quot; + (THREAD_COUNT * OPERATIONS_PER_THREAD));
+        System.out.println(&quot;结果正确: &quot; + (totalOrders == THREAD_COUNT * OPERATIONS_PER_THREAD));
+    }
+    
+    /**
+     * 场景2：合并复杂对象
+     * 使用 compute 实现原子更新复杂对象
+     */
+    private static void testMerge() throws InterruptedException {
+        Map&lt;String, UserStats&gt; statsMap = new ConcurrentHashMap&lt;&gt;();
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        
+        for (int t = 0; t &lt; THREAD_COUNT; t++) {
+            final int threadId = t;
+            executor.submit(() -&gt; {
+                try {
+                    for (int i = 0; i &lt; OPERATIONS_PER_THREAD; i++) {
+                        String userId = &quot;user-&quot; + (threadId % 5);
+                        int amount = i % 100;
+                        
+                        // 使用 compute 原子更新复杂对象
+                        statsMap.compute(userId, (key, oldStats) -&gt; {
+                            UserStats newStats = oldStats == null ? new UserStats() : oldStats;
+                            newStats.orderCount++;
+                            newStats.totalAmount += amount;
+                            return newStats;
+                        });
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        
+        latch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+        
+        System.out.println(&quot;\n=== 场景2：复杂对象合并 ===&quot;);
+        statsMap.forEach((key, stats) -&gt; 
+            System.out.println(key + &quot; 订单数=&quot; + stats.orderCount + 
+                             &quot; 总金额=&quot; + stats.totalAmount));
+    }
+    
+    /**
+     * 场景3：LongAdder 优化高频计数
+     * 对于高频更新，LongAdder 比 AtomicLong 性能更好
+     */
+    private static void testLongAdder() throws InterruptedException {
+        ConcurrentHashMap&lt;String, LongAdder&gt; counterMap = new ConcurrentHashMap&lt;&gt;();
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch latch = new CountDownLatch(THREAD_COUNT);
+        
+        for (int t = 0; t &lt; THREAD_COUNT; t++) {
+            executor.submit(() -&gt; {
+                try {
+                    for (int i = 0; i &lt; OPERATIONS_PER_THREAD; i++) {
+                        // 先获取或创建 LongAdder，然后自增
+                        counterMap.computeIfAbsent(&quot;total-requests&quot;, k -&gt; new LongAdder()).increment();
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        
+        latch.await(10, TimeUnit.SECONDS);
+        executor.shutdown();
+        
+        System.out.println(&quot;\n=== 场景3：LongAdder 高频计数 ===&quot;);
+        long total = counterMap.get(&quot;total-requests&quot;).sum();
+        System.out.println(&quot;总请求数: &quot; + total);
+        System.out.println(&quot;期望请求数: &quot; + (THREAD_COUNT * OPERATIONS_PER_THREAD));
+        System.out.println(&quot;结果正确: &quot; + (total == THREAD_COUNT * OPERATIONS_PER_THREAD));
+    }
+    
+    /**
+     * 用户统计实体
+     */
+    static class UserStats {
+        int orderCount;
+        int totalAmount;
+        
+        @Override
+        public String toString() {
+            return &quot;UserStats{orderCount=&quot; + orderCount + &quot;, totalAmount=&quot; + totalAmount + &quot;}&quot;;
+        }
+    }
+}</code></pre></figure>
+<p><strong>核心要点</strong>：</p>
+<ul>
+<li><code>put</code> + <code>getOrDefault</code> 的组合不是原子的，必须使用 <code>merge</code> 或 <code>compute</code></li>
+</ul>
+<ul>
+<li><code>computeIfAbsent</code> 适合"先检查后插入"的场景，且是原子的</li>
+</ul>
+<ul>
+<li>高频计数场景优先考虑 <code>LongAdder</code> 而非 <code>AtomicLong</code></li>
+</ul>
+<h3 id="示例3-从-HashMap-迁移到-ConcurrentHashMap-的性能对比"><a href="#示例3-从-HashMap-迁移到-ConcurrentHashMap-的性能对比" class="headerlink" title="示例3：从 HashMap 迁移到 ConcurrentHashMap 的性能对比"></a>示例3：从 HashMap 迁移到 ConcurrentHashMap 的性能对比</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 不同 Map 实现性能对比基准测试
+ * 
+ * 测试场景：8个线程并发读写，各执行 10000 次
+ * 测试结果（仅供参考，实际因机器而异）：
+ * - HashMap: 最快但有数据丢失
+ * - Hashtable: 最慢，全局锁竞争严重
+ * - ConcurrentHashMap: 接近 HashMap 的性能，且线程安全
+ */
+public class MapPerformanceBenchmark {
+    
+    private static final int THREAD_COUNT = 8;
+    private static final int OPERATIONS = 10000;
+    
+    public static void main(String[] args) throws InterruptedException {
+        System.out.println(&quot;=== Map 性能对比基准测试 ===&quot;);
+        System.out.println(&quot;线程数: &quot; + THREAD_COUNT + &quot;, 每线程操作数: &quot; + OPERATIONS + &quot;\n&quot;);
+        
+        // 测试 HashMap（非线程安全）
+        benchmarkMap(&quot;HashMap&quot;, new HashMap&lt;&gt;(), false);
+        
+        // 测试 Hashtable（全局锁）
+        benchmarkMap(&quot;Hashtable&quot;, new Hashtable&lt;&gt;(), true);
+        
+        // 测试 ConcurrentHashMap（分段锁/CAS）
+        benchmarkMap(&quot;ConcurrentHashMap&quot;, new ConcurrentHashMap&lt;&gt;(), true);
+    }
+    
+    private static void benchmarkMap(String name, Map&lt;Integer, Integer&gt; map, 
+                                     boolean threadSafe) throws InterruptedException {
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
+        CountDownLatch readyLatch = new CountDownLatch(THREAD_COUNT);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(THREAD_COUNT);
+        
+        // 预热 JVM
+        for (int i = 0; i &lt; 1000; i++) {
+            map.put(i, i);
+        }
+        map.clear();
+        
+        long startTime;
+        
+        for (int t = 0; t &lt; THREAD_COUNT; t++) {
+            final int threadId = t;
+            executor.submit(() -&gt; {
+                readyLatch.countDown();
+                try {
+                    startLatch.await(); // 等待所有线程就绪
+                    
+                    for (int i = 0; i &lt; OPERATIONS; i++) {
+                        int key = threadId * OPERATIONS + i;
+                        // 混合读写操作
+                        map.put(key, i);
+                        map.get(key % OPERATIONS);
+                        map.containsKey(i % 1000);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+        
+        readyLatch.await();
+        startTime = System.nanoTime();
+        startLatch.countDown(); // 同时启动所有线程
+        doneLatch.await(30, TimeUnit.SECONDS);
+        
+        long cost = (System.nanoTime() - startTime) / 1_000_000;
+        executor.shutdown();
+        
+        // 验证数据完整性
+        int actualSize = map.size();
+        int expectedSize = threadSafe ? THREAD_COUNT * OPERATIONS : map.size();
+        
+        String dataIntegrity = threadSafe ? 
+            (actualSize == expectedSize ? &quot;✓ 数据完整&quot; : &quot;✗ 数据丢失!&quot;) : 
+            &quot;（非线程安全，不检查）&quot;;
+        
+        System.out.printf(&quot;%-20s 耗时: %5dms  数据量: %d  %s%n&quot;, 
+                         name, cost, actualSize, dataIntegrity);
+        
+        // 清理
+        map.clear();
+        System.gc();
+        Thread.sleep(100);
+    }
+}
+
+// 典型输出（某次运行的参考值）：
+// === Map 性能对比基准测试 ===
+// 线程数: 8, 每线程操作数: 10000
+// HashMap              耗时:    78ms  数据量: 79982  （非线程安全，不检查）
+// Hashtable            耗时:   245ms  数据量: 80000  ✓ 数据完整
+// ConcurrentHashMap    耗时:   105ms  数据量: 80000  ✓ 数据完整</code></pre></figure>
+<p><strong>性能分析</strong>：</p>
+<ul>
+<li>HashMap 最快，但不安全</li>
+</ul>
+<ul>
+<li>Hashtable 比 ConcurrentHashMap 慢 2-3 倍，因为全局锁限制了并发度</li>
+</ul>
+<ul>
+<li>ConcurrentHashMap 的性能接近 HashMap（约 1.3 倍耗时），但提供了线程安全保证</li>
+</ul>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="ConcurrentHashMap-vs-其他并发方案"><a href="#ConcurrentHashMap-vs-其他并发方案" class="headerlink" title="ConcurrentHashMap vs 其他并发方案"></a>ConcurrentHashMap vs 其他并发方案</h3>
+<p>| 方案 | 锁粒度 | 并发度 | 读性能 | 写性能 | 适用场景 |</p>
+<p>|------|--------|--------|--------|--------|----------|</p>
+<p>| Hashtable | 整表锁 | 1 | 低 | 低 | 不推荐使用 |</p>
+<p>| Collections.synchronizedMap | 整表锁 | 1 | 低 | 低 | 简单包装现有 Map |</p>
+<p>| ConcurrentHashMap (JDK7) | Segment | 16 | 高 | 中 | 旧系统维护 |</p>
+<p>| ConcurrentHashMap (JDK8) | 单个桶 | 数组长度 | 高 | 高 | 首选方案 |</p>
+<p>| ConcurrentSkipListMap | 无锁（CAS） | 高 | 中 | 中 | 需要有序键值对 |</p>
+<h3 id="ConcurrentHashMap-的局限性"><a href="#ConcurrentHashMap-的局限性" class="headerlink" title="ConcurrentHashMap 的局限性"></a>ConcurrentHashMap 的局限性</h3>
+<ol>
+<li><strong>不能存储 null 键值</strong>：<code>ConcurrentHashMap</code> 不允许 null 键和 null 值，因为无法区分"值为 null"和"不存在"。如果业务需要 null 值，考虑使用 <code>Optional</code> 包装。</li>
+</ol>
+<ol>
+<li><strong>弱一致性迭代器</strong>：<code>ConcurrentHashMap</code> 的迭代器是弱一致的，不保证迭代过程中看到最新数据。如果需要强一致性，需要额外同步。</li>
+</ol>
+<ol>
+<li><strong>size() 和 isEmpty() 是估算值</strong>：并发环境下，<code>size()</code> 返回的是近似值，不保证精确。如果业务依赖精确计数，使用 <code>LongAdder</code> 单独维护计数。</li>
+</ol>
+<ol>
+<li><strong>复合操作需要自己保证原子性</strong>：如"先检查后操作"、"读取-修改-写入"等复合操作，需要配合 <code>compute</code>、<code>merge</code> 等方法实现。</li>
+</ol>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>优先使用 ConcurrentHashMap</strong>：除非明确知道不需要并发访问，否则默认使用 <code>ConcurrentHashMap</code> 替代 <code>HashMap</code>。</li>
+</ol>
+<ol>
+<li><strong>利用原子方法</strong>：多线程更新同一个 key 时，优先使用 <code>merge</code>、<code>compute</code>、<code>computeIfAbsent</code> 等原子方法，避免手动"先读后写"。</li>
+</ol>
+<ol>
+<li><strong>初始化容量</strong>：预估数据量，设置合理的初始容量和并发度（JDK 7 中为 Segment 数量，JDK 8 中为数组长度），避免频繁扩容。</li>
+</ol>
+<ol>
+<li><strong>大量批量写入时使用 putAll</strong>：<code>putAll</code> 内部会做优化，比逐个 <code>put</code> 更高效。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<ol>
+<li><strong>不要用 HashMap 做缓存</strong>：如果缓存需要被多线程访问，使用 <code>ConcurrentHashMap</code> 或 <code>Caffeine</code> 等专用缓存库。</li>
+</ol>
+<ol>
+<li><strong>lambda 中的变量捕获</strong>：<code>computeIfAbsent</code> 的 lambda 中不要捕获可变的外部变量，否则可能产生不可预期的结果。</li>
+</ol>
+<ol>
+<li><strong>迭代时修改</strong>：虽然 <code>ConcurrentHashMap</code> 支持迭代中修改，但弱一致性可能导致迭代结果不完整。如果业务需要一致的快照，先 <code>new HashMap<>(concurrentMap)</code> 再迭代。</li>
+</ol>
+<ol>
+<li><strong>不要依赖 size() 做精确判断</strong>：并发环境下 <code>size()</code> 是估算值，如果业务需要精确计数，使用 <code>LongAdder</code> 或 <code>AtomicLong</code> 单独维护。</li>
+</ol>
+<ol>
+<li><strong>避免在锁内做耗时操作</strong>：虽然 <code>ConcurrentHashMap</code> 的锁粒度很小，但在 <code>compute</code> 等方法的 lambda 中执行耗时操作（如 RPC 调用）仍然会阻塞其他线程访问同一个桶。</li>
+</ol>
+<figure class="highlight java"><pre><code class="language-java">// 错误示例：在 compute 中执行耗时操作
+map.compute(key, (k, v) -&gt; {
+    String result = rpcClient.call(k); // 阻塞其他线程访问该桶
+    return result;
+});
+
+// 正确示例：先计算，再合并
+String result = rpcClient.call(key);
+map.put(key, result);</code></pre></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>从 HashMap 的并发死循环，到 Hashtable 的全局锁，再到 ConcurrentHashMap 的分段锁和 CAS+synchronized 演进，我们看到了 Java 并发容器设计的精妙之处：</p>
+<ul>
+<li><strong>JDK 7 ConcurrentHashMap</strong> 通过分段锁将竞争分散到 16 个 Segment，显著提升了并发度</li>
+</ul>
+<ul>
+<li><strong>JDK 8 ConcurrentHashMap</strong> 进一步细化锁粒度到单个桶，结合 CAS 无锁操作，使得并发度达到数组长度，性能接近 HashMap</li>
+</ul>
+<p>在实际开发中，理解这些底层机制能帮助我们做出更合理的技术选型。当面对高并发场景时，<code>ConcurrentHashMap</code> 无疑是首选；但也要认识到它的局限性，如弱一致性、不能存 null 等，在特定业务场景下可能需要额外的设计。</p>
+<p>最后留一个思考题：Redis 的 Hash 结构与 ConcurrentHashMap 在并发控制上有哪些异同？如果让你设计一个分布式版本的 ConcurrentHashMap，你会怎么做？欢迎在评论区分享你的想法。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

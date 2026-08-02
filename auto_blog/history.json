@@ -62,11 +62,19 @@
       "subtopic": "Istio服务网格Sidecar注入与流量管理",
       "date": "2026-08-01",
       "url": "/2026/08/01/Istio服务网格Sidecar注入与流量管理：从源码到实战的深度剖析/"
+    },
+    {
+      "title": "HashMap并发问题与ConcurrentHashMap分段锁演进",
+      "category": "java",
+      "subtopic": "HashMap并发问题与ConcurrentHashMap分段锁演进",
+      "date": "2026-08-02",
+      "url": "/2026/08/02/HashMap并发问题与ConcurrentHashMap分段锁演进/"
     }
   ],
   "used_subtopics": {
     "java": [
-      "ThreadPoolExecutor源码拆解与最佳实践"
+      "ThreadPoolExecutor源码拆解与最佳实践",
+      "HashMap并发问题与ConcurrentHashMap分段锁演进"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战"
@@ -95,6 +103,7 @@
     "Go泛型的设计哲学与实战应用": "a0c15c5d896b50455e77cda85e3713fc3ab98a4032526a529598ea991bbeba1a",
     "Go Embed静态资源嵌入实战": "c28094ef100262d07ac5030d1e201127403bc415d0b3471387715d4d8b3a67c6",
     "多模态AI应用开发：GPT-4V + LangChain": "5904ee9fedfd19ec3b04be30923ff26e7f0b0a6317c96fd0b15689616fbe857f",
-    "Istio服务网格Sidecar注入与流量管理": "908ef2344a0fc40cfe64d658cb400ac5b95d12ab06c0fa821ac6cc7d49be3d1f"
+    "Istio服务网格Sidecar注入与流量管理": "908ef2344a0fc40cfe64d658cb400ac5b95d12ab06c0fa821ac6cc7d49be3d1f",
+    "HashMap并发问题与ConcurrentHashMap分段锁演进": "d4de21632c73832778dd46efc4d8ee8ee7e8668aeb5a32af8fca29f2fcb7d8ed"
   }
 }
