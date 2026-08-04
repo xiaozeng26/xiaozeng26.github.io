@@ -76,6 +76,13 @@
       "subtopic": "Testify + GoMock单元测试最佳实践",
       "date": "2026-08-03",
       "url": "/2026/08/03/Testify + GoMock单元测试最佳实践：从入门到架构级实战/"
+    },
+    {
+      "title": "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
+      "category": "ai-ml",
+      "subtopic": "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
+      "date": "2026-08-04",
+      "url": "/2026/08/04/大模型部署优化：量化（GPTQ-AWQ）、vLLM推理加速/"
     }
   ],
   "used_subtopics": {
@@ -88,7 +95,8 @@
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
-      "多模态AI应用开发：GPT-4V + LangChain"
+      "多模态AI应用开发：GPT-4V + LangChain",
+      "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案"
@@ -113,6 +121,7 @@
     "多模态AI应用开发：GPT-4V + LangChain": "5904ee9fedfd19ec3b04be30923ff26e7f0b0a6317c96fd0b15689616fbe857f",
     "Istio服务网格Sidecar注入与流量管理": "908ef2344a0fc40cfe64d658cb400ac5b95d12ab06c0fa821ac6cc7d49be3d1f",
     "HashMap并发问题与ConcurrentHashMap分段锁演进": "d4de21632c73832778dd46efc4d8ee8ee7e8668aeb5a32af8fca29f2fcb7d8ed",
-    "Testify + GoMock单元测试最佳实践": "c55aa03b63309607cb6e90287dd8559d4b94e5fa4b382b4a7055f08dcc6fcebd"
+    "Testify + GoMock单元测试最佳实践": "c55aa03b63309607cb6e90287dd8559d4b94e5fa4b382b4a7055f08dcc6fcebd",
+    "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速": "94d0d2714c2b918bd8593665ab56ac12f981fe1ce4cea8f7f0eae7926e957dde"
   }
 }
