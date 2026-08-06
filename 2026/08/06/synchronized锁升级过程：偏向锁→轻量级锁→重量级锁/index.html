@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>synchronized锁升级过程：偏向锁→轻量级锁→重量级锁 | 小曾博客</title>
+  <meta name="description" content="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁 引言 想象一下，你正在开发一个高并发的秒杀系统。上线第一天，QPS 冲到 5000，一切正常；第二天，运营搞了个大促，QPS 冲到 20000，系统突然卡死。你排查发现，罪魁祸首竟然是 synchronized——这个你用了无数次的\"老朋友\"。 有意思的是，synchronized 在 JDK 8 之后已经做了大量优化，它不再是一开始">
+  <meta name="keywords" content="java,jvm,spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁">
+  <meta name="twitter:description" content="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁 引言 想象一下，你正在开发一个高并发的秒杀系统。上线第一天，QPS 冲到 5000，一切正常；第二天，运营搞了个大促，QPS 冲到 20000，系统突然卡死。你排查发现，罪魁祸首竟然是 synchronized——这个你用了无数次的\"老朋友\"。 有意思的是，synchronized 在 JDK 8 之后已经做了大量优化，它不再是一开始">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/7628/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁 引言 想象一下，你正在开发一个高并发的秒杀系统。上线第一天，QPS 冲到 5000，一切正常；第二天，运营搞了个大促，QPS 冲到 20000，系统突然卡死。你排查发现，罪魁祸首竟然是 synchronized——这个你用了无数次的\"老朋友\"。 有意思的是，synchronized 在 JDK 8 之后已经做了大量优化，它不再是一开始">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/7628/800/400">
+  <meta property="article:published_time" content="2026-08-06T21:41:46.000Z">
+  <meta property="article:modified_time" content="2026-08-06T21:41:46.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#synchronized锁升级过程-偏向锁-轻量级锁-重量级锁"><span class="toc-text">synchronized锁升级过程：偏向锁→轻量级锁→重量级锁</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-先来点生活化的铺垫"><span class="toc-text">核心概念：先来点生活化的铺垫</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#对象头的秘密"><span class="toc-text">对象头的秘密</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#HotSpot-源码中的锁升级路径"><span class="toc-text">HotSpot 源码中的锁升级路径</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#偏向锁的撤销与重偏向"><span class="toc-text">偏向锁的撤销与重偏向</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#轻量级锁的自旋"><span class="toc-text">轻量级锁的自旋</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#重量级锁的-Monitor"><span class="toc-text">重量级锁的 Monitor</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-从理论到落地"><span class="toc-text">实战代码：从理论到落地</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-观察偏向锁的获取与撤销"><span class="toc-text">示例 1：观察偏向锁的获取与撤销</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-轻量级锁的竞争与自旋"><span class="toc-text">示例 2：轻量级锁的竞争与自旋</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-重量级锁的线程阻塞与唤醒"><span class="toc-text">示例 3：重量级锁的线程阻塞与唤醒</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-synchronized-vs-ReentrantLock-vs-StampedLock"><span class="toc-text">方案对比：synchronized vs ReentrantLock vs StampedLock</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#四个常见坑"><span class="toc-text">四个常见坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三个核心实践建议"><span class="toc-text">三个核心实践建议</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/7628/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">synchronized锁升级过程：偏向锁→轻量级锁→重量级锁</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-06"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-06</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-06"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-06</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="synchronized锁升级过程-偏向锁-轻量级锁-重量级锁"><a href="#synchronized锁升级过程-偏向锁-轻量级锁-重量级锁" class="headerlink" title="synchronized锁升级过程：偏向锁→轻量级锁→重量级锁"></a>synchronized锁升级过程：偏向锁→轻量级锁→重量级锁</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你正在开发一个高并发的秒杀系统。上线第一天，QPS 冲到 5000，一切正常；第二天，运营搞了个大促，QPS 冲到 20000，系统突然卡死。你排查发现，罪魁祸首竟然是 <code>synchronized</code>——这个你用了无数次的"老朋友"。</p>
+<p>有意思的是，<code>synchronized</code> 在 JDK 8 之后已经做了大量优化，它不再是一开始就上重量级锁，而是根据竞争情况动态升级。但很多同学对这套升级机制的理解还停留在"重量级锁"的层面，导致在多线程编程中要么过度设计、要么用错场景。</p>
+<p>今天，我们就从 HotSpot 源码层面，彻底讲清楚 <code>synchronized</code> 的锁升级全过程，并给出可落地的实战建议。</p>
+<h2 id="核心概念-先来点生活化的铺垫"><a href="#核心概念-先来点生活化的铺垫" class="headerlink" title="核心概念：先来点生活化的铺垫"></a>核心概念：先来点生活化的铺垫</h2>
+<p>在讲技术之前，我们先建一个生活模型。把锁竞争比作<strong>图书馆的一个自习座位</strong>：</p>
+<ul>
+<li><strong>无锁（无竞争）</strong>：自习室空无一人，你来了直接坐，不需要任何登记。</li>
+</ul>
+<ul>
+<li><strong>偏向锁</strong>：你在座位上放了一本书，表示"这个位置是我的"。下次你再来，看到自己的书，直接坐下，不需要任何额外操作。但如果别人想把你的书挪开，你就得"收回"这本书（撤销偏向）。</li>
+</ul>
+<ul>
+<li><strong>轻量级锁</strong>：有人想抢你的座位，你把书拿走，改成"用笔在纸上写下自己的名字"。每次坐下前，先看纸上有没有名字；如果只有自己的名字，直接坐；如果发现别人的名字，说明有竞争。</li>
+</ul>
+<ul>
+<li><strong>重量级锁</strong>：抢座位的人越来越多，纸上的名字写不下了。你干脆请了一个<strong>管理员（OS Mutex）</strong>，所有人来之前必须先找管理员登记排队，管理员统一协调。</li>
+</ul>
+<p>这个类比映射到 JVM 里就是：</p>
+<p>| 概念 | 生活类比 | 技术含义 |</p>
+<p>|------|----------|----------|</p>
+<p>| 偏向锁 | 座位上放书 | 同一线程重入时，无需任何 CAS 操作 |</p>
+<p>| 轻量级锁 | 纸上签名 | 通过 CAS 自旋获取锁，避免线程阻塞 |</p>
+<p>| 重量级锁 | 管理员登记 | 通过 OS Mutex 挂起/唤醒线程，涉及用户态和内核态切换 |</p>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="对象头的秘密"><a href="#对象头的秘密" class="headerlink" title="对象头的秘密"></a>对象头的秘密</h3>
+<p>锁的状态信息存放在 Java 对象的 <strong>Mark Word</strong> 中（64 位 JVM 下占据 8 字节）。为了让你有个直观感受，下面是 64 位 HotSpot 中 Mark Word 的布局：</p>
+<figure class="highlight text"><pre><code class="language-text">|--------------------------------------------------------------------|--------------------|
+|                  Mark Word (64 bits)                               | State             |
+|--------------------------------------------------------------------|--------------------|
+| unused:25 | identity_hashcode:31 | unused:1 | age:4 | biased_lock:1 | 01                |
+|--------------------------------------------------------------------|--------------------|
+| thread:54 | epoch:2 | unused:1 | age:4 | biased_lock:1 | 01         | 可偏向            |
+|--------------------------------------------------------------------|--------------------|
+| ptr_to_lock_record:62 | 00                                        | 轻量级锁          |
+|--------------------------------------------------------------------|--------------------|
+| ptr_to_heavyweight_monitor:62 | 10                                | 重量级锁          |
+|--------------------------------------------------------------------|--------------------|
+|                                                                     | 11                |
+|--------------------------------------------------------------------|--------------------|</code></pre></figure>
+<p>关键点：</p>
+<ul>
+<li><strong>biased_lock=1 且 state=01</strong>：表示可偏向状态，此时 Mark Word 里存的是线程 ID。</li>
+</ul>
+<ul>
+<li><strong>state=00</strong>：轻量级锁，Mark Word 里存的是栈中锁记录的指针。</li>
+</ul>
+<ul>
+<li><strong>state=10</strong>：重量级锁，Mark Word 里存的是 Monitor 对象的指针。</li>
+</ul>
+<h3 id="HotSpot-源码中的锁升级路径"><a href="#HotSpot-源码中的锁升级路径" class="headerlink" title="HotSpot 源码中的锁升级路径"></a>HotSpot 源码中的锁升级路径</h3>
+<p>在 HotSpot 的 <code>synchronizer.cpp</code> 中，<code>ObjectSynchronizer::enter()</code> 方法定义了获取锁的完整路径。我把核心逻辑简化如下：</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">// HotSpot 源码简化逻辑 (synchronizer.cpp)
+void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, TRAPS) {
+  if (UseBiasedLocking) {
+    // 1. 尝试获取偏向锁
+    if (!SafepointSynchronize::is_at_safepoint()) {
+      BiasedLocking::revoke_and_rebias(obj, false, THREAD);
+    }
+  }
+  
+  // 2. 如果偏向锁获取失败，膨胀为轻量级锁
+  if (!Atomic::cmpxchg_ptr(lock, obj()-&gt;mark_addr(), mark) == success) {
+    // 3. 如果 CAS 失败，说明有竞争，膨胀为重量级锁
+    ObjectMonitor* monitor = inflate(THREAD, obj(), inflate_cause_monitor_enter);
+    monitor-&gt;enter(THREAD);
+  }
+}</code></pre></figure>
+<h3 id="偏向锁的撤销与重偏向"><a href="#偏向锁的撤销与重偏向" class="headerlink" title="偏向锁的撤销与重偏向"></a>偏向锁的撤销与重偏向</h3>
+<p>偏向锁的核心优化思路是：<strong>假设锁始终被同一个线程获取</strong>。但一旦发生竞争，偏向锁需要被撤销（revoke）。这个操作在 HotSpot 中叫 <strong>safe point</strong> 处的批量重偏向（bulk rebias）。</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">// biasedLocking.cpp 中的核心逻辑
+void BiasedLocking::revoke_at_safepoint(Handle obj) {
+  // 1. 找到持有偏向锁的线程
+  JavaThread* biased_thread = ...;
+  
+  // 2. 如果该线程存活
+  if (biased_thread-&gt;is_alive()) {
+    // 3. 在该线程的栈中找到对应的锁记录
+    // 4. 将 Mark Word 更新为轻量级锁状态或不可偏向状态
+  }
+}</code></pre></figure>
+<p>注意：偏向锁的撤销必须等到 <strong>安全点（SafePoint）</strong>，此时所有线程都暂停在安全位置。这也是为什么偏向锁在竞争激烈时反而会成为性能瓶颈——频繁的 SafePoint 会 STW（Stop The World）。</p>
+<h3 id="轻量级锁的自旋"><a href="#轻量级锁的自旋" class="headerlink" title="轻量级锁的自旋"></a>轻量级锁的自旋</h3>
+<p>轻量级锁的获取是通过 CAS + 自旋实现的。在 JDK 8 中，自旋次数可以通过 <code>-XX:PreBlockSpin</code> 调整，默认是 10 次。但从 JDK 9 开始，默认改成了自适应自旋（Adaptive Spinning），JVM 会根据之前的自旋成功率动态调整。</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">// 自适应自旋在 rotate_while_biased 中的体现
+static int SpinPause() {
+  // pause 指令，告诉 CPU 当前处于自旋状态
+  __asm__ volatile (&quot;pause&quot;);
+}</code></pre></figure>
+<h3 id="重量级锁的-Monitor"><a href="#重量级锁的-Monitor" class="headerlink" title="重量级锁的 Monitor"></a>重量级锁的 Monitor</h3>
+<p>当竞争过于激烈时，锁会膨胀为重量级锁。重量级锁基于 <code>ObjectMonitor</code> 实现，它内部维护了一个 <strong>EntryList</strong>（等待队列）和 <strong>WaitSet</strong>（条件队列）。</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">class ObjectMonitor {
+  volatile markOop   _mark;       // Mark Word
+  ObjectWaiter*      _WaitSet;    // 调用 wait() 的线程
+  ObjectWaiter*      _EntryList;  // 等待获取锁的线程
+  Thread*            _owner;      // 当前持有锁的线程
+};</code></pre></figure>
+<p>当一个线程获取重量级锁失败时，它会被封装成 <code>ObjectWaiter</code> 放入 <code>_EntryList</code>，然后通过 <code>park()</code> 挂起。当持有锁的线程释放锁时，会从 <code>_EntryList</code> 中唤醒一个线程。</p>
+<h2 id="实战代码-从理论到落地"><a href="#实战代码-从理论到落地" class="headerlink" title="实战代码：从理论到落地"></a>实战代码：从理论到落地</h2>
+<h3 id="示例-1-观察偏向锁的获取与撤销"><a href="#示例-1-观察偏向锁的获取与撤销" class="headerlink" title="示例 1：观察偏向锁的获取与撤销"></a>示例 1：观察偏向锁的获取与撤销</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.openjdk.jol.info.ClassLayout;
+
+/**
+ * 使用 JOL (Java Object Layout) 观察对象头中的锁状态
+ * 运行参数：-XX:BiasedLockingStartupDelay=0
+ */
+public class BiasedLockDemo {
+
+    private static class LockObject {
+        // 空对象，仅用于观察锁状态
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        LockObject obj = new LockObject();
+
+        // 打印初始状态（应该处于无锁可偏向状态）
+        System.out.println(&quot;初始状态（无锁可偏向）:&quot;);
+        System.out.println(ClassLayout.parseInstance(obj).toPrintable());
+
+        // 模拟线程 A 获取锁
+        Thread threadA = new Thread(() -&gt; {
+            synchronized (obj) {
+                // 偏向锁：Mark Word 中会记录 Thread A 的 ID
+                System.out.println(&quot;线程 A 持有锁（偏向锁）:&quot;);
+                System.out.println(ClassLayout.parseInstance(obj).toPrintable());
+            }
+        });
+        threadA.start();
+        threadA.join();
+
+        // 主线程尝试获取锁，此时会触发偏向锁撤销
+        synchronized (obj) {
+            System.out.println(&quot;主线程获取锁（偏向锁被撤销，升级为轻量级锁）:&quot;);
+            System.out.println(ClassLayout.parseInstance(obj).toPrintable());
+        }
+    }
+}</code></pre></figure>
+<p><strong>运行结果分析</strong>：</p>
+<ul>
+<li>第一次打印：<code>biased_lock=1</code>，状态为可偏向。</li>
+</ul>
+<ul>
+<li>线程 A 持有锁后：Mark Word 中记录了线程 A 的 ID。</li>
+</ul>
+<ul>
+<li>主线程获取锁后：偏向锁被撤销，升级为轻量级锁（<code>state=00</code>）。</li>
+</ul>
+<p><strong>注意</strong>：JOL 需要额外依赖，Maven 中引入：</p>
+<figure class="highlight xml"><pre><code class="language-xml">&lt;dependency&gt;
+    &lt;groupId&gt;org.openjdk.jol&lt;/groupId&gt;
+    &lt;artifactId&gt;jol-core&lt;/artifactId&gt;
+    &lt;version&gt;0.17&lt;/version&gt;
+&lt;/dependency&gt;</code></pre></figure>
+<h3 id="示例-2-轻量级锁的竞争与自旋"><a href="#示例-2-轻量级锁的竞争与自旋" class="headerlink" title="示例 2：轻量级锁的竞争与自旋"></a>示例 2：轻量级锁的竞争与自旋</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.openjdk.jol.info.ClassLayout;
+
+/**
+ * 验证轻量级锁的自旋行为
+ * 运行参数：-XX:+UseSpinning -XX:PreBlockSpin=10
+ */
+public class LightweightLockDemo {
+
+    private static final Object LOCK = new Object();
+
+    public static void main(String[] args) throws InterruptedException {
+        // 预热阶段：让 JIT 完成编译
+        for (int i = 0; i &lt; 10000; i++) {
+            synchronized (LOCK) {
+                // 空操作
+            }
+        }
+
+        // 模拟两个线程竞争，但竞争时间很短（自旋能成功）
+        Thread t1 = new Thread(() -&gt; {
+            synchronized (LOCK) {
+                System.out.println(&quot;线程1 持有锁（轻量级锁）:&quot;);
+                System.out.println(ClassLayout.parseInstance(LOCK).toPrintable());
+                try {
+                    // 持有锁 100ms，模拟短时间占用
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        Thread t2 = new Thread(() -&gt; {
+            try {
+                // 稍微延迟，确保 t1 先拿到锁
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            synchronized (LOCK) {
+                System.out.println(&quot;线程2 通过自旋获取到锁（未膨胀为重量级锁）:&quot;);
+                System.out.println(ClassLayout.parseInstance(LOCK).toPrintable());
+            }
+        });
+
+        t1.start();
+        t2.start();
+        t1.join();
+        t2.join();
+    }
+}</code></pre></figure>
+<p><strong>关键点</strong>：</p>
+<ul>
+<li>当 t2 尝试获取锁时，如果 t1 还在持有锁，t2 会先自旋等待。</li>
+</ul>
+<ul>
+<li>如果 t1 在自旋次数内释放锁，t2 通过 CAS 成功获取锁，锁不会膨胀。</li>
+</ul>
+<ul>
+<li>如果 t1 持有锁时间过长，自旋失败，锁会膨胀为重量级锁。</li>
+</ul>
+<h3 id="示例-3-重量级锁的线程阻塞与唤醒"><a href="#示例-3-重量级锁的线程阻塞与唤醒" class="headerlink" title="示例 3：重量级锁的线程阻塞与唤醒"></a>示例 3：重量级锁的线程阻塞与唤醒</h3>
+<figure class="highlight java"><pre><code class="language-java">/**
+ * 验证重量级锁的线程阻塞行为
+ * 运行参数：-XX:-UseSpinning 禁用自旋，强制膨胀
+ */
+public class HeavyweightLockDemo {
+
+    private static final Object LOCK = new Object();
+
+    public static void main(String[] args) {
+        // 线程1：持有锁很长时间
+        Thread t1 = new Thread(() -&gt; {
+            synchronized (LOCK) {
+                System.out.println(&quot;线程1 持有锁，模拟长时间占用（3秒）...&quot;);
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        // 线程2：尝试获取锁，会阻塞
+        Thread t2 = new Thread(() -&gt; {
+            long start = System.currentTimeMillis();
+            synchronized (LOCK) {
+                long cost = System.currentTimeMillis() - start;
+                System.out.println(&quot;线程2 获取锁成功，等待耗时: &quot; + cost + &quot;ms (重量级锁)&quot;);
+            }
+        });
+
+        t1.start();
+        
+        // 确保 t1 先拿到锁
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        t2.start();
+        
+        // 观察线程状态
+        try {
+            Thread.sleep(100);
+            System.out.println(&quot;线程2 状态: &quot; + t2.getState()); // 应该是 BLOCKED
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}</code></pre></figure>
+<p><strong>运行结果</strong>：</p>
+<figure class="highlight "><pre><code>线程1 持有锁，模拟长时间占用（3秒）...
+线程2 状态: BLOCKED
+线程2 获取锁成功，等待耗时: 2999ms (重量级锁)</code></pre></figure>
+<p>线程2 的状态是 <code>BLOCKED</code>，说明它已经进入重量级锁的 EntryList，被 OS 挂起，等待线程1释放锁后被唤醒。</p>
+<h2 id="方案对比-synchronized-vs-ReentrantLock-vs-StampedLock"><a href="#方案对比-synchronized-vs-ReentrantLock-vs-StampedLock" class="headerlink" title="方案对比：synchronized vs ReentrantLock vs StampedLock"></a>方案对比：synchronized vs ReentrantLock vs StampedLock</h2>
+<p>理解了 synchronized 的锁升级，我们把它和 Java 中的其他锁方案做个对比：</p>
+<div class="mermaid">
+graph TD
+    A[锁方案选择] --> B[竞争不激烈]
+    A --> C[竞争激烈]
+    A --> D[读写比例相差大]
+    
+    B --> E[synchronized 偏向锁/轻量级锁]
+    B --> F[ReentrantLock 无锁竞争时性能略差于 synchronized]
+    
+    C --> G[synchronized 重量级锁]
+    C --> H[ReentrantLock 可中断/超时/公平性]
+    
+    D --> I[ReentrantReadWriteLock]
+    D --> J[StampedLock 乐观读]
+</div>
+<p>| 维度 | synchronized | ReentrantLock | StampedLock |</p>
+<p>|------|--------------|---------------|-------------|</p>
+<p>| 锁升级 | 支持（偏向→轻量→重量） | 不支持（直接是 AQS 队列） | 不支持（乐观读/写锁切换） |</p>
+<p>| 可中断性 | 不支持 | 支持 | 不支持 |</p>
+<p>| 公平性 | 非公平 | 可配置公平/非公平 | 非公平 |</p>
+<p>| 性能（低竞争） | 最好（偏向锁） | 较好（CAS） | 好（乐观读） |</p>
+<p>| 性能（高竞争） | 差（OS 阻塞） | 较好（AQS 队列） | 读多写少时最好 |</p>
+<p>| 适用场景 | 简单同步块、低竞争 | 复杂并发控制、需要超时中断 | 读多写少、读写比例悬殊 |</p>
+<p><strong>最佳实践建议</strong>：</p>
+<ul>
+<li>如果只是简单的同步方法/块，直接用 <code>synchronized</code>，JVM 会帮你优化。</li>
+</ul>
+<ul>
+<li>如果需要可中断、超时、公平锁等特性，选 <code>ReentrantLock</code>。</li>
+</ul>
+<ul>
+<li>如果是读多写少的场景（如缓存），优先考虑 <code>StampedLock</code> 的乐观读。</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="四个常见坑"><a href="#四个常见坑" class="headerlink" title="四个常见坑"></a>四个常见坑</h3>
+<p><strong>坑 1：偏向锁延迟启动</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// JVM 默认启动后 4 秒才启用偏向锁
+// 如果系统启动前 4 秒就有大量锁竞争，偏向锁优化失效
+// 可以通过 -XX:BiasedLockingStartupDelay=0 关闭延迟</code></pre></figure>
+<p><strong>坑 2：偏向锁撤销的 STW 风险</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 大量线程交替获取锁时，偏向锁会反复撤销和重偏向
+// 每次撤销都需要 SafePoint（STW）
+// 解决方案：-XX:-UseBiasedLocking 直接关闭偏向锁</code></pre></figure>
+<p><strong>坑 3：轻量级锁自旋的 CPU 浪费</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 如果锁持有时间较长，自旋会浪费 CPU
+// 自适应自旋会根据历史调整，但仍有风险
+// 方案：合理设计临界区大小，避免在锁内做耗时操作</code></pre></figure>
+<p><strong>坑 4：重量级锁的线程阻塞恢复</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 重量级锁的唤醒需要 OS 在用户态和内核态之间切换
+// 频繁的阻塞/唤醒会导致系统调用开销巨大
+// 方案：使用 LockSupport.park()/unpark() 时，注意减少切换频率</code></pre></figure>
+<h3 id="三个核心实践建议"><a href="#三个核心实践建议" class="headerlink" title="三个核心实践建议"></a>三个核心实践建议</h3>
+<ol>
+<li><strong>锁粒度要小</strong>：缩小临界区范围，减少锁持有时间。比如用局部变量代替成员变量，避免在锁内执行 I/O 操作。</li>
+</ol>
+<ol>
+<li><strong>锁粒度要准</strong>：如果多个线程操作的是不同对象，用不同锁实例，避免伪共享。</li>
+</ol>
+<ol>
+<li><strong>善用 JVM 参数调优</strong>：</li>
+</ol>
+<figure class="highlight bash"><pre><code class="language-bash">   # 关闭偏向锁（适合高竞争场景）
+   -XX:-UseBiasedLocking
+   
+   # 调整自旋次数（JDK8 及以前）
+   -XX:PreBlockSpin=20
+   
+   # 开启偏向锁批量重偏向日志
+   -XX:+TraceBiasedLocking</code></pre></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头秒杀系统的场景。如果你发现 <code>synchronized</code> 变成了瓶颈，先别急着换锁，用 JOL 看一下当前锁状态：</p>
+<ul>
+<li>如果锁一直处于<strong>偏向锁</strong>状态，说明竞争极低，<code>synchronized</code> 的性能是最好的。</li>
+</ul>
+<ul>
+<li>如果锁在<strong>轻量级锁</strong>和<strong>重量级锁</strong>之间反复横跳，说明临界区代码太重，优先优化代码而不是换锁。</li>
+</ul>
+<ul>
+<li>如果确实需要更细粒度的控制（超时、中断、公平性），再考虑 <code>ReentrantLock</code>。</li>
+</ul>
+<p>锁升级是 JVM 为了平衡"性能"和"公平性"做的巧妙折中。理解这套机制，能帮你在多线程编程中做出更明智的选择。</p>
+<p>最后留个思考题：JDK 15 之后，JEP 374 默认禁用了偏向锁（JDK 15 中 <code>UseBiasedLocking</code> 默认关闭）。你觉得为什么官方会做出这个决定？在什么场景下偏向锁反而成了累赘？欢迎在评论区讨论。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

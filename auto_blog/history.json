@@ -90,12 +90,20 @@
       "subtopic": "多活数据中心架构设计",
       "date": "2026-08-05",
       "url": "/2026/08/05/多活数据中心架构设计：从“被动容灾”到“主动多活”的演进之路/"
+    },
+    {
+      "title": "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
+      "category": "java",
+      "subtopic": "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
+      "date": "2026-08-06",
+      "url": "/2026/08/06/synchronized锁升级过程：偏向锁→轻量级锁→重量级锁/"
     }
   ],
   "used_subtopics": {
     "java": [
       "ThreadPoolExecutor源码拆解与最佳实践",
-      "HashMap并发问题与ConcurrentHashMap分段锁演进"
+      "HashMap并发问题与ConcurrentHashMap分段锁演进",
+      "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战"
@@ -131,6 +139,7 @@
     "HashMap并发问题与ConcurrentHashMap分段锁演进": "d4de21632c73832778dd46efc4d8ee8ee7e8668aeb5a32af8fca29f2fcb7d8ed",
     "Testify + GoMock单元测试最佳实践": "c55aa03b63309607cb6e90287dd8559d4b94e5fa4b382b4a7055f08dcc6fcebd",
     "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速": "94d0d2714c2b918bd8593665ab56ac12f981fe1ce4cea8f7f0eae7926e957dde",
-    "多活数据中心架构设计": "55320dd3f189c111e663cea80f02f72bfd49d0696cd44fbb51e0430f2eeec16a"
+    "多活数据中心架构设计": "55320dd3f189c111e663cea80f02f72bfd49d0696cd44fbb51e0430f2eeec16a",
+    "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁": "84ede6825a1b2207c4f84a7b20276c58ada51d128564fc54956960dc9b4e940d"
   }
 }
