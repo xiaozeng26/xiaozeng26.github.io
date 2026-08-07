@@ -97,6 +97,13 @@
       "subtopic": "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
       "date": "2026-08-06",
       "url": "/2026/08/06/synchronized锁升级过程：偏向锁→轻量级锁→重量级锁/"
+    },
+    {
+      "title": "Go内存管理：栈与堆、逃逸分析",
+      "category": "golang",
+      "subtopic": "Go内存管理：栈与堆、逃逸分析",
+      "date": "2026-08-07",
+      "url": "/2026/08/07/Go内存管理：栈与堆、逃逸分析/"
     }
   ],
   "used_subtopics": {
@@ -124,7 +131,8 @@
     "go": [
       "Go泛型的设计哲学与实战应用",
       "Go Embed静态资源嵌入实战",
-      "Testify + GoMock单元测试最佳实践"
+      "Testify + GoMock单元测试最佳实践",
+      "Go内存管理：栈与堆、逃逸分析"
     ]
   },
   "content_hashes": {
@@ -140,6 +148,7 @@
     "Testify + GoMock单元测试最佳实践": "c55aa03b63309607cb6e90287dd8559d4b94e5fa4b382b4a7055f08dcc6fcebd",
     "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速": "94d0d2714c2b918bd8593665ab56ac12f981fe1ce4cea8f7f0eae7926e957dde",
     "多活数据中心架构设计": "55320dd3f189c111e663cea80f02f72bfd49d0696cd44fbb51e0430f2eeec16a",
-    "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁": "84ede6825a1b2207c4f84a7b20276c58ada51d128564fc54956960dc9b4e940d"
+    "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁": "84ede6825a1b2207c4f84a7b20276c58ada51d128564fc54956960dc9b4e940d",
+    "Go内存管理：栈与堆、逃逸分析": "250f0479cd1bd8b4a674f94664ed5237a1ce8d670427cf481081d6ce24af6bba"
   }
 }
