@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Kubernetes调度器源码分析与自定义调度 | 小曾博客</title>
+  <meta name="description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
+  <meta name="keywords" content="docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Kubernetes调度器源码分析与自定义调度">
+  <meta name="twitter:description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2718/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Kubernetes调度器源码分析与自定义调度">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2718/800/400">
+  <meta property="article:published_time" content="2026-08-08T20:26:52.000Z">
+  <meta property="article:modified_time" content="2026-08-08T20:26:52.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Kubernetes调度器源码分析与自定义调度"><span class="toc-text">Kubernetes调度器源码分析与自定义调度</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-高考录取系统"><span class="toc-text">生活类比：高考录取系统</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#调度器架构"><span class="toc-text">调度器架构</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析"><span class="toc-text">源码深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#调度器主流程"><span class="toc-text">调度器主流程</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#预选阶段-Filter插件"><span class="toc-text">预选阶段——Filter插件</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#优选阶段-Score插件"><span class="toc-text">优选阶段——Score插件</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#调度队列的优先级管理"><span class="toc-text">调度队列的优先级管理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战-自定义调度器"><span class="toc-text">实战：自定义调度器</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-基于Webhook的调度器"><span class="toc-text">示例一：基于Webhook的调度器</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-调度器扩展-Scheduler-Extender"><span class="toc-text">示例二：调度器扩展（Scheduler Extender）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-使用调度器框架-Framework-编写扩展插件"><span class="toc-text">示例三：使用调度器框架（Framework）编写扩展插件</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#四种自定义调度方案对比"><span class="toc-text">四种自定义调度方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#关键差异分析"><span class="toc-text">关键差异分析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#实践一-调度性能调优"><span class="toc-text">实践一：调度性能调优</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#实践二-处理调度失败"><span class="toc-text">实践二：处理调度失败</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑指南"><span class="toc-text">避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/2718/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Kubernetes调度器源码分析与自定义调度</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-08"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-08</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-08"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-08</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Kubernetes调度器源码分析与自定义调度"><a href="#Kubernetes调度器源码分析与自定义调度" class="headerlink" title="Kubernetes调度器源码分析与自定义调度"></a>Kubernetes调度器源码分析与自定义调度</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。</p>
+<p>登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了<code>node.kubernetes.io/unschedulable: NoSchedule</code>污点，而我们的工作负载恰好没有容忍这个污点。</p>
+<p>那一刻我意识到，虽然每天在用Kubernetes，但调度器对我而言始终是个黑盒。如果当时能深入理解调度器的内部机制，这个故障排查可能只需要几分钟。</p>
+<p>这就是我想写这篇文章的初衷——带你深入Kubernetes调度器的核心源码，并手把手实现一个自定义调度器。读完这篇文章，你将能够回答以下问题：</p>
+<ul>
+<li>Pod从创建到绑定节点，中间经历了什么？</li>
+</ul>
+<ul>
+<li>调度器的"预选"和"优选"策略到底是如何实现的？</li>
+</ul>
+<ul>
+<li>如何在不修改kube-scheduler源码的情况下，扩展调度能力？</li>
+</ul>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-高考录取系统"><a href="#生活类比-高考录取系统" class="headerlink" title="生活类比：高考录取系统"></a>生活类比：高考录取系统</h3>
+<p>想象一下Kubernetes调度器是一个高考录取系统，而Pod就是考生，节点就是大学。</p>
+<p><strong>调度过程</strong>就像高考录取：</p>
+<ol>
+<li><strong>资格审查（Predicates/预选）</strong>：考生分数是否达到最低投档线？是否有身体条件限制？这对应调度器检查Pod的请求资源是否满足节点可用资源、端口是否冲突、节点亲和性是否匹配等硬性条件。</li>
+</ol>
+<ol>
+<li><strong>综合评定（Priorities/优选）</strong>：在过了投档线的考生中，按分数从高到低排序。对应调度器对每个满足条件的节点进行打分，选择得分最高的节点。</li>
+</ol>
+<ol>
+<li><strong>录取通知（Binding/绑定）</strong>：将考生档案投递到目标大学。对应调度器创建Pod与节点的绑定关系。</li>
+</ol>
+<p>这套设计的好处在于，<strong>预选</strong>保证可行性，<strong>优选</strong>保证最优性，两者解耦，各自可以独立扩展。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>Kubernetes调度器（kube-scheduler）是控制平面的核心组件之一，负责将Pending状态的Pod分配到最合适的节点上。它通过<strong>监听API Server</strong>获取待调度的Pod，经过<strong>调度算法</strong>（过滤+打分）选定目标节点，最后通过<strong>绑定</strong>操作将Pod与节点关联。</p>
+<h3 id="调度器架构"><a href="#调度器架构" class="headerlink" title="调度器架构"></a>调度器架构</h3>
+<div class="mermaid">
+graph TD
+    A[API Server] -->|Watch Pods| B[Informer]
+    B -->|待调度Pod进入队列| C[Scheduling Queue]
+    C -->|弹出Pod| D[调度主循环]
+    
+    subgraph 调度周期
+        D --> E[预选阶段<br/>Filter/过滤]
+        E --> F{是否通过?}
+        F -->|否| G[标记不可调度<br/>等待下次重试]
+        F -->|是| H[优选阶段<br/>Score/打分]
+        H --> I[选择最高分节点]
+    end
+    
+    I -->|假定绑定| J[Assume Pod]
+    J -->|异步执行| K[绑定周期<br/>Bind Pod到Node]
+    
+    subgraph 绑定周期
+        K --> L[Volume绑定]
+        L --> M[Pod绑定API调用]
+        M --> N[清理缓存]
+    end
+    
+    D --> O{调度成功?}
+    O -->|是| P[更新调度结果]
+    O -->|否| Q[重新入队]
+</div>
+<h2 id="源码深度分析"><a href="#源码深度分析" class="headerlink" title="源码深度分析"></a>源码深度分析</h2>
+<h3 id="调度器主流程"><a href="#调度器主流程" class="headerlink" title="调度器主流程"></a>调度器主流程</h3>
+<p>kube-scheduler的入口在<code>cmd/kube-scheduler/app/server.go</code>，但核心逻辑在<code>pkg/scheduler/scheduler.go</code>。我们来看关键的<code>scheduleOne</code>方法：</p>
+<figure class="highlight go"><pre><code class="language-go">// pkg/scheduler/scheduler.go
+func (sched *Scheduler) scheduleOne(ctx context.Context) {
+    // 1. 从调度队列中获取下一个待调度的Pod
+    podInfo := sched.NextPod()
+    // podInfo 可能是通过优先级抢占来的，也可能是普通Pod
+    
+    // 2. 执行调度周期（Scheduling Cycle）
+    scheduleResult, err := sched.schedulePod(ctx, fwk, podInfo.Pod)
+    if err != nil {
+        // 调度失败处理
+        sched.handleSchedulingFailure(ctx, fwk, podInfo, err, ...)
+        return
+    }
+    
+    // 3. 假定绑定（Assume）
+    // 这是关键优化：在真正持久化绑定之前，先更新内部缓存，
+    // 避免其他Pod重复选择同一节点
+    assumedPodInfo := podInfo.DeepCopy()
+    assumedPod := assumedPodInfo.Pod
+    err = sched.assume(assumedPod, scheduleResult.SuggestedHost)
+    
+    // 4. 执行绑定周期（Binding Cycle）
+    // 绑定周期与调度周期是并发执行的
+    go func() {
+        err := sched.bindPod(ctx, fwk, assumedPod, scheduleResult)
+    }()
+}</code></pre></figure>
+<p>这里最核心的设计是<strong>调度周期与绑定周期的分离</strong>。调度周期是串行的（同一时间只调度一个Pod），而绑定周期可以并行执行。这类似于餐厅后厨：点单（调度）必须一单一单来，但做菜（绑定）可以同时进行。</p>
+<h3 id="预选阶段-Filter插件"><a href="#预选阶段-Filter插件" class="headerlink" title="预选阶段——Filter插件"></a>预选阶段——Filter插件</h3>
+<p>预选阶段的核心是<code>NodeResourcesFit</code>插件，它检查节点是否有足够的资源满足Pod的请求。我们深入看一下资源匹配的逻辑：</p>
+<figure class="highlight go"><pre><code class="language-go">// pkg/scheduler/framework/plugins/noderesources/fit.go
+func (f *Fit) Filter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
+    // 获取节点上的已分配资源
+    allocatedResources := nodeInfo.AllocatableResources()
+    
+    // 检查每个容器的资源请求
+    for _, container := range pod.Spec.Containers {
+        // CPU、内存、存储等资源逐一检查
+        if !allocatedResources.CPU.MilliValue() &gt;= container.Resources.Requests.Cpu().MilliValue() {
+            return framework.NewStatus(framework.Unschedulable, &quot;Insufficient cpu&quot;)
+        }
+    }
+}</code></pre></figure>
+<p><strong>一个重要细节</strong>：<code>NodeInfo</code>是调度器维护的节点资源缓存。当Pod被Assume后，调度器会<strong>乐观地</strong>更新这个缓存，即假设Pod已经在该节点上运行了。这样可以避免重复调度，但也引入了缓存与实际状态不一致的风险。</p>
+<h3 id="优选阶段-Score插件"><a href="#优选阶段-Score插件" class="headerlink" title="优选阶段——Score插件"></a>优选阶段——Score插件</h3>
+<p>优选阶段有多个打分插件，我们重点看<code>NodeResourcesBalancedAllocation</code>（资源均衡分配）：</p>
+<figure class="highlight go"><pre><code class="language-go">// pkg/scheduler/framework/plugins/noderesources/balanced_allocation.go
+func (pl *BalancedAllocation) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+    nodeInfo, err := pl.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+    
+    // 计算CPU和内存的使用率
+    cpuFraction := fractionOfCapacity(requestedCPU, allocatableCPU)
+    memoryFraction := fractionOfCapacity(requestedMemory, allocatableMemory)
+    
+    // 得分 = 10 - 资源使用率的方差 * 10
+    // 方差越小，说明资源使用越均衡，得分越高
+    variance := math.Abs(cpuFraction - memoryFraction)
+    score := (1 - variance) * maxScore
+    
+    return int64(score), nil
+}</code></pre></figure>
+<p>这个插件的设计很巧妙——它鼓励将Pod调度到资源使用均衡的节点上，避免出现CPU打满而内存空闲的"偏科"节点。</p>
+<h3 id="调度队列的优先级管理"><a href="#调度队列的优先级管理" class="headerlink" title="调度队列的优先级管理"></a>调度队列的优先级管理</h3>
+<p>调度队列不是简单的FIFO，它实现了基于优先级的调度。Pod的优先级通过<code>PriorityClass</code>定义：</p>
+<figure class="highlight go"><pre><code class="language-go">// pkg/scheduler/internal/queue/scheduling_queue.go
+func (p *PriorityQueue) Add(pod *v1.Pod) error {
+    // 根据Pod优先级插入到不同的子队列
+    if p.podBackoffQ != nil &amp;&amp; p.podBackoffQ.Has(pod) {
+        // 如果Pod正在退避期（调度失败后），更新其退避时间
+        return p.podBackoffQ.Update(pod)
+    }
+    
+    // 高优先级Pod进入activeQ的前端
+    // 低优先级Pod可能被抢占
+    return p.activeQ.Add(pod)
+}</code></pre></figure>
+<h2 id="实战-自定义调度器"><a href="#实战-自定义调度器" class="headerlink" title="实战：自定义调度器"></a>实战：自定义调度器</h2>
+<h3 id="示例一-基于Webhook的调度器"><a href="#示例一-基于Webhook的调度器" class="headerlink" title="示例一：基于Webhook的调度器"></a>示例一：基于Webhook的调度器</h3>
+<p>有时候，我们希望在外部系统中完成调度决策——比如根据业务指标、成本数据等。Webhook调度器允许我们将决策逻辑完全外置。</p>
+<figure class="highlight go"><pre><code class="language-go">// custom-scheduler/main.go
+package main
+
+import (
+	&quot;context&quot;
+	&quot;encoding/json&quot;
+	&quot;fmt&quot;
+	&quot;io/ioutil&quot;
+	&quot;net/http&quot;
+	&quot;time&quot;
+
+	v1 &quot;k8s.io/api/core/v1&quot;
+	metav1 &quot;k8s.io/apimachinery/pkg/apis/meta/v1&quot;
+	&quot;k8s.io/client-go/kubernetes&quot;
+	&quot;k8s.io/client-go/tools/clientcmd&quot;
+)
+
+// WebhookScheduler 是一个通过外部HTTP服务做调度决策的调度器
+type WebhookScheduler struct {
+	client       kubernetes.Interface
+	webhookURL   string
+	pollInterval time.Duration
+}
+
+// ScheduleRequest 发送给Webhook服务的请求体
+type ScheduleRequest struct {
+	Pod      *v1.Pod `json:&quot;pod&quot;`
+	Nodes    []v1.Node `json:&quot;nodes&quot;`
+	Metadata map[string]string `json:&quot;metadata&quot;`
+}
+
+// ScheduleResponse Webhook服务的响应体
+type ScheduleResponse struct {
+	NodeName string `json:&quot;nodeName&quot;`
+	Reason   string `json:&quot;reason,omitempty&quot;`
+}
+
+// NewWebhookScheduler 创建基于Webhook的调度器
+func NewWebhookScheduler(kubeconfig, webhookURL string) (*WebhookScheduler, error) {
+	config, err := clientcmd.BuildConfigFromFlags(&quot;&quot;, kubeconfig)
+	if err != nil {
+		return nil, fmt.Errorf(&quot;加载kubeconfig失败: %v&quot;, err)
+	}
+	
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf(&quot;创建Kubernetes客户端失败: %v&quot;, err)
+	}
+	
+	return &amp;WebhookScheduler{
+		client:       clientset,
+		webhookURL:   webhookURL,
+		pollInterval: 2 * time.Second,
+	}, nil
+}
+
+// Run 启动调度器主循环
+func (s *WebhookScheduler) Run(ctx context.Context) error {
+	fmt.Println(&quot;Webhook调度器已启动，开始监听待调度的Pod...&quot;)
+	
+	// 持续监听未调度的Pod
+	watcher, err := s.client.CoreV1().Pods(&quot;&quot;).Watch(ctx, metav1.ListOptions{
+		FieldSelector: &quot;spec.nodeName=&quot;, // 只关注未绑定节点的Pod
+	})
+	if err != nil {
+		return err
+	}
+	
+	for event := range watcher.ResultChan() {
+		pod, ok := event.Object.(*v1.Pod)
+		if !ok {
+			continue
+		}
+		
+		// 忽略已完成或删除的Pod
+		if pod.DeletionTimestamp != nil {
+			continue
+		}
+		
+		// 调度决策
+		nodeName, err := s.schedule(ctx, pod)
+		if err != nil {
+			fmt.Printf(&quot;调度Pod %s/%s 失败: %v\n&quot;, pod.Namespace, pod.Name, err)
+			continue
+		}
+		
+		// 绑定Pod到节点
+		if err := s.bind(ctx, pod, nodeName); err != nil {
+			fmt.Printf(&quot;绑定Pod %s/%s 到节点 %s 失败: %v\n&quot;, 
+				pod.Namespace, pod.Name, nodeName, err)
+		}
+	}
+	
+	return nil
+}
+
+// schedule 调用外部Webhook服务进行调度决策
+func (s *WebhookScheduler) schedule(ctx context.Context, pod *v1.Pod) (string, error) {
+	// 获取所有可用节点
+	nodes, err := s.client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	
+	// 构造请求
+	req := ScheduleRequest{
+		Pod:      pod,
+		Nodes:    nodes.Items,
+		Metadata: map[string]string{
+			&quot;requestTime&quot;: time.Now().Format(time.RFC3339),
+		},
+	}
+	
+	// 序列化请求
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	
+	// 调用Webhook服务
+	httpReq, err := http.NewRequestWithContext(ctx, &quot;POST&quot;, s.webhookURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return &quot;&quot;, err
+	}
+	httpReq.Header.Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+	
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return &quot;&quot;, fmt.Errorf(&quot;调用Webhook服务失败: %v&quot;, err)
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return &quot;&quot;, fmt.Errorf(&quot;Webhook服务返回非200状态码: %d&quot;, resp.StatusCode)
+	}
+	
+	// 解析响应
+	var result ScheduleResponse
+	if err := json.NewDecoder(resp.Body).Decode(&amp;result); err != nil {
+		return &quot;&quot;, err
+	}
+	
+	if result.NodeName == &quot;&quot; {
+		return &quot;&quot;, fmt.Errorf(&quot;Webhook未返回有效的节点名称: %s&quot;, result.Reason)
+	}
+	
+	return result.NodeName, nil
+}
+
+// bind 将Pod绑定到指定节点
+func (s *WebhookScheduler) bind(ctx context.Context, pod *v1.Pod, nodeName string) error {
+	binding := &amp;v1.Binding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+		},
+		Target: v1.ObjectReference{
+			Kind: &quot;Node&quot;,
+			Name: nodeName,
+		},
+	}
+	
+	// 通过API Server创建Binding对象
+	err := s.client.CoreV1().Pods(pod.Namespace).Bind(ctx, binding, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf(&quot;创建绑定失败: %v&quot;, err)
+	}
+	
+	fmt.Printf(&quot;成功将Pod %s/%s 调度到节点 %s\n&quot;, pod.Namespace, pod.Name, nodeName)
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	
+	scheduler, err := NewWebhookScheduler(
+		&quot;/root/.kube/config&quot;, 
+		&quot;http://localhost:8080/schedule&quot;,
+	)
+	if err != nil {
+		panic(err)
+	}
+	
+	if err := scheduler.Run(ctx); err != nil {
+		panic(err)
+	}
+}</code></pre></figure>
+<h3 id="示例二-调度器扩展-Scheduler-Extender"><a href="#示例二-调度器扩展-Scheduler-Extender" class="headerlink" title="示例二：调度器扩展（Scheduler Extender）"></a>示例二：调度器扩展（Scheduler Extender）</h3>
+<p>如果不想完全替换调度器，而是希望扩展现有kube-scheduler的能力，可以使用Scheduler Extender机制。它允许在预选和优选阶段之后，追加自定义的过滤和打分逻辑。</p>
+<figure class="highlight go"><pre><code class="language-go">// extender/main.go
+package main
+
+import (
+	&quot;encoding/json&quot;
+	&quot;fmt&quot;
+	&quot;net/http&quot;
+	&quot;sort&quot;
+	&quot;time&quot;
+
+	v1 &quot;k8s.io/api/core/v1&quot;
+	&quot;k8s.io/apimachinery/pkg/types&quot;
+)
+
+// ExtenderArgs 是kube-scheduler传给extender的参数
+type ExtenderArgs struct {
+	Pod      *v1.Pod             `json:&quot;pod&quot;`
+	Nodes    *v1.NodeList        `json:&quot;nodes&quot;`
+	NodeNames *[]string          `json:&quot;nodeNames&quot;`
+}
+
+// ExtenderFilterResult 是预选阶段的返回结果
+type ExtenderFilterResult struct {
+	Nodes       *v1.NodeList `json:&quot;nodes,omitempty&quot;`
+	NodeNames   *[]string    `json:&quot;nodeNames,omitempty&quot;`
+	FailedNodes FailedNodesMap `json:&quot;failedNodes,omitempty&quot;`
+	Error       string       `json:&quot;error,omitempty&quot;`
+}
+
+type FailedNodesMap map[string]string
+
+// ExtenderPriorityResult 是优选阶段的返回结果
+type ExtenderPriorityResult struct {
+	// 每个节点的打分结果
+	Priorities []HostPriority `json:&quot;priorities&quot;`
+}
+
+type HostPriority struct {
+	Host string `json:&quot;host&quot;`
+	Score int64  `json:&quot;score&quot;`
+}
+
+// SchedulerExtender 实现了一个自定义的调度器扩展
+type SchedulerExtender struct {
+	// 可配置的权重
+	metadataWeight int64
+}
+
+// NewSchedulerExtender 创建扩展实例
+func NewSchedulerExtender() *SchedulerExtender {
+	return &amp;SchedulerExtender{
+		metadataWeight: 10,
+	}
+}
+
+// Filter 预选阶段扩展
+// 这里我们实现一个简单的逻辑：排除带有特定标签的节点
+func (e *SchedulerExtender) Filter(w http.ResponseWriter, r *http.Request) {
+	var args ExtenderArgs
+	if err := json.NewDecoder(r.Body).Decode(&amp;args); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	result := ExtenderFilterResult{
+		FailedNodes: make(FailedNodesMap),
+	}
+	
+	if args.Nodes != nil {
+		filteredNodes := &amp;v1.NodeList{}
+		for _, node := range args.Nodes.Items {
+			// 排除带有&quot;exclude-from-scheduling=true&quot;标签的节点
+			if val, ok := node.Labels[&quot;exclude-from-scheduling&quot;]; ok &amp;&amp; val == &quot;true&quot; {
+				result.FailedNodes[node.Name] = &quot;节点被标签排除&quot;
+				continue
+			}
+			
+			// 排除处于NotReady状态的节点
+			for _, condition := range node.Status.Conditions {
+				if condition.Type == v1.NodeReady &amp;&amp; condition.Status != v1.ConditionTrue {
+					result.FailedNodes[node.Name] = fmt.Sprintf(&quot;节点状态: %s&quot;, condition.Status)
+					continue
+				}
+			}
+			
+			filteredNodes.Items = append(filteredNodes.Items, node)
+		}
+		result.Nodes = filteredNodes
+	}
+	
+	w.Header().Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+	json.NewEncoder(w).Encode(result)
+}
+
+// Prioritize 优选阶段扩展
+// 这里我们实现一个基于节点CPU架构的打分策略
+func (e *SchedulerExtender) Prioritize(w http.ResponseWriter, r *http.Request) {
+	var args ExtenderArgs
+	if err := json.NewDecoder(r.Body).Decode(&amp;args); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// 假设Pod需要ARM架构
+	needARM := false
+	if args.Pod.Labels[&quot;architecture&quot;] == &quot;arm64&quot; {
+		needARM = true
+	}
+	
+	var priorities []HostPriority
+	if args.Nodes != nil {
+		for _, node := range args.Nodes.Items {
+			score := int64(50) // 基础分
+			
+			// ARM架构匹配则加分
+			if needARM {
+				if node.Status.NodeInfo.Architecture == &quot;arm64&quot; {
+					score += e.metadataWeight * 5
+				}
+			} else if node.Status.NodeInfo.Architecture == &quot;amd64&quot; {
+				score += e.metadataWeight * 3
+			}
+			
+			// 节点上运行的Pod数量越少，得分越高
+			podCount := len(node.Status.Images) // 简化的示例
+			score -= int64(podCount) * 2
+			
+			priorities = append(priorities, HostPriority{
+				Host:  node.Name,
+				Score: score,
+			})
+		}
+	}
+	
+	// 按分数排序
+	sort.Slice(priorities, func(i, j int) bool {
+		return priorities[i].Score &gt; priorities[j].Score
+	})
+	
+	result := ExtenderPriorityResult{
+		Priorities: priorities,
+	}
+	
+	w.Header().Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+	json.NewEncoder(w).Encode(result)
+}
+
+func main() {
+	extender := NewSchedulerExtender()
+	
+	http.HandleFunc(&quot;/filter&quot;, extender.Filter)
+	http.HandleFunc(&quot;/prioritize&quot;, extender.Prioritize)
+	
+	fmt.Println(&quot;Scheduler Extender已启动，监听端口 8888...&quot;)
+	http.ListenAndServe(&quot;:8888&quot;, nil)
+}</code></pre></figure>
+<h3 id="示例三-使用调度器框架-Framework-编写扩展插件"><a href="#示例三-使用调度器框架-Framework-编写扩展插件" class="headerlink" title="示例三：使用调度器框架（Framework）编写扩展插件"></a>示例三：使用调度器框架（Framework）编写扩展插件</h3>
+<p>Kubernetes 1.15+提供了调度器框架（Scheduling Framework），这是最现代、最推荐的自定义调度方式。它允许你在不修改kube-scheduler源码的情况下，通过编译期注册或运行时配置来扩展调度器。</p>
+<figure class="highlight go"><pre><code class="language-go">// plugins/customfilter/customfilter.go
+package customfilter
+
+import (
+	&quot;context&quot;
+	&quot;fmt&quot;
+	&quot;strings&quot;
+
+	v1 &quot;k8s.io/api/core/v1&quot;
+	&quot;k8s.io/apimachinery/pkg/runtime&quot;
+	&quot;k8s.io/kubernetes/pkg/scheduler/framework&quot;
+)
+
+// CustomFilter 自定义的过滤插件
+// 这个插件会检查Pod是否声明了特定的资源需求，并验证节点是否支持
+type CustomFilter struct {
+	handle framework.Handle
+	// 支持的资源类型列表
+	supportedResources map[string]bool
+}
+
+// New 创建插件实例
+func New(obj runtime.Object, handle framework.Handle) (framework.Plugin, error) {
+	// 从配置中解析支持的资源类型
+	// 这里使用硬编码作为示例
+	supported := map[string]bool{
+		&quot;gpu&quot;:    true,
+		&quot;fpga&quot;:   true,
+		&quot;tpu&quot;:    true,
+	}
+	
+	return &amp;CustomFilter{
+		handle:             handle,
+		supportedResources: supported,
+	}, nil
+}
+
+// Name 返回插件名称
+func (cf *CustomFilter) Name() string {
+	return &quot;CustomFilter&quot;
+}
+
+// Filter 实现预选阶段逻辑
+func (cf *CustomFilter) Filter(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeInfo *framework.NodeInfo) *framework.Status {
+	node := nodeInfo.Node()
+	
+	// 检查Pod是否请求了特殊资源
+	for _, container := range pod.Spec.Containers {
+		for resourceName := range container.Resources.Requests {
+			resourceStr := string(resourceName)
+			
+			// 检查是否为自定义的扩展资源
+			if strings.Contains(resourceStr, &quot;example.com/&quot;) {
+				// 提取资源类型
+				resourceType := strings.TrimPrefix(resourceStr, &quot;example.com/&quot;)
+				
+				// 检查节点是否支持这种资源
+				if !cf.supportedResources[resourceType] {
+					return framework.NewStatus(
+						framework.Unschedulable,
+						fmt.Sprintf(&quot;节点 %s 不支持资源类型 %s&quot;, node.Name, resourceType),
+					)
+				}
+				
+				// 检查节点上的资源容量是否足够
+				allocatable, ok := node.Status.Allocatable[resourceName]
+				if !ok || allocatable.IsZero() {
+					return framework.NewStatus(
+						framework.Unschedulable,
+						fmt.Sprintf(&quot;节点 %s 上没有可用的 %s 资源&quot;, node.Name, resourceType),
+					)
+				}
+			}
+		}
+	}
+	
+	return framework.NewStatus(framework.Success, &quot;&quot;)
+}
+
+// Score 实现优选阶段逻辑
+func (cf *CustomFilter) Score(ctx context.Context, state *framework.CycleState, pod *v1.Pod, nodeName string) (int64, *framework.Status) {
+	// 获取节点信息
+	nodeInfo, err := cf.handle.SnapshotSharedLister().NodeInfos().Get(nodeName)
+	if err != nil {
+		return 0, framework.NewStatus(framework.Error, fmt.Sprintf(&quot;获取节点信息失败: %v&quot;, err))
+	}
+	
+	node := nodeInfo.Node()
+	score := int64(0)
+	
+	// 检查节点上的自定义资源利用率
+	for resourceName, quantity := range node.Status.Allocatable {
+		if strings.Contains(string(resourceName), &quot;example.com/&quot;) {
+			// 计算资源使用率
+			requested := nodeInfo.Requested.Resource(resourceName)
+			allocatable := quantity.Value()
+			
+			if allocatable &gt; 0 {
+				usageRatio := float64(requested.Value()) / float64(allocatable)
+				// 资源使用率越低，得分越高（鼓励分散调度）
+				score += int64((1 - usageRatio) * 100)
+			}
+		}
+	}
+	
+	return score, framework.NewStatus(framework.Success, &quot;&quot;)
+}
+
+// ScoreExtensions 返回打分扩展
+func (cf *CustomFilter) ScoreExtensions() framework.ScoreExtensions {
+	return nil
+}</code></pre></figure>
+<p>配置插件到调度器：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># scheduler-config.yaml
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+profiles:
+- schedulerName: custom-scheduler
+  plugins:
+    filter:
+      enabled:
+      - name: &quot;CustomFilter&quot;
+      disabled:
+      - name: &quot;NodeAffinity&quot;  # 可以禁用内置插件
+    score:
+      enabled:
+      - name: &quot;CustomFilter&quot;
+        weight: 50
+      - name: &quot;NodeResourcesBalancedAllocation&quot;
+        weight: 30</code></pre></figure>
+<p>然后通过命令行启动自定义调度器：</p>
+<figure class="highlight bash"><pre><code class="language-bash">kube-scheduler --config=scheduler-config.yaml --v=5</code></pre></figure>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="四种自定义调度方案对比"><a href="#四种自定义调度方案对比" class="headerlink" title="四种自定义调度方案对比"></a>四种自定义调度方案对比</h3>
+<p>| 方案 | 复杂度 | 灵活性 | 维护成本 | 适用场景 |</p>
+<p>|------|--------|--------|----------|----------|</p>
+<p>| <strong>Webhook调度器</strong> | 低 | 高 | 中 | 调度逻辑完全外置，需要集成外部系统 |</p>
+<p>| <strong>Scheduler Extender</strong> | 中 | 中 | 中 | 在现有调度器基础上追加过滤/打分逻辑 |</p>
+<p>| <strong>调度器框架插件</strong> | 中 | 高 | 低 | 需要深度定制调度行为，且希望与K8s版本兼容 |</p>
+<p>| <strong>修改kube-scheduler源码</strong> | 高 | 最高 | 高 | 需要修改调度核心逻辑，且有足够人力维护 |</p>
+<h3 id="关键差异分析"><a href="#关键差异分析" class="headerlink" title="关键差异分析"></a>关键差异分析</h3>
+<p><strong>调度器框架</strong>是官方推荐的方式，因为：</p>
+<ol>
+<li><strong>版本兼容性</strong>：框架API相对稳定，升级K8s版本时迁移成本低</li>
+<li><strong>可组合性</strong>：可以同时启用多个插件，每个插件关注一个关注点</li>
+<li><strong>可测试性</strong>：插件可以独立单元测试</li>
+</ol>
+<p><strong>Scheduler Extender</strong>的优势在于它通过HTTP接口工作，可以用任何语言实现，但<strong>性能开销</strong>较大——每次调度都要走一次HTTP调用。</p>
+<p><strong>完全替换调度器</strong>（Webhook方式）提供了最大的灵活性，但你需要自己实现<strong>调度队列管理</strong>、<strong>失败重试</strong>、<strong>抢占</strong>等复杂功能，工作量不容小觑。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="实践一-调度性能调优"><a href="#实践一-调度性能调优" class="headerlink" title="实践一：调度性能调优"></a>实践一：调度性能调优</h3>
+<p>调度器的性能瓶颈往往不在算法本身，而在<strong>API Server的请求压力</strong>。以下是一些优化建议：</p>
+<figure class="highlight go"><pre><code class="language-go">// 优化示例：批量获取节点信息
+// 不要这样（逐个查询节点）：
+for _, nodeName := range nodeNames {
+    node, _ := client.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+}
+
+// 应该这样（一次获取所有节点）：
+nodes, _ := client.CoreV1().Nodes().List(ctx, metav1.ListOptions{})</code></pre></figure>
+<h3 id="实践二-处理调度失败"><a href="#实践二-处理调度失败" class="headerlink" title="实践二：处理调度失败"></a>实践二：处理调度失败</h3>
+<p>调度失败的处理需要特别注意<strong>重试策略</strong>和<strong>退避算法</strong>，避免出现"调度风暴"：</p>
+<figure class="highlight go"><pre><code class="language-go">// 合理设置重试退避时间
+type RetryPolicy struct {
+    MaxRetries   int           // 最大重试次数
+    InitialDelay time.Duration // 初始延迟
+    MaxDelay     time.Duration // 最大延迟
+}
+
+func (p *RetryPolicy) GetBackoff(retryCount int) time.Duration {
+    // 指数退避 + 抖动
+    delay := p.InitialDelay * time.Duration(1&lt;&lt;uint(retryCount))
+    if delay &gt; p.MaxDelay {
+        delay = p.MaxDelay
+    }
+    
+    // 添加±10%的随机抖动，避免惊群效应
+    jitter := time.Duration(float64(delay) * 0.1 * rand.Float64())
+    return delay + jitter
+}</code></pre></figure>
+<h3 id="避坑指南"><a href="#避坑指南" class="headerlink" title="避坑指南"></a>避坑指南</h3>
+<ol>
+<li><strong>不要忽略Pod的优先级</strong>：自定义调度器需要正确处理<code>PriorityClass</code>，否则可能导致高优先级Pod饿死</li>
+</ol>
+<ol>
+<li><strong>注意缓存一致性</strong>：使用Assume机制时，务必在绑定失败后回滚缓存，否则会导致资源泄漏</li>
+</ol>
+<ol>
+<li><strong>处理节点状态变化</strong>：调度器必须监听节点状态变化（如NotReady、资源不足），及时从调度候选列表中移除</li>
+</ol>
+<ol>
+<li><strong>避免调度热点</strong>：对于大规模集群，要考虑调度器的并发能力。内置的调度器是单实例的，如果遇到性能瓶颈，可以考虑使用<strong>多调度器</strong>（每个调度器负责一部分资源类型）</li>
+</ol>
+<ol>
+<li><strong>测试要充分</strong>：自定义调度器上线前，务必进行<strong>混沌测试</strong>——模拟节点宕机、网络分区、API Server不可用等场景</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>通过这篇文章，我们从源码层面剖析了Kubernetes调度器的核心机制：</p>
+<ul>
+<li><strong>调度周期与绑定周期分离</strong>的设计，保证了调度的高吞吐</li>
+</ul>
+<ul>
+<li><strong>预选与优选</strong>的两阶段策略，兼顾了可行性与最优性</li>
+</ul>
+<ul>
+<li><strong>调度器框架</strong>的插件化设计，让我们可以灵活扩展调度能力</li>
+</ul>
+<p>我们实现了三种自定义调度方案，从最简单的Webhook调度器到最优雅的框架插件，每种方案都有其适用场景。</p>
+<p><strong>延伸思考</strong>：Kubernetes社区正在讨论"<strong>多调度器</strong>"架构，即不同场景使用不同的调度器实例。例如，批处理任务使用一个调度器，在线服务使用另一个调度器。这种架构可以避免不同类型工作负载之间的调度干扰，但也带来了更复杂的集群管理挑战。</p>
+<p>如果你正在使用Kubernetes，我强烈建议你花时间深入调度器源码。你会发现，那些看似神奇的功能，底层实现其实非常优雅且易于理解。正如开篇的故障排查经历所示，对调度器的深入理解，在关键时刻能让你从"排查半天"变成"几分钟搞定"。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
