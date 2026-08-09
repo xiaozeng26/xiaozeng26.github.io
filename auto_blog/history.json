@@ -111,6 +111,13 @@
       "subtopic": "Kubernetes调度器源码分析与自定义调度",
       "date": "2026-08-08",
       "url": "/2026/08/08/Kubernetes调度器源码分析与自定义调度/"
+    },
+    {
+      "title": "全链路压测方案设计与流量染色：一场精心策划的“假戏真做”",
+      "category": "architecture",
+      "subtopic": "全链路压测方案设计与流量染色",
+      "date": "2026-08-09",
+      "url": "/2026/08/09/全链路压测方案设计与流量染色：一场精心策划的“假戏真做”/"
     }
   ],
   "used_subtopics": {
@@ -129,7 +136,8 @@
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
-      "多活数据中心架构设计"
+      "多活数据中心架构设计",
+      "全链路压测方案设计与流量染色"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -158,6 +166,7 @@
     "多活数据中心架构设计": "55320dd3f189c111e663cea80f02f72bfd49d0696cd44fbb51e0430f2eeec16a",
     "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁": "84ede6825a1b2207c4f84a7b20276c58ada51d128564fc54956960dc9b4e940d",
     "Go内存管理：栈与堆、逃逸分析": "250f0479cd1bd8b4a674f94664ed5237a1ce8d670427cf481081d6ce24af6bba",
-    "Kubernetes调度器源码分析与自定义调度": "a9a3751ec8b0725286034352e8dcdeea6beea4e763ffdfd3b45f4ef767c30393"
+    "Kubernetes调度器源码分析与自定义调度": "a9a3751ec8b0725286034352e8dcdeea6beea4e763ffdfd3b45f4ef767c30393",
+    "全链路压测方案设计与流量染色": "765baedcb05902831ce01b81b0fa5305cb472e24f53125bbe539d4d264aad765"
   }
 }
