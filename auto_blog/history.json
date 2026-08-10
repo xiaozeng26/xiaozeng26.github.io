@@ -118,6 +118,13 @@
       "subtopic": "全链路压测方案设计与流量染色",
       "date": "2026-08-09",
       "url": "/2026/08/09/全链路压测方案设计与流量染色：一场精心策划的“假戏真做”/"
+    },
+    {
+      "title": "LangChain表达式语言（LCEL）与Runnable协议深度解析",
+      "category": "ai-ml",
+      "subtopic": "LangChain表达式语言（LCEL）与Runnable协议深度解析",
+      "date": "2026-08-10",
+      "url": "/2026/08/10/LangChain表达式语言（LCEL）与Runnable协议深度解析/"
     }
   ],
   "used_subtopics": {
@@ -132,7 +139,8 @@
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
       "多模态AI应用开发：GPT-4V + LangChain",
-      "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速"
+      "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
+      "LangChain表达式语言（LCEL）与Runnable协议深度解析"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -167,6 +175,7 @@
     "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁": "84ede6825a1b2207c4f84a7b20276c58ada51d128564fc54956960dc9b4e940d",
     "Go内存管理：栈与堆、逃逸分析": "250f0479cd1bd8b4a674f94664ed5237a1ce8d670427cf481081d6ce24af6bba",
     "Kubernetes调度器源码分析与自定义调度": "a9a3751ec8b0725286034352e8dcdeea6beea4e763ffdfd3b45f4ef767c30393",
-    "全链路压测方案设计与流量染色": "765baedcb05902831ce01b81b0fa5305cb472e24f53125bbe539d4d264aad765"
+    "全链路压测方案设计与流量染色": "765baedcb05902831ce01b81b0fa5305cb472e24f53125bbe539d4d264aad765",
+    "LangChain表达式语言（LCEL）与Runnable协议深度解析": "2993113e3afb3a0486304848fd934bd94440a56b36ba5be81d20d33080ad968f"
   }
 }

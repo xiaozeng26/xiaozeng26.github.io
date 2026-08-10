@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LangChain表达式语言（LCEL）与Runnable协议深度解析 | 小曾博客</title>
+  <meta name="description" content="LangChain表达式语言（LCEL）与Runnable协议深度解析 引言 如果你在过去两年里构建过基于大语言模型（LLM）的应用，大概率遇到过这样的场景：你花了一个周末精心设计了一个包含提示词模板、模型调用、输出解析的完整流程，代码逻辑清晰、运行完美。然而当需求从“单轮问答”演变为“多步推理”、“条件分支”或“流式输出”时，你发现自己陷入了一场重构的噩梦——原本简洁的prompt -> llm">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LangChain表达式语言（LCEL）与Runnable协议深度解析">
+  <meta name="twitter:description" content="LangChain表达式语言（LCEL）与Runnable协议深度解析 引言 如果你在过去两年里构建过基于大语言模型（LLM）的应用，大概率遇到过这样的场景：你花了一个周末精心设计了一个包含提示词模板、模型调用、输出解析的完整流程，代码逻辑清晰、运行完美。然而当需求从“单轮问答”演变为“多步推理”、“条件分支”或“流式输出”时，你发现自己陷入了一场重构的噩梦——原本简洁的prompt -> llm">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/4814/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="LangChain表达式语言（LCEL）与Runnable协议深度解析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="LangChain表达式语言（LCEL）与Runnable协议深度解析 引言 如果你在过去两年里构建过基于大语言模型（LLM）的应用，大概率遇到过这样的场景：你花了一个周末精心设计了一个包含提示词模板、模型调用、输出解析的完整流程，代码逻辑清晰、运行完美。然而当需求从“单轮问答”演变为“多步推理”、“条件分支”或“流式输出”时，你发现自己陷入了一场重构的噩梦——原本简洁的prompt -> llm">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/4814/800/400">
+  <meta property="article:published_time" content="2026-08-10T20:44:13.000Z">
+  <meta property="article:modified_time" content="2026-08-10T20:44:13.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#LangChain表达式语言-LCEL-与Runnable协议深度解析"><span class="toc-text">LangChain表达式语言（LCEL）与Runnable协议深度解析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-管道-到-协议"><span class="toc-text">核心概念：从“管道”到“协议”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-乐高积木与标准接口"><span class="toc-text">生活类比：乐高积木与标准接口</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-核心执行引擎-RunnableSequence的调度逻辑"><span class="toc-text">RunnableSequence的调度逻辑">1. 核心执行引擎：RunnableSequence的调度逻辑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-流式传输的底层魔法-transform与astream"><span class="toc-text">transform与astream">2. 流式传输的底层魔法：transform与astream</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-并行执行的秘密-RunnableParallel与RunnableBranch"><span class="toc-text">RunnableParallel与RunnableBranch">3. 并行执行的秘密：RunnableParallel与RunnableBranch</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-生命周期钩子-RunnableConfig与回调"><span class="toc-text">RunnableConfig与回调">4. 生命周期钩子：RunnableConfig与回调</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个从入门到进阶的完整示例"><span class="toc-text">实战代码：三个从入门到进阶的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-构建动态路由的RAG问答链路"><span class="toc-text">示例一：构建动态路由的RAG问答链路</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-流式输出-自定义回调监控"><span class="toc-text">示例二：流式输出 + 自定义回调监控</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-并行执行多个独立任务并合并结果"><span class="toc-text">示例三：并行执行多个独立任务并合并结果</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-LCEL-vs-其他编排方案"><span class="toc-text">方案对比：LCEL vs 其他编排方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑指南"><span class="toc-text">避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/4814/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">LangChain表达式语言（LCEL）与Runnable协议深度解析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-10"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-10</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-10"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-10</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="LangChain表达式语言-LCEL-与Runnable协议深度解析"><a href="#LangChain表达式语言-LCEL-与Runnable协议深度解析" class="headerlink" title="LangChain表达式语言（LCEL）与Runnable协议深度解析"></a>LangChain表达式语言（LCEL）与Runnable协议深度解析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>如果你在过去两年里构建过基于大语言模型（LLM）的应用，大概率遇到过这样的场景：你花了一个周末精心设计了一个包含提示词模板、模型调用、输出解析的完整流程，代码逻辑清晰、运行完美。然而当需求从“单轮问答”演变为“多步推理”、“条件分支”或“流式输出”时，你发现自己陷入了一场重构的噩梦——原本简洁的<code>prompt -> llm -> parser</code>三段式代码，被硬生生改造成了复杂的回调函数地狱和状态同步逻辑。</p>
+<p>这正是LangChain表达式语言（LCEL）试图终结的痛点。作为LangChain生态在2024年之后的核心抽象，LCEL引入的<code>Runnable</code>协议彻底改变了链路的构建方式。本文将带领你深入LCEL的源码肌理，理解其设计哲学，并给出真正能落地的实战方案。</p>
+<h2 id="核心概念-从-管道-到-协议"><a href="#核心概念-从-管道-到-协议" class="headerlink" title="核心概念：从“管道”到“协议”"></a>核心概念：从“管道”到“协议”</h2>
+<h3 id="生活类比-乐高积木与标准接口"><a href="#生活类比-乐高积木与标准接口" class="headerlink" title="生活类比：乐高积木与标准接口"></a>生活类比：乐高积木与标准接口</h3>
+<p>想象你在搭建一座乐高城堡。传统的LangChain调用方式，是使用一块块已经粘死的“复合积木”——每个积木内部有自己的逻辑，但接口千奇百怪。你需要用胶水（自定义胶水代码）将它们强行连接。而LCEL则定义了乐高积木的<strong>标准凸起与凹槽</strong>——这就是<code>Runnable</code>协议。任何实现了这个协议的对象，无论内部是提示模板、模型还是自定义函数，都能以完全相同的方式被组合、并行、回退和流式输出。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p><code>Runnable</code>协议的核心是一组异步和同步方法的规范：</p>
+<figure class="highlight python"><pre><code class="language-python">class Runnable(Generic[Input, Output]):
+    def invoke(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Output: ...
+    async def ainvoke(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Output: ...
+    def batch(self, inputs: List[Input], config: Optional[RunnableConfig] = None) -&gt; List[Output]: ...
+    def stream(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Iterator[Output]: ...
+    def bind(self, **kwargs) -&gt; Runnable[Input, Output]: ...
+    # 组合运算符：| 是核心
+    def __or__(self, other: Runnable) -&gt; Runnable: ...</code></pre></figure>
+<p>LCEL就是围绕这套协议构建的“管道语法糖”。它最直观的体现就是<code>|</code>运算符——你不需要再嵌套调用，而是像Unix管道一样将数据从一个<code>Runnable</code>流向另一个。</p>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-核心执行引擎-RunnableSequence的调度逻辑"><a href="#1-核心执行引擎-RunnableSequence的调度逻辑" class="headerlink" title="1. 核心执行引擎：<code>RunnableSequence</code>的调度逻辑"></a>1. 核心执行引擎：<code>RunnableSequence</code>的调度逻辑</h3>
+<p><code>RunnableSequence</code>是LCEL最核心的实现。当你写下<code>runnable1 | runnable2</code>时，LangChain实际创建了一个<code>RunnableSequence</code>对象。我们来看它<code>invoke</code>方法的简化源码（基于LangChain 0.2.x）：</p>
+<figure class="highlight python"><pre><code class="language-python"># langchain_core/runnables/base.py
+class RunnableSequence(Runnable[Input, Output]):
+    def __init__(self, *steps: RunnableLike):
+        self.steps = [coerce_to_runnable(step) for step in steps]
+
+    def invoke(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Output:
+        # 关键点1：调用上下文传播
+        with ensure_config(config) as config:
+            # 关键点2：逐步执行，将第一个步骤的输出作为第二个步骤的输入
+            for i, step in enumerate(self.steps):
+                if i == 0:
+                    output = step.invoke(input, config)
+                else:
+                    output = step.invoke(output, config)
+            return output</code></pre></figure>
+<p>这段代码看似简单，但其优雅之处在于<strong>配置（config）的透明传递</strong>。<code>config</code>中包含了回调处理器（callbacks）、重试策略、元数据等信息。这意味着在链路的任何一步，你都能捕获到完整的执行轨迹。</p>
+<h3 id="2-流式传输的底层魔法-transform与astream"><a href="#2-流式传输的底层魔法-transform与astream" class="headerlink" title="2. 流式传输的底层魔法：<code>transform</code>与<code>astream</code>"></a>2. 流式传输的底层魔法：<code>transform</code>与<code>astream</code></h3>
+<p>LCEL真正的杀手锏是流式传输。传统的链式调用需要等待前一步全部完成才能进入下一步，而LCEL通过<code>transform</code>方法实现了<strong>逐token的流式处理</strong>。</p>
+<figure class="highlight python"><pre><code class="language-python"># langchain_core/runnables/base.py
+class RunnableSequence(Runnable[Input, Output]):
+    async def atransform(self, input: AsyncIterator[Input], config: Optional[RunnableConfig] = None):
+        # 关键：将输入迭代器传递给第一个步骤
+        final_pipeline = self.steps[0].atransform(input, config)
+        for step in self.steps[1:]:
+            final_pipeline = step.atransform(final_pipeline, config)
+        async for chunk in final_pipeline:
+            yield chunk</code></pre></figure>
+<p>这里的设计思想是<strong>惰性求值</strong>。每一步都接收一个异步迭代器，并返回一个新的异步迭代器。数据像水流一样，从源头（提示词模板）流出，经过模型生成token，再被解析器逐步处理，全程无需等待完整输出。这就像一条自动化的快递分拣线，包裹（数据块）不必等整卡车货物到达，而是随到随分拣。</p>
+<h3 id="3-并行执行的秘密-RunnableParallel与RunnableBranch"><a href="#3-并行执行的秘密-RunnableParallel与RunnableBranch" class="headerlink" title="3. 并行执行的秘密：<code>RunnableParallel</code>与<code>RunnableBranch</code>"></a>3. 并行执行的秘密：<code>RunnableParallel</code>与<code>RunnableBranch</code></h3>
+<p><code>RunnableParallel</code>是LCEL中实现“扇出”的关键。它的<code>invoke</code>方法使用<code>asyncio.gather</code>并发执行所有子任务：</p>
+<figure class="highlight python"><pre><code class="language-python"># langchain_core/runnables/base.py
+class RunnableParallel(Runnable[Input, Dict[str, Any]]):
+    def invoke(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Dict[str, Any]:
+        # 关键：并发执行所有步骤
+        with executor as executor:
+            futures = {
+                key: executor.submit(step.invoke, input, config)
+                for key, step in self.steps.items()
+            }
+            return {key: future.result() for key, future in futures.items()}</code></pre></figure>
+<p>而<code>RunnableBranch</code>则实现了基于条件的路由。它的<code>invoke</code>方法会按顺序检查每个条件，一旦匹配就执行对应的分支：</p>
+<figure class="highlight python"><pre><code class="language-python"># langchain_core/runnables/branch.py
+class RunnableBranch(Runnable[Input, Output]):
+    def invoke(self, input: Input, config: Optional[RunnableConfig] = None) -&gt; Output:
+        for condition, runnable in self.branches:
+            if condition(input):
+                return runnable.invoke(input, config)
+        # 如果没有匹配，执行默认分支
+        return self.default.invoke(input, config)</code></pre></figure>
+<p>这种设计让我们可以轻松构建“如果输入包含编程问题，则使用代码专家模型；否则使用通用模型”这类动态路由逻辑。</p>
+<h3 id="4-生命周期钩子-RunnableConfig与回调"><a href="#4-生命周期钩子-RunnableConfig与回调" class="headerlink" title="4. 生命周期钩子：<code>RunnableConfig</code>与回调"></a>4. 生命周期钩子：<code>RunnableConfig</code>与回调</h3>
+<p>LCEL的另一个高级特性是<code>RunnableConfig</code>中的回调机制。它允许你在链路的每一步注入自定义逻辑：</p>
+<figure class="highlight python"><pre><code class="language-python"># langchain_core/callbacks/base.py
+class BaseCallbackHandler:
+    def on_llm_start(self, serialized: Dict[str, Any], prompts: List[str], **kwargs): ...
+    def on_llm_new_token(self, token: str, **kwargs): ...
+    def on_chain_end(self, output: Output, **kwargs): ...</code></pre></figure>
+<p>通过<code>config</code>参数，你可以将回调处理器传递到链路的任意位置，从而实现在模型生成token时实时推送给前端、在链结束时的指标埋点等需求。</p>
+<h2 id="实战代码-三个从入门到进阶的完整示例"><a href="#实战代码-三个从入门到进阶的完整示例" class="headerlink" title="实战代码：三个从入门到进阶的完整示例"></a>实战代码：三个从入门到进阶的完整示例</h2>
+<h3 id="示例一-构建动态路由的RAG问答链路"><a href="#示例一-构建动态路由的RAG问答链路" class="headerlink" title="示例一：构建动态路由的RAG问答链路"></a>示例一：构建动态路由的RAG问答链路</h3>
+<p>这个示例展示如何使用<code>RunnableBranch</code>实现“问题类型检测 + 知识库检索 + 模型生成”的动态链路。</p>
+<figure class="highlight python"><pre><code class="language-python">from langchain_core.runnables import RunnableBranch, RunnableLambda, RunnableParallel
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_community.vectorstores import FAISS
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.documents import Document
+
+# 初始化组件
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+vectorstore = FAISS.from_documents(
+    [Document(page_content=&quot;LangChain LCEL 支持流式输出和并行执行。&quot;)],
+    embedding=OpenAIEmbeddings()
+)
+retriever = vectorstore.as_retriever()
+
+# 1. 定义问题分类器（返回布尔值）
+def is_programming_question(query: str) -&gt; bool:
+    keywords = [&quot;code&quot;, &quot;python&quot;, &quot;bug&quot;, &quot;函数&quot;, &quot;算法&quot;]
+    return any(kw in query.lower() for kw in keywords)
+
+# 2. 定义两条分支链
+# 分支A：编程问题 -&gt; 使用检索增强 + 严格模式
+programming_prompt = ChatPromptTemplate.from_template(
+    &quot;&quot;&quot;你是资深代码审查专家。基于上下文回答问题。
+    
+    上下文：{context}
+    问题：{question}
+    
+    要求：给出代码示例，并指出潜在风险。&quot;&quot;&quot;
+)
+programming_chain = (
+    RunnableParallel(context=retriever, question=lambda x: x)
+    | programming_prompt
+    | llm
+    | StrOutputParser()
+)
+
+# 分支B：通用问题 -&gt; 直接回答
+general_prompt = ChatPromptTemplate.from_template(&quot;简洁回答问题：{question}&quot;)
+general_chain = general_prompt | llm | StrOutputParser()
+
+# 3. 构建动态路由
+branch = RunnableBranch(
+    (is_programming_question, programming_chain),
+    general_chain  # 默认分支
+)
+
+# 4. 测试
+result = branch.invoke(&quot;请解释Python中的装饰器原理，并给出示例&quot;)
+print(result)</code></pre></figure>
+<p><strong>关键点</strong>：<code>RunnableBranch</code>的第一个参数是条件函数，第二个参数是满足条件时执行的<code>Runnable</code>。这里的<code>RunnableParallel(context=retriever, question=lambda x: x)</code>是LCEL最优雅的用法——它同时执行检索器和透传用户问题，然后将结果合并为字典传给提示词模板。</p>
+<h3 id="示例二-流式输出-自定义回调监控"><a href="#示例二-流式输出-自定义回调监控" class="headerlink" title="示例二：流式输出 + 自定义回调监控"></a>示例二：流式输出 + 自定义回调监控</h3>
+<p>这个示例展示如何利用<code>stream</code>方法实现逐token输出，并注入回调监控性能。</p>
+<figure class="highlight python"><pre><code class="language-python">from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+import time
+
+# 自定义回调处理器
+class LatencyCallback(BaseCallbackHandler):
+    def __init__(self):
+        self.start_time = None
+        self.token_count = 0
+    
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        self.start_time = time.time()
+        self.token_count = 0
+    
+    def on_llm_new_token(self, token, **kwargs):
+        self.token_count += 1
+        # 实时打印token（模拟推送到前端）
+        print(f&quot;[Token {self.token_count}]: {token}&quot;, end=&quot;&quot;, flush=True)
+    
+    def on_llm_end(self, response, **kwargs):
+        elapsed = time.time() - self.start_time
+        print(f&quot;\n\n=== 完成 ===&quot;)
+        print(f&quot;生成 {self.token_count} tokens，耗时 {elapsed:.2f}s&quot;)
+        print(f&quot;吞吐率: {self.token_count / elapsed:.1f} tokens/s&quot;)
+
+# 构建带流式输出的链
+prompt = ChatPromptTemplate.from_template(&quot;写一篇关于{ topic }的500字短文&quot;)
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, streaming=True)
+chain = prompt | llm
+
+# 执行流式调用
+config = RunnableConfig(callbacks=[LatencyCallback()])
+print(&quot;开始流式生成：\n&quot;)
+for chunk in chain.stream({&quot;topic&quot;: &quot;人工智能伦理&quot;}, config=config):
+    # 这里可以实时处理chunk，比如发送到WebSocket
+    pass</code></pre></figure>
+<p><strong>关键点</strong>：这个例子揭示了LCEL流式调用的重要细节——<code>chain.stream()</code>返回一个生成器，每次迭代产生一个token。通过<code>RunnableConfig</code>传递回调处理器，我们无需修改链路代码即可实现监控、日志、前端推送等横切关注点。</p>
+<h3 id="示例三-并行执行多个独立任务并合并结果"><a href="#示例三-并行执行多个独立任务并合并结果" class="headerlink" title="示例三：并行执行多个独立任务并合并结果"></a>示例三：并行执行多个独立任务并合并结果</h3>
+<p>这个示例展示如何使用<code>RunnableParallel</code>同时执行摘要、关键词提取和情感分析，然后合并结果。</p>
+<figure class="highlight python"><pre><code class="language-python">from langchain_core.runnables import RunnableParallel
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+import asyncio
+
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+
+# 定义三个独立的子任务
+summary_prompt = ChatPromptTemplate.from_template(&quot;用3句话总结以下文本：\n{text}&quot;)
+keywords_prompt = ChatPromptTemplate.from_template(&quot;提取文本的5个关键词，用逗号分隔：\n{text}&quot;)
+sentiment_prompt = ChatPromptTemplate.from_template(&quot;判断文本情感（积极/消极/中性）：\n{text}&quot;)
+
+summary_chain = summary_prompt | llm | StrOutputParser()
+keywords_chain = keywords_prompt | llm | StrOutputParser()
+sentiment_chain = sentiment_prompt | llm | StrOutputParser()
+
+# 并行执行
+parallel_chain = RunnableParallel(
+    summary=summary_chain,
+    keywords=keywords_chain,
+    sentiment=sentiment_chain
+)
+
+# 同步调用
+text = &quot;LangChain是一个强大的框架，它通过LCEL让AI应用开发变得前所未有的简单。&quot;
+result = parallel_chain.invoke({&quot;text&quot;: text})
+print(f&quot;摘要: {result[&#x27;summary&#x27;]}&quot;)
+print(f&quot;关键词: {result[&#x27;keywords&#x27;]}&quot;)
+print(f&quot;情感: {result[&#x27;sentiment&#x27;]}&quot;)
+
+# 异步批量调用（极致性能）
+async def async_batch_process(texts):
+    results = await parallel_chain.abatch([{&quot;text&quot;: t} for t in texts])
+    return results
+
+# 测试异步
+texts = [&quot;文本1...&quot;, &quot;文本2...&quot;, &quot;文本3...&quot;]
+asyncio.run(async_batch_process(texts))</code></pre></figure>
+<p><strong>关键点</strong>：<code>RunnableParallel</code>的<code>invoke</code>方法会并发执行所有子链，而不是串行。这里展示的<code>abatch</code>是另一个高级API，它同时利用了异步IO和批量处理，在处理大量文本时性能提升显著。</p>
+<h2 id="方案对比-LCEL-vs-其他编排方案"><a href="#方案对比-LCEL-vs-其他编排方案" class="headerlink" title="方案对比：LCEL vs 其他编排方案"></a>方案对比：LCEL vs 其他编排方案</h2>
+<p>在LangChain生态中，LCEL并非唯一的编排方式。下表对比了它与传统<code>Chain</code>、以及新兴<code>LangGraph</code>的差异：</p>
+<p>| 特性 | LCEL (Runnable) | 传统 Chain (LLMChain等) | LangGraph |</p>
+<p>|------|----------------|------------------------|-----------|</p>
+<p>| <strong>组合方式</strong> | <code>\|</code> 管道符，声明式 | 类继承，命令式 | 图结构，显式节点/边 |</p>
+<p>| <strong>流式支持</strong> | 一等公民，内置 | 需自定义回调 | 支持，但需配置 |</p>
+<p>| <strong>并行</strong> | 内置 <code>RunnableParallel</code> | 需手动 <code>ThreadPool</code> | 通过图拓扑实现 |</p>
+<p>| <strong>条件分支</strong> | <code>RunnableBranch</code> | 需 <code>if-else</code> 写在代码中 | 原生支持条件边 |</p>
+<p>| <strong>循环/迭代</strong> | 不直接支持 | 不直接支持 | 原生支持（用于代理） |</p>
+<p>| <strong>状态管理</strong> | 无（纯函数式） | 无 | 有状态图 |</p>
+<p>| <strong>调试友好度</strong> | 配置传递回调，较友好 | 黑盒，较难 | 可视化，最友好 |</p>
+<p>| <strong>适合场景</strong> | 简单到中等复杂度的线性/并行链路 | 遗留代码 | 复杂代理、循环、人类介入 |</p>
+<p><strong>深度解读</strong>：</p>
+<ul>
+<li><strong>LCEL vs 传统Chain</strong>：LCEL是LangChain的“现代Hipster”方案，它用组合优于继承的设计哲学彻底替代了<code>Chain</code>类。你可以将LCEL视为Java 8的Stream API取代传统的<code>for</code>循环——功能等价，但表达力、可读性和性能特性完全不同。</li>
+</ul>
+<ul>
+<li><strong>LCEL vs LangGraph</strong>：LangGraph更像是LangChain的“图数据库”，它提供了完整的图执行引擎，支持循环、条件边、状态持久化。如果你的链路涉及代理（Agent）的多轮工具调用，LangGraph是更好的选择。但LCEL的简洁性让它成为大多数RAG应用的默认首选。</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>为每个<code>Runnable</code>命名</strong>：使用<code>.with_config({"run_name": "my_step"})</code>，这在追踪日志时能救命。</li>
+<li><strong>善用<code>RunnableLambda</code></strong>：当需要插入自定义逻辑时，用<code>RunnableLambda</code>包裹纯函数，而不是强行改造链。</li>
+<li><strong>流式优先</strong>：在设计链路时，默认考虑<code>stream</code>而非<code>invoke</code>，因为流式调用可以无缝降级为批处理。</li>
+<li><strong>组合子最小化</strong>：能用<code>|</code>解决的，不要引入<code>RunnableParallel</code>；能用<code>RunnableParallel</code>解决的，不要上LangGraph。</li>
+</ol>
+<h3 id="避坑指南"><a href="#避坑指南" class="headerlink" title="避坑指南"></a>避坑指南</h3>
+<ol>
+<li><strong>不要用<code>invoke</code>处理大输入</strong>：<code>invoke</code>会等所有步骤完成才返回，如果模型生成慢，会导致内存堆积。优先使用<code>stream</code>。</li>
+<li><strong>小心<code>RunnableParallel</code>中的共享状态</strong>：<code>RunnableParallel</code>的<code>invoke</code>是线程池并发，不要在其中修改外部可变变量，否则会数据竞争。</li>
+<li><strong><code>config</code>的显式传递</strong>：在自定义<code>Runnable</code>子类中，<code>invoke</code>方法必须显式将<code>config</code>传递给下一步，否则回调、重试等高级特性会静默失效。</li>
+<li><strong>LLM的<code>streaming</code>必须开启</strong>：如果你希望<code>chain.stream()</code>能逐token输出，必须确保底层的<code>ChatOpenAI</code>等模型设置了<code>streaming=True</code>参数。否则，<code>stream()</code>会退化为一次性返回整个结果。</li>
+<li><strong>不要混淆<code>batch</code>与<code>parallel</code></strong>：<code>batch</code>是顺序批量处理，<code>RunnableParallel</code>是并行处理。两者在性能特征上完全不同。</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>LCEL和Runnable协议不仅是一种API设计，更是一种思维模式的转变——从“命令式地编写调用逻辑”转变为“声明式地组合处理单元”。它让AI应用的代码变得可读、可测试、可扩展，同时为流式、并行、动态路由等高级需求提供了第一公民级的支持。</p>
+<p>在本文中，我们通过源码分析了<code>RunnableSequence</code>的调度机制、流式传输的惰性求值原理，以及并行和分支的实现细节。三个实战示例覆盖了动态路由、流式监控和并行任务合并三大高频场景。最后，我们对比了LCEL与传统Chain、LangGraph的定位差异，并给出了实践中的关键注意事项。</p>
+<p><strong>延伸思考</strong>：随着LangChain 0.3+和LangGraph的发展，LCEL正在成为LangGraph中节点的标准接口。这意味着你今天用LCEL构建的每一个<code>Runnable</code>，未来都能无缝嵌入到复杂的图执行流程中。这种“先组合，后编排”的架构演进路径，或许正是AI应用开发走向成熟的重要标志。你的下一个复杂Agent应用，准备好用LCEL来构建了吗？</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
