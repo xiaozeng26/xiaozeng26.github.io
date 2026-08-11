@@ -125,13 +125,21 @@
       "subtopic": "LangChain表达式语言（LCEL）与Runnable协议深度解析",
       "date": "2026-08-10",
       "url": "/2026/08/10/LangChain表达式语言（LCEL）与Runnable协议深度解析/"
+    },
+    {
+      "title": "Netty线程模型与零拷贝原理：从源码到实战的深度剖析",
+      "category": "java",
+      "subtopic": "Netty线程模型与零拷贝原理",
+      "date": "2026-08-11",
+      "url": "/2026/08/11/Netty线程模型与零拷贝原理：从源码到实战的深度剖析/"
     }
   ],
   "used_subtopics": {
     "java": [
       "ThreadPoolExecutor源码拆解与最佳实践",
       "HashMap并发问题与ConcurrentHashMap分段锁演进",
-      "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁"
+      "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
+      "Netty线程模型与零拷贝原理"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战"
@@ -176,6 +184,7 @@
     "Go内存管理：栈与堆、逃逸分析": "250f0479cd1bd8b4a674f94664ed5237a1ce8d670427cf481081d6ce24af6bba",
     "Kubernetes调度器源码分析与自定义调度": "a9a3751ec8b0725286034352e8dcdeea6beea4e763ffdfd3b45f4ef767c30393",
     "全链路压测方案设计与流量染色": "765baedcb05902831ce01b81b0fa5305cb472e24f53125bbe539d4d264aad765",
-    "LangChain表达式语言（LCEL）与Runnable协议深度解析": "2993113e3afb3a0486304848fd934bd94440a56b36ba5be81d20d33080ad968f"
+    "LangChain表达式语言（LCEL）与Runnable协议深度解析": "2993113e3afb3a0486304848fd934bd94440a56b36ba5be81d20d33080ad968f",
+    "Netty线程模型与零拷贝原理": "a46514cf83db071434a55ac21b20e3b84b15f73121c733ce3b85f0af934a5f9c"
   }
 }
