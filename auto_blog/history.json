@@ -139,6 +139,13 @@
       "subtopic": "容器化应用的12-Factor原则实践",
       "date": "2026-08-12",
       "url": "/2026/08/12/容器化应用的12-Factor原则实践/"
+    },
+    {
+      "title": "Go调度器GMP模型深度剖析：从源码到实践的全景解读",
+      "category": "golang",
+      "subtopic": "Go调度器GMP模型深度剖析",
+      "date": "2026-08-13",
+      "url": "/2026/08/13/Go调度器GMP模型深度剖析：从源码到实践的全景解读/"
     }
   ],
   "used_subtopics": {
@@ -172,7 +179,8 @@
       "Go泛型的设计哲学与实战应用",
       "Go Embed静态资源嵌入实战",
       "Testify + GoMock单元测试最佳实践",
-      "Go内存管理：栈与堆、逃逸分析"
+      "Go内存管理：栈与堆、逃逸分析",
+      "Go调度器GMP模型深度剖析"
     ]
   },
   "content_hashes": {
@@ -194,6 +202,7 @@
     "全链路压测方案设计与流量染色": "765baedcb05902831ce01b81b0fa5305cb472e24f53125bbe539d4d264aad765",
     "LangChain表达式语言（LCEL）与Runnable协议深度解析": "2993113e3afb3a0486304848fd934bd94440a56b36ba5be81d20d33080ad968f",
     "Netty线程模型与零拷贝原理": "a46514cf83db071434a55ac21b20e3b84b15f73121c733ce3b85f0af934a5f9c",
-    "容器化应用的12-Factor原则实践": "64dfe14076d91f30a3e5d9d297c6efba1560116eff46f5eb37526e45d600dd04"
+    "容器化应用的12-Factor原则实践": "64dfe14076d91f30a3e5d9d297c6efba1560116eff46f5eb37526e45d600dd04",
+    "Go调度器GMP模型深度剖析": "f7a6b2377fdd4cf718b77f60f963f2ff5623a928944161f9b401ea0a044271ca"
   }
 }
