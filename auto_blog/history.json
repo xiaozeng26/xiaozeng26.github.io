@@ -146,6 +146,13 @@
       "subtopic": "Go调度器GMP模型深度剖析",
       "date": "2026-08-13",
       "url": "/2026/08/13/Go调度器GMP模型深度剖析：从源码到实践的全景解读/"
+    },
+    {
+      "title": "最终一致性方案：本地消息表、事务消息、Saga模式",
+      "category": "architecture",
+      "subtopic": "最终一致性方案：本地消息表、事务消息、Saga模式",
+      "date": "2026-08-14",
+      "url": "/2026/08/14/最终一致性方案：本地消息表、事务消息、Saga模式/"
     }
   ],
   "used_subtopics": {
@@ -167,7 +174,8 @@
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
       "多活数据中心架构设计",
-      "全链路压测方案设计与流量染色"
+      "全链路压测方案设计与流量染色",
+      "最终一致性方案：本地消息表、事务消息、Saga模式"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -203,6 +211,7 @@
     "LangChain表达式语言（LCEL）与Runnable协议深度解析": "2993113e3afb3a0486304848fd934bd94440a56b36ba5be81d20d33080ad968f",
     "Netty线程模型与零拷贝原理": "a46514cf83db071434a55ac21b20e3b84b15f73121c733ce3b85f0af934a5f9c",
     "容器化应用的12-Factor原则实践": "64dfe14076d91f30a3e5d9d297c6efba1560116eff46f5eb37526e45d600dd04",
-    "Go调度器GMP模型深度剖析": "f7a6b2377fdd4cf718b77f60f963f2ff5623a928944161f9b401ea0a044271ca"
+    "Go调度器GMP模型深度剖析": "f7a6b2377fdd4cf718b77f60f963f2ff5623a928944161f9b401ea0a044271ca",
+    "最终一致性方案：本地消息表、事务消息、Saga模式": "cd921fa08fb3aebae18917aebd5f22ef7acfb89c5d8bb86ced39b83aefee5981"
   }
 }
