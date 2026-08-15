@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LangSmith + LangFuse：LLM应用的可观测性全链路追踪 | 小曾博客</title>
+  <meta name="description" content="LangSmith + LangFuse：LLM应用的可观测性全链路追踪 引言 想象一下，你负责的客服机器人突然开始对用户说“抱歉，我无法回答这个问题”。用户投诉如潮水般涌来，你打开日志系统，发现一切看起来正常——HTTP 200，无异常堆栈，响应时间正常。但对话质量就是下降了。 这可能是最让人头疼的调试场景：LLM应用的问题往往不是“系统崩溃”，而是“行为异常”。一次糟糕的Prompt拼接、一个">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LangSmith + LangFuse：LLM应用的可观测性全链路追踪">
+  <meta name="twitter:description" content="LangSmith + LangFuse：LLM应用的可观测性全链路追踪 引言 想象一下，你负责的客服机器人突然开始对用户说“抱歉，我无法回答这个问题”。用户投诉如潮水般涌来，你打开日志系统，发现一切看起来正常——HTTP 200，无异常堆栈，响应时间正常。但对话质量就是下降了。 这可能是最让人头疼的调试场景：LLM应用的问题往往不是“系统崩溃”，而是“行为异常”。一次糟糕的Prompt拼接、一个">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3643/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="LangSmith + LangFuse：LLM应用的可观测性全链路追踪">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="LangSmith + LangFuse：LLM应用的可观测性全链路追踪 引言 想象一下，你负责的客服机器人突然开始对用户说“抱歉，我无法回答这个问题”。用户投诉如潮水般涌来，你打开日志系统，发现一切看起来正常——HTTP 200，无异常堆栈，响应时间正常。但对话质量就是下降了。 这可能是最让人头疼的调试场景：LLM应用的问题往往不是“系统崩溃”，而是“行为异常”。一次糟糕的Prompt拼接、一个">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3643/800/400">
+  <meta property="article:published_time" content="2026-08-15T20:18:02.000Z">
+  <meta property="article:modified_time" content="2026-08-15T20:18:02.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#LangSmith-LangFuse-LLM应用的可观测性全链路追踪"><span class="toc-text">LangSmith + LangFuse：LLM应用的可观测性全链路追踪</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-餐厅后厨的-透明玻璃"><span class="toc-text">生活类比：餐厅后厨的“透明玻璃”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#LangSmith的Trace数据模型"><span class="toc-text">LangSmith的Trace数据模型</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#LangFuse的追踪范式"><span class="toc-text">LangFuse的追踪范式</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心差异-隐式追踪-vs-显式追踪"><span class="toc-text">核心差异：隐式追踪 vs 显式追踪</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-LangSmith-LangGraph构建RAG链路追踪"><span class="toc-text">示例一：LangSmith + LangGraph构建RAG链路追踪</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-LangFuse自定义评估指标"><span class="toc-text">示例二：LangFuse自定义评估指标</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-双平台集成-LangSmith追踪-LangFuse评估"><span class="toc-text">示例三：双平台集成——LangSmith追踪 + LangFuse评估</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑及解决方案"><span class="toc-text">常见坑及解决方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/3643/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">LangSmith + LangFuse：LLM应用的可观测性全链路追踪</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-15"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-15</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-15"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-15</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="LangSmith-LangFuse-LLM应用的可观测性全链路追踪"><a href="#LangSmith-LangFuse-LLM应用的可观测性全链路追踪" class="headerlink" title="LangSmith + LangFuse：LLM应用的可观测性全链路追踪"></a>LangSmith + LangFuse：LLM应用的可观测性全链路追踪</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你负责的客服机器人突然开始对用户说“抱歉，我无法回答这个问题”。用户投诉如潮水般涌来，你打开日志系统，发现一切看起来正常——HTTP 200，无异常堆栈，响应时间正常。但对话质量就是下降了。</p>
+<p>这可能是最让人头疼的调试场景：LLM应用的问题往往不是“系统崩溃”，而是“行为异常”。一次糟糕的Prompt拼接、一个embedding检索结果的微小偏移、一次不恰当的模型温度设置，都可能让输出质量断崖式下跌。</p>
+<p>传统APM（如Datadog、SkyWalking）只能看到“服务是否健康”，却无法回答“模型为什么这么回答”。这就是LLM应用可观测性要解决的问题——它不仅追踪系统的“心跳”，还要追踪模型的“思维”。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-餐厅后厨的-透明玻璃"><a href="#生活类比-餐厅后厨的-透明玻璃" class="headerlink" title="生活类比：餐厅后厨的“透明玻璃”"></a>生活类比：餐厅后厨的“透明玻璃”</h3>
+<p>假设你经营一家餐厅。传统监控就像后厨门口的“温度计”——你只知道厨房没着火（服务存活），但不知道厨师（LLM）为什么把宫保鸡丁做成了糖醋味（输出异常）。</p>
+<p>LLM可观测性则是在后厨装了一面透明玻璃，同时记录：</p>
+<ul>
+<li>顾客点了什么（输入Prompt）</li>
+</ul>
+<ul>
+<li>厨师看了哪本菜谱（检索到的上下文）</li>
+</ul>
+<ul>
+<li>厨师放了什么调料、放了多少（模型参数、Token用量）</li>
+</ul>
+<ul>
+<li>最终端上桌的菜长什么样（输出结果）</li>
+</ul>
+<ul>
+<li>如果菜品出问题，还能回放当时的做菜过程（Trace回放）</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p><strong>LangSmith</strong> 和 <strong>LangFuse</strong> 是两款主流的LLM应用可观测性平台，它们都提供：</p>
+<ul>
+<li><strong>Traces（链路追踪）</strong>：记录一次完整请求从进入系统到返回的全过程</li>
+</ul>
+<ul>
+<li><strong>Spans（跨度）</strong>：链路中的每个步骤，如Retriever、LLM调用、Tool执行</li>
+</ul>
+<ul>
+<li><strong>Observations（观测点）</strong>：每个Span内部的详细数据，如Token用量、延迟、成本</li>
+</ul>
+<ul>
+<li><strong>Evaluations（评估）</strong>：对输出质量进行自动化评测</li>
+</ul>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="LangSmith的Trace数据模型"><a href="#LangSmith的Trace数据模型" class="headerlink" title="LangSmith的Trace数据模型"></a>LangSmith的Trace数据模型</h3>
+<p>LangSmith的核心数据结构可以简化为以下模型：</p>
+<figure class="highlight python"><pre><code class="language-python"># langsmith/schemas.py (简化版)
+class TracerSession(BaseModel):
+    id: UUID
+    name: str
+    start_time: datetime
+    end_time: Optional[datetime]
+
+class Run(BaseModel):
+    id: UUID
+    name: str  # 如 &quot;ChatOpenAI&quot;
+    run_type: str  # &quot;llm&quot;, &quot;chain&quot;, &quot;tool&quot;, &quot;retriever&quot;
+    inputs: dict  # Prompt内容
+    outputs: dict  # 模型输出
+    start_time: datetime
+    end_time: datetime
+    extra: dict  # 包含token用量、模型名等
+    error: Optional[str]
+    parent_run_id: Optional[UUID]  # 构建树形结构
+    child_runs: List[&quot;Run&quot;] = []</code></pre></figure>
+<p>关键设计在于 <code>parent_run_id</code> —— 它构建了一棵多叉树，而非简单的调用栈。这意味着LangSmith可以完美表示LangChain中复杂的DAG（有向无环图）执行流程。</p>
+<h3 id="LangFuse的追踪范式"><a href="#LangFuse的追踪范式" class="headerlink" title="LangFuse的追踪范式"></a>LangFuse的追踪范式</h3>
+<p>LangFuse采用了OpenTelemetry风格的四层模型：</p>
+<figure class="highlight python"><pre><code class="language-python"># langfuse/model.py (简化版)
+class Trace(BaseModel):
+    id: str
+    timestamp: datetime
+    name: str
+    input: Any
+    output: Any
+    metadata: dict
+    session_id: Optional[str]
+    user_id: Optional[str]
+
+class Observation(BaseModel):
+    id: str
+    trace_id: str
+    parent_observation_id: Optional[str]
+    type: str  # &quot;SPAN&quot;, &quot;GENERATION&quot;, &quot;EVENT&quot;
+    start_time: datetime
+    end_time: Optional[datetime]
+    model: Optional[str]  # 对于GENERATION类型
+    input: Any
+    output: Any
+    level: str  # &quot;DEFAULT&quot;, &quot;WARNING&quot;, &quot;ERROR&quot;
+    status_message: Optional[str]
+    version: Optional[str]</code></pre></figure>
+<p>LangFuse的一个亮点是 <code>type</code> 字段区分了 <code>SPAN</code>（普通步骤）和 <code>GENERATION</code>（模型生成），这让你能快速筛选出所有LLM调用，而不必遍历整棵Trace树。</p>
+<h3 id="核心差异-隐式追踪-vs-显式追踪"><a href="#核心差异-隐式追踪-vs-显式追踪" class="headerlink" title="核心差异：隐式追踪 vs 显式追踪"></a>核心差异：隐式追踪 vs 显式追踪</h3>
+<p>LangSmith通过 <code>@traceable</code> 装饰器或LangChain回调实现<strong>隐式追踪</strong>：</p>
+<figure class="highlight python"><pre><code class="language-python">from langsmith import traceable
+from langchain_openai import ChatOpenAI
+
+@traceable(run_type=&quot;chain&quot;, name=&quot;customer_support&quot;)
+def handle_query(query: str):
+    llm = ChatOpenAI(model=&quot;gpt-4o&quot;)
+    # 内部LLM调用会被自动追踪
+    response = llm.invoke(query)
+    return response.content</code></pre></figure>
+<p>LangFuse则需要<strong>显式创建</strong>观测点：</p>
+<figure class="highlight python"><pre><code class="language-python">from langfuse import Langfuse
+from langfuse.model import CreateGeneration
+
+langfuse = Langfuse()
+
+def handle_query(query: str):
+    generation = langfuse.generation(
+        name=&quot;customer-support-llm&quot;,
+        model=&quot;gpt-4o&quot;,
+        input=query,
+        model_parameters={&quot;temperature&quot;: 0.7}
+    )
+    response = call_llm(query)
+    generation.end(output=response)
+    return response</code></pre></figure>
+<p><strong>架构对比图：</strong></p>
+<div class="mermaid">
+graph TD
+    subgraph "LangSmith 隐式追踪"
+        A[应用代码] --> B[@traceable 装饰器]
+        B --> C[LangChain 回调机制]
+        C --> D[自动捕获所有子步骤]
+        D --> E[LangSmith 后端]
+    end
+
+    subgraph "LangFuse 显式追踪"
+        F[应用代码] --> G[手动创建 Observation]
+        G --> H[手动结束 Observation]
+        H --> I[LangFuse 后端]
+    end
+
+    subgraph "共同能力"
+        E --> J[Trace 可视化]
+        I --> J
+        J --> K[性能分析]
+        J --> L[质量评估]
+        J --> M[成本追踪]
+    end
+</div>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例一-LangSmith-LangGraph构建RAG链路追踪"><a href="#示例一-LangSmith-LangGraph构建RAG链路追踪" class="headerlink" title="示例一：LangSmith + LangGraph构建RAG链路追踪"></a>示例一：LangSmith + LangGraph构建RAG链路追踪</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+完整可运行的RAG链路追踪示例
+前置条件: pip install langsmith langgraph langchain-openai chromadb
+环境变量: LANGCHAIN_TRACING_V2=true LANGCHAIN_API_KEY=your_key
+&quot;&quot;&quot;
+import os
+from typing import List
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import TextLoader
+from langgraph.graph import StateGraph, END
+from typing_extensions import TypedDict
+
+# 启用LangSmith追踪
+os.environ[&quot;LANGCHAIN_TRACING_V2&quot;] = &quot;true&quot;
+os.environ[&quot;LANGCHAIN_PROJECT&quot;] = &quot;rag-tracing-demo&quot;
+
+class AgentState(TypedDict):
+    question: str
+    documents: List[str]
+    answer: str
+
+def load_and_index_document(file_path: str):
+    &quot;&quot;&quot;加载文档并构建向量索引&quot;&quot;&quot;
+    loader = TextLoader(file_path)
+    documents = loader.load()
+    
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=500,
+        chunk_overlap=50
+    )
+    chunks = text_splitter.split_documents(documents)
+    
+    vectorstore = Chroma.from_documents(
+        documents=chunks,
+        embedding=OpenAIEmbeddings()
+    )
+    return vectorstore
+
+def retrieve(state: AgentState, vectorstore):
+    &quot;&quot;&quot;检索相关文档片段&quot;&quot;&quot;
+    retriever = vectorstore.as_retriever(search_kwargs={&quot;k&quot;: 3})
+    docs = retriever.invoke(state[&quot;question&quot;])
+    return {&quot;documents&quot;: [doc.page_content for doc in docs]}
+
+def generate(state: AgentState):
+    &quot;&quot;&quot;基于检索结果生成回答&quot;&quot;&quot;
+    llm = ChatOpenAI(model=&quot;gpt-4o&quot;, temperature=0.3)
+    
+    context = &quot;\n\n&quot;.join(state[&quot;documents&quot;])
+    prompt = f&quot;&quot;&quot;基于以下上下文回答问题。如果无法从上下文中找到答案，请明确说明。
+
+上下文：
+{context}
+
+问题：{state[&quot;question&quot;]}
+
+回答：&quot;&quot;&quot;
+    
+    response = llm.invoke(prompt)
+    return {&quot;answer&quot;: response.content}
+
+def build_graph(vectorstore):
+    &quot;&quot;&quot;构建LangGraph执行图&quot;&quot;&quot;
+    workflow = StateGraph(AgentState)
+    
+    # 定义节点
+    workflow.add_node(&quot;retrieve&quot;, lambda state: retrieve(state, vectorstore))
+    workflow.add_node(&quot;generate&quot;, generate)
+    
+    # 定义边
+    workflow.set_entry_point(&quot;retrieve&quot;)
+    workflow.add_edge(&quot;retrieve&quot;, &quot;generate&quot;)
+    workflow.add_edge(&quot;generate&quot;, END)
+    
+    return workflow.compile()
+
+# 初始化数据
+with open(&quot;sample_company_policy.txt&quot;, &quot;w&quot;) as f:
+    f.write(&quot;&quot;&quot;员工年假政策：每位全职员工每年享有15天带薪年假。
+年假可以分多次使用，但每次请假需提前3个工作日提交申请。
+未经批准的休假将视为旷工。&quot;&quot;&quot;)
+
+vectorstore = load_and_index_document(&quot;sample_company_policy.txt&quot;)
+app = build_graph(vectorstore)
+
+# 执行查询 - LangSmith会自动追踪整个执行图
+result = app.invoke({&quot;question&quot;: &quot;我明年可以请几次年假？&quot;})
+print(f&quot;回答：{result[&#x27;answer&#x27;]}&quot;)</code></pre></figure>
+<h3 id="示例二-LangFuse自定义评估指标"><a href="#示例二-LangFuse自定义评估指标" class="headerlink" title="示例二：LangFuse自定义评估指标"></a>示例二：LangFuse自定义评估指标</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+LangFuse自定义评估器 - 检测幻觉和有害内容
+前置条件: pip install langfuse llama_cpp
+&quot;&quot;&quot;
+from langfuse import Langfuse
+from langfuse.model import (
+    CreateGeneration,
+    CreateSpan,
+    CreateTrace,
+    Dataset,
+    DatasetItem,
+    EvaluationResult
+)
+import json
+
+langfuse = Langfuse(
+    public_key=&quot;pk-...&quot;,
+    secret_key=&quot;sk-...&quot;,
+    host=&quot;https://cloud.langfuse.com&quot;
+)
+
+class LLMQualityEvaluator:
+    &quot;&quot;&quot;自定义LLM输出质量评估器&quot;&quot;&quot;
+    
+    def __init__(self):
+        self.evaluation_prompt = &quot;&quot;&quot;你是质量评估专家。请评估以下AI回答的质量。
+
+用户问题：{question}
+AI回答：{answer}
+参考标准：{ground_truth}
+
+请从以下维度打分（1-10分）：
+1. 准确性：回答与参考标准的一致性
+2. 完整性：是否遗漏关键信息
+3. 安全性：是否包含有害或敏感内容
+
+输出JSON格式：{{&quot;accuracy&quot;: 8, &quot;completeness&quot;: 7, &quot;safety&quot;: 10, &quot;comment&quot;: &quot;简要说明&quot;}}&quot;&quot;&quot;
+    
+    def evaluate(self, question: str, answer: str, ground_truth: str) -&gt; dict:
+        &quot;&quot;&quot;执行评估并返回结构化结果&quot;&quot;&quot;
+        import openai
+        client = openai.OpenAI()
+        
+        prompt = self.evaluation_prompt.format(
+            question=question,
+            answer=answer,
+            ground_truth=ground_truth
+        )
+        
+        response = client.chat.completions.create(
+            model=&quot;gpt-4o&quot;,
+            messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: prompt}],
+            response_format={&quot;type&quot;: &quot;json_object&quot;}
+        )
+        
+        return json.loads(response.choices[0].message.content)
+
+def trace_with_evaluation():
+    &quot;&quot;&quot;创建带评估的完整追踪&quot;&quot;&quot;
+    # 创建Trace
+    trace = langfuse.trace(
+        name=&quot;customer-support-query&quot;,
+        user_id=&quot;user_123&quot;,
+        session_id=&quot;session_456&quot;,
+        metadata={&quot;tier&quot;: &quot;premium&quot;}
+    )
+    
+    # 记录LLM调用
+    question = &quot;我的订单为什么还没发货？&quot;
+    answer = &quot;您的订单正在处理中，预计24小时内发货。&quot;
+    ground_truth = &quot;订单因库存问题延迟，已为您升级优先发货。&quot;
+    
+    generation = trace.generation(
+        name=&quot;support-llm&quot;,
+        model=&quot;gpt-4o&quot;,
+        model_parameters={&quot;temperature&quot;: 0.7},
+        input=question,
+        output=answer
+    )
+    
+    # 运行评估器
+    evaluator = LLMQualityEvaluator()
+    scores = evaluator.evaluate(question, answer, ground_truth)
+    
+    # 将评估结果关联到Generation
+    trace.span(
+        name=&quot;quality-evaluation&quot;,
+        input={&quot;question&quot;: question, &quot;answer&quot;: answer},
+        output=scores,
+        level=&quot;DEFAULT&quot;
+    )
+    
+    # 记录评估结果
+    if scores[&quot;safety&quot;] &lt; 8:
+        trace.update(
+            level=&quot;WARNING&quot;,
+            status_message=f&quot;安全评分过低: {scores[&#x27;safety&#x27;]}&quot;
+        )
+    
+    # 最终提交
+    trace.update(output={&quot;final_answer&quot;: answer})
+    
+    print(f&quot;追踪ID: {trace.id}&quot;)
+    print(f&quot;评估结果: {scores}&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    trace_with_evaluation()</code></pre></figure>
+<h3 id="示例三-双平台集成-LangSmith追踪-LangFuse评估"><a href="#示例三-双平台集成-LangSmith追踪-LangFuse评估" class="headerlink" title="示例三：双平台集成——LangSmith追踪 + LangFuse评估"></a>示例三：双平台集成——LangSmith追踪 + LangFuse评估</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+同时使用LangSmith和LangFuse的混合方案
+LangSmith负责链路追踪，LangFuse负责评估和实验管理
+前置条件: pip install langsmith langfuse langchain-openai
+&quot;&quot;&quot;
+import asyncio
+from datetime import datetime
+from typing import Dict, Any
+
+from langchain_openai import ChatOpenAI
+from langsmith import traceable, Client
+from langfuse import Langfuse
+
+# 初始化双客户端
+langsmith_client = Client()
+langfuse = Langfuse()
+
+class HybridObservabilityManager:
+    &quot;&quot;&quot;统一管理两个可观测性平台&quot;&quot;&quot;
+    
+    def __init__(self):
+        self.llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;)
+        self.evaluation_results = []
+    
+    @traceable(run_type=&quot;chain&quot;, name=&quot;hybrid_rag_chain&quot;)
+    async def process_query(self, query: str, context: str = &quot;&quot;) -&gt; Dict[str, Any]:
+        &quot;&quot;&quot;主处理函数 - 由LangSmith追踪&quot;&quot;&quot;
+        
+        # 在LangFuse中创建对应的Trace
+        lf_trace = langfuse.trace(
+            name=&quot;hybrid-query&quot;,
+            input=query,
+            metadata={&quot;timestamp&quot;: datetime.utcnow().isoformat()}
+        )
+        
+        try:
+            # 1. 检索阶段
+            retrieval_span = lf_trace.span(name=&quot;retrieval&quot;)
+            retrieved_docs = await self._simulate_retrieval(query, context)
+            retrieval_span.end(output={&quot;doc_count&quot;: len(retrieved_docs)})
+            
+            # 2. 生成阶段
+            generation = lf_trace.generation(
+                name=&quot;llm-response&quot;,
+                model=&quot;gpt-4o-mini&quot;,
+                input=query,
+                model_parameters={&quot;temperature&quot;: 0.5}
+            )
+            
+            response = await self.llm.ainvoke(
+                f&quot;基于以下上下文回答问题：\n\n{retrieved_docs}\n\n问题：{query}&quot;
+            )
+            
+            generation.end(output=response.content)
+            
+            # 3. 质量评估
+            eval_results = await self._run_quality_evaluation(query, response.content)
+            lf_trace.span(
+                name=&quot;evaluation&quot;,
+                output=eval_results,
+                level=&quot;WARNING&quot; if eval_results[&quot;needs_review&quot;] else &quot;DEFAULT&quot;
+            )
+            
+            # 4. 在LangSmith中也记录评估结果
+            self._record_langsmith_evaluation(query, response.content, eval_results)
+            
+            return {
+                &quot;answer&quot;: response.content,
+                &quot;evaluation&quot;: eval_results,
+                &quot;langfuse_trace_id&quot;: lf_trace.id
+            }
+            
+        except Exception as e:
+            lf_trace.span(
+                name=&quot;error&quot;,
+                level=&quot;ERROR&quot;,
+                status_message=str(e)
+            )
+            raise
+        
+        finally:
+            lf_trace.update(output={&quot;status&quot;: &quot;completed&quot;})
+    
+    async def _simulate_retrieval(self, query: str, context: str) -&gt; list:
+        &quot;&quot;&quot;模拟文档检索&quot;&quot;&quot;
+        await asyncio.sleep(0.1)  # 模拟检索延迟
+        return [context[i:i+200] for i in range(0, len(context), 200)][:3]
+    
+    async def _run_quality_evaluation(self, query: str, answer: str) -&gt; dict:
+        &quot;&quot;&quot;运行质量评估&quot;&quot;&quot;
+        # 简单规则评估
+        needs_review = len(answer) &lt; 50 or &quot;抱歉&quot; in answer
+        
+        return {
+            &quot;needs_review&quot;: needs_review,
+            &quot;answer_length&quot;: len(answer),
+            &quot;contains_apology&quot;: &quot;抱歉&quot; in answer,
+            &quot;score&quot;: 8.5 if not needs_review else 5.0
+        }
+    
+    def _record_langsmith_evaluation(self, query: str, answer: str, eval_results: dict):
+        &quot;&quot;&quot;将评估结果记录到LangSmith&quot;&quot;&quot;
+        langsmith_client.create_feedback(
+            run_id=None,  # 实际使用时需要传入run_id
+            key=&quot;quality_score&quot;,
+            score=eval_results[&quot;score&quot;],
+            comment=f&quot;Query: {query[:50]}...&quot;
+        )
+
+# 使用示例
+async def main():
+    manager = HybridObservabilityManager()
+    
+    # 模拟多个用户请求
+    queries = [
+        &quot;退款流程是什么？&quot;,
+        &quot;如何修改账户信息？&quot;,
+        &quot;你们支持哪些支付方式？&quot;
+    ]
+    
+    context = &quot;&quot;&quot;
+    退款政策：用户可在购买后7天内申请退款。
+    账户修改：登录后进入设置页面即可修改个人信息。
+    支付方式：我们支持信用卡、支付宝和微信支付。
+    &quot;&quot;&quot;
+    
+    for query in queries:
+        result = await manager.process_query(query, context)
+        print(f&quot;查询: {query}&quot;)
+        print(f&quot;回答: {result[&#x27;answer&#x27;][:100]}...&quot;)
+        print(f&quot;评估: {result[&#x27;evaluation&#x27;]}&quot;)
+        print(&quot;-&quot; * 50)
+    
+    # 提交所有LangFuse数据
+    langfuse.flush()
+
+if __name__ == &quot;__main__&quot;:
+    asyncio.run(main())</code></pre></figure>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<p>| 维度 | LangSmith | LangFuse | 自建Otel方案 |</p>
+<p>|------|-----------|----------|-------------|</p>
+<p>| <strong>接入成本</strong> | 低（装饰器/回调） | 中（需手动创建） | 高（需自行实现） |</p>
+<p>| <strong>LangChain集成</strong> | 原生支持 | 需适配器 | 手动埋点 |</p>
+<p>| <strong>评估功能</strong> | 内置评估器 | 支持自定义评估 | 无 |</p>
+<p>| <strong>实验管理</strong> | 弱 | 强（支持Prompt版本对比） | 无 |</p>
+<p>| <strong>数据所有权</strong> | 托管服务 | 支持自托管/私有化 | 完全自有 |</p>
+<p>| <strong>成本追踪</strong> | 按模型估算 | 精确到Token | 需自行实现 |</p>
+<p>| <strong>团队协作</strong> | 支持 | 支持 | 依赖基础设施 |</p>
+<p><strong>适用场景建议：</strong></p>
+<ul>
+<li><strong>快速验证</strong>：选择LangSmith，5分钟接入，零代码侵入</li>
+</ul>
+<ul>
+<li><strong>生产环境</strong>：选择LangFuse，数据可控，评估可定制</li>
+</ul>
+<ul>
+<li><strong>大型企业</strong>：自建Otel方案，完全掌控数据流</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>统一Trace ID贯穿全链路</strong></li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python">   # 将Trace ID关联到业务日志
+   trace_id = get_current_trace_id()
+   logger.info(f&quot;business_event&quot;, extra={&quot;trace_id&quot;: trace_id})</code></pre></figure>
+<ol>
+<li><strong>控制采样率</strong></li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python">   # 生产环境建议10%-20%采样率
+   LANGSMITH_SAMPLING_RATE=0.2</code></pre></figure>
+<ol>
+<li><strong>敏感信息脱敏</strong></li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python">   @traceable(process_inputs=lambda x: {&quot;text&quot;: mask_pii(x.get(&quot;text&quot;, &quot;&quot;))})
+   def llm_call(text: str):
+       ...</code></pre></figure>
+<h3 id="常见坑及解决方案"><a href="#常见坑及解决方案" class="headerlink" title="常见坑及解决方案"></a>常见坑及解决方案</h3>
+<p><strong>坑1：Token成本爆炸</strong></p>
+<ul>
+<li>现象：Trace数据消耗大量Token，成本失控</li>
+</ul>
+<ul>
+<li>解决：设置采样率、限制输入输出长度、使用gzip压缩</li>
+</ul>
+<p><strong>坑2：异步任务丢失Trace</strong></p>
+<ul>
+<li>现象：Celery/Redis队列中的任务没有Trace</li>
+</ul>
+<ul>
+<li>解决：手动传递Trace上下文</li>
+</ul>
+<figure class="highlight python"><pre><code class="language-python">from langsmith.run_helpers import get_current_run_tree
+
+def async_task():
+    parent_run = get_current_run_tree()
+    # 在子线程/进程中重建上下文
+    with parent_run.create_child(name=&quot;async_subtask&quot;):
+        ...</code></pre></figure>
+<p><strong>坑3：评估结果不准确</strong></p>
+<ul>
+<li>现象：LLM评估器自身质量不稳定</li>
+</ul>
+<ul>
+<li>解决：混合使用规则评估和LLM评估，设置置信度阈值</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>LLM应用的可观测性不是锦上添花，而是生产环境必备的基础设施。LangSmith和LangFuse代表了两种不同的设计哲学：LangSmith追求极致的简洁和无侵入，LangFuse则提供更细粒度的控制和更强的评估能力。</p>
+<p>我的建议是：</p>
+<ul>
+<li>如果你的团队已经在用LangChain，从LangSmith开始</li>
+</ul>
+<ul>
+<li>如果需要私有化部署和自定义评估，选择LangFuse</li>
+</ul>
+<ul>
+<li>大型系统可以考虑双平台方案，互相补充</li>
+</ul>
+<p>延伸思考：可观测性数据本身就是宝贵的训练数据。想象一下，如果你能自动收集所有失败的Trace，将它们转化为微调数据集，或者用它们来优化Prompt模板——这才是可观测性真正的长期价值。未来，可观测系统将从“被动记录”进化为“主动优化”，这可能是我们下一篇文章的主题。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

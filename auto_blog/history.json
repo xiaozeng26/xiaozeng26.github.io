@@ -153,6 +153,13 @@
       "subtopic": "最终一致性方案：本地消息表、事务消息、Saga模式",
       "date": "2026-08-14",
       "url": "/2026/08/14/最终一致性方案：本地消息表、事务消息、Saga模式/"
+    },
+    {
+      "title": "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
+      "category": "ai-ml",
+      "subtopic": "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
+      "date": "2026-08-15",
+      "url": "/2026/08/15/LangSmith + LangFuse：LLM应用的可观测性全链路追踪/"
     }
   ],
   "used_subtopics": {
@@ -169,7 +176,8 @@
       "RAG（检索增强生成）系统设计与实现",
       "多模态AI应用开发：GPT-4V + LangChain",
       "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
-      "LangChain表达式语言（LCEL）与Runnable协议深度解析"
+      "LangChain表达式语言（LCEL）与Runnable协议深度解析",
+      "LangSmith + LangFuse：LLM应用的可观测性全链路追踪"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -212,6 +220,7 @@
     "Netty线程模型与零拷贝原理": "a46514cf83db071434a55ac21b20e3b84b15f73121c733ce3b85f0af934a5f9c",
     "容器化应用的12-Factor原则实践": "64dfe14076d91f30a3e5d9d297c6efba1560116eff46f5eb37526e45d600dd04",
     "Go调度器GMP模型深度剖析": "f7a6b2377fdd4cf718b77f60f963f2ff5623a928944161f9b401ea0a044271ca",
-    "最终一致性方案：本地消息表、事务消息、Saga模式": "cd921fa08fb3aebae18917aebd5f22ef7acfb89c5d8bb86ced39b83aefee5981"
+    "最终一致性方案：本地消息表、事务消息、Saga模式": "cd921fa08fb3aebae18917aebd5f22ef7acfb89c5d8bb86ced39b83aefee5981",
+    "LangSmith + LangFuse：LLM应用的可观测性全链路追踪": "d2ede72dae3c6d32e16e41cec56f1bbd4288e697d3f016261d14f92af02fa075"
   }
 }
