@@ -174,6 +174,13 @@
       "subtopic": "Go Context的设计与链路追踪实践",
       "date": "2026-08-17",
       "url": "/2026/08/17/Go Context的设计与链路追踪实践/"
+    },
+    {
+      "title": "Docker多阶段构建与镜像瘦身最佳实践",
+      "category": "cloud-native",
+      "subtopic": "Docker多阶段构建与镜像瘦身最佳实践",
+      "date": "2026-08-18",
+      "url": "/2026/08/18/Docker多阶段构建与镜像瘦身最佳实践/"
     }
   ],
   "used_subtopics": {
@@ -204,7 +211,8 @@
       "K8s RBAC权限控制与安全上下文",
       "Istio服务网格Sidecar注入与流量管理",
       "Kubernetes调度器源码分析与自定义调度",
-      "容器化应用的12-Factor原则实践"
+      "容器化应用的12-Factor原则实践",
+      "Docker多阶段构建与镜像瘦身最佳实践"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -239,6 +247,7 @@
     "最终一致性方案：本地消息表、事务消息、Saga模式": "cd921fa08fb3aebae18917aebd5f22ef7acfb89c5d8bb86ced39b83aefee5981",
     "LangSmith + LangFuse：LLM应用的可观测性全链路追踪": "d2ede72dae3c6d32e16e41cec56f1bbd4288e697d3f016261d14f92af02fa075",
     "微服务框架Nameko的设计与使用": "1f67bbd14df0c4732b06d235f1996f2947ce0ac6b8729a1a7f20e7c402c0cc4f",
-    "Go Context的设计与链路追踪实践": "1f154b51d9453fe493462c6b1c8af3c33c210d28b31338eca77dcddf304b7136"
+    "Go Context的设计与链路追踪实践": "1f154b51d9453fe493462c6b1c8af3c33c210d28b31338eca77dcddf304b7136",
+    "Docker多阶段构建与镜像瘦身最佳实践": "161f0b2717398536a26a34fff6a2879088e0ea871493c4f0164716bff59809de"
   }
 }

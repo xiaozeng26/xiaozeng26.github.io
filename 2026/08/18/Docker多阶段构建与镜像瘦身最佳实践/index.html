@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Docker多阶段构建与镜像瘦身最佳实践 | 小曾博客</title>
+  <meta name="description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
+  <meta name="keywords" content="docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Docker多阶段构建与镜像瘦身最佳实践">
+  <meta name="twitter:description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9255/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Docker多阶段构建与镜像瘦身最佳实践">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9255/800/400">
+  <meta property="article:published_time" content="2026-08-18T20:23:27.000Z">
+  <meta property="article:modified_time" content="2026-08-18T20:23:27.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Docker多阶段构建与镜像瘦身最佳实践"><span class="toc-text">Docker多阶段构建与镜像瘦身最佳实践</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从生活类比到技术定义"><span class="toc-text">核心概念：从生活类比到技术定义</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-搬家与装修"><span class="toc-text">生活类比：搬家与装修</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Docker镜像的层存储机制"><span class="toc-text">Docker镜像的层存储机制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#多阶段构建的底层实现"><span class="toc-text">多阶段构建的底层实现</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#深入JRE-为什么选择JRE而不是JDK"><span class="toc-text">深入JRE：为什么选择JRE而不是JDK</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个完整示例"><span class="toc-text">实战代码：三个完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-Spring-Boot应用的多阶段构建-标准方案"><span class="toc-text">示例1：Spring Boot应用的多阶段构建（标准方案）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-使用jlink裁剪JRE-极致瘦身方案"><span class="toc-text">示例2：使用jlink裁剪JRE（极致瘦身方案）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-前端-后端全栈多阶段构建-前端资源打包"><span class="toc-text">示例3：前端+后端全栈多阶段构建（前端资源打包）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#多阶段构建-vs-其他瘦身方案"><span class="toc-text">多阶段构建 vs 其他瘦身方案</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#实践对比-Spring-Boot应用镜像大小"><span class="toc-text">实践对比：Spring Boot应用镜像大小</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#调试技巧"><span class="toc-text">调试技巧</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/9255/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Docker多阶段构建与镜像瘦身最佳实践</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-18"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-18</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-18"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-18</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Docker多阶段构建与镜像瘦身最佳实践"><a href="#Docker多阶段构建与镜像瘦身最佳实践" class="headerlink" title="Docker多阶段构建与镜像瘦身最佳实践"></a>Docker多阶段构建与镜像瘦身最佳实践</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是<code>openjdk:17-jdk</code>，构建时把整个Maven仓库都打进去了——甚至还包括<code>.git</code>目录和测试报告。</p>
+<p>这不是个例。我在多个大型项目里都见过类似的“镜像膨胀”问题。当你的微服务数量达到几十个、上百个时，每个镜像多出500MB，带来的存储成本和部署延迟是相当可观的。</p>
+<p>今天，我们就来深入探讨如何通过<strong>多阶段构建</strong>、<strong>层缓存优化</strong>和<strong>基础镜像精简</strong>，把Spring Boot镜像从800MB瘦身到200MB以内，同时保证构建效率和可维护性。</p>
+<h2 id="核心概念-从生活类比到技术定义"><a href="#核心概念-从生活类比到技术定义" class="headerlink" title="核心概念：从生活类比到技术定义"></a>核心概念：从生活类比到技术定义</h2>
+<h3 id="生活类比-搬家与装修"><a href="#生活类比-搬家与装修" class="headerlink" title="生活类比：搬家与装修"></a>生活类比：搬家与装修</h3>
+<p>如果把Docker构建比作一次搬家装修：</p>
+<ul>
+<li><strong>传统单阶段构建</strong>：就像你带着所有装修工具（电钻、油漆桶、梯子）搬进新家，装修完还把工具都留在新家里。房子是能住了，但堆满了用不上的东西。</li>
+</ul>
+<ul>
+<li><strong>多阶段构建</strong>：更像你请了一支装修队——他们在工地上用专业工具装修，但交房时只把家具和装饰品留下，所有工具都装车带走。最终你拿到的，是一个干净、实用的家。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p><strong>多阶段构建</strong>是Docker 17.05+引入的特性，允许在一个Dockerfile中使用多个<code>FROM</code>指令，每个<code>FROM</code>开启一个独立的构建阶段。只有最后一个阶段的文件会被保留在最终镜像中，中间阶段的文件会被丢弃。</p>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile"># 阶段1：构建环境
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
+
+# 阶段2：运行环境
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/app.jar .
+ENTRYPOINT [&quot;java&quot;, &quot;-jar&quot;, &quot;app.jar&quot;]</code></pre></figure>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="Docker镜像的层存储机制"><a href="#Docker镜像的层存储机制" class="headerlink" title="Docker镜像的层存储机制"></a>Docker镜像的层存储机制</h3>
+<p>要理解多阶段构建为什么能瘦身，先要了解Docker镜像的分层存储原理。Docker镜像由多个只读层叠加而成，每一层对应Dockerfile中的一条指令。</p>
+<div class="mermaid">
+graph TD
+    A[基础镜像层1: alpine] --> B[基础镜像层2: 更新CA证书]
+    B --> C[基础镜像层3: 安装JRE]
+    C --> D[应用层1: COPY app.jar]
+    D --> E[应用层2: EXPOSE 8080]
+    E --> F[应用层3: ENTRYPOINT]
+    
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style D fill:#fff9c4
+    style E fill:#fff9c4
+    style F fill:#fff9c4
+</div>
+<p>每一层都是只读的，只有容器运行时才会添加可写层。这意味着：</p>
+<ol>
+<li><strong>层数越多，镜像越大</strong>（每层都有元数据开销）</li>
+<li><strong>层与层之间的文件删除不会减小镜像大小</strong>（被删除的文件仍存在于下层中）</li>
+<li><strong>层的缓存依赖于上游层未变化</strong></li>
+</ol>
+<h3 id="多阶段构建的底层实现"><a href="#多阶段构建的底层实现" class="headerlink" title="多阶段构建的底层实现"></a>多阶段构建的底层实现</h3>
+<p>多阶段构建之所以能瘦身，本质上是<strong>只保留最终阶段的产物</strong>。中间阶段产生的层会被标记为<code>dangling</code>，在<code>docker build</code>结束时自动清理。</p>
+<p>关键点在于<code>COPY --from=builder</code>指令——它直接从builder阶段的文件系统复制文件，而不是通过层的方式。这意味着：</p>
+<ul>
+<li>复制的文件不包含Maven仓库的依赖、源码、测试报告等</li>
+</ul>
+<ul>
+<li>最终镜像只包含JRE和JAR包，体积大幅减小</li>
+</ul>
+<h3 id="深入JRE-为什么选择JRE而不是JDK"><a href="#深入JRE-为什么选择JRE而不是JDK" class="headerlink" title="深入JRE：为什么选择JRE而不是JDK"></a>深入JRE：为什么选择JRE而不是JDK</h3>
+<p>很多开发者习惯用<code>openjdk:17-jdk</code>作为基础镜像，但JDK包含编译器、调试器、文档等运行期不需要的组件。JRE（运行时环境）只包含运行Java应用所需的最小组件。</p>
+<figure class="highlight bash"><pre><code class="language-bash"># 查看不同镜像的大小
+$ docker images | grep eclipse-temurin
+eclipse-temurin:17-jdk-alpine       330MB
+eclipse-temurin:17-jre-alpine       150MB
+eclipse-temurin:17-jre-alpine       147MB  # 优化后</code></pre></figure>
+<p>但JRE仍然包含一些不需要的模块。我们可以使用<code>jlink</code>工具进一步裁剪JRE，只保留应用依赖的模块。</p>
+<h2 id="实战代码-三个完整示例"><a href="#实战代码-三个完整示例" class="headerlink" title="实战代码：三个完整示例"></a>实战代码：三个完整示例</h2>
+<h3 id="示例1-Spring-Boot应用的多阶段构建-标准方案"><a href="#示例1-Spring-Boot应用的多阶段构建-标准方案" class="headerlink" title="示例1：Spring Boot应用的多阶段构建（标准方案）"></a>示例1：Spring Boot应用的多阶段构建（标准方案）</h3>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile"># ============================================
+# 阶段1：构建阶段
+# 使用Maven镜像，包含JDK和Maven
+# ============================================
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+# 设置工作目录
+WORKDIR /app
+
+# 先复制pom.xml，利用Docker层缓存
+# 只要pom.xml不变，依赖下载层就不会失效
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# 复制源码并打包
+# 注意：这里使用.dockerignore排除target、.git等目录
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# ============================================
+# 阶段2：运行阶段
+# 使用精简的JRE镜像
+# ============================================
+FROM eclipse-temurin:17-jre-alpine
+
+# 添加非root用户（安全最佳实践）
+RUN addgroup -S appgroup &amp;&amp; adduser -S appuser -G appgroup
+
+# 设置时区（避免默认UTC时间导致日志时间偏差）
+RUN apk add --no-cache tzdata \
+    &amp;&amp; cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    &amp;&amp; echo &quot;Asia/Shanghai&quot; &gt; /etc/timezone
+
+WORKDIR /app
+
+# 从builder阶段复制JAR包
+COPY --from=builder /app/target/*.jar app.jar
+
+# 切换到非root用户
+USER appuser
+
+# 暴露端口
+EXPOSE 8080
+
+# JVM优化参数：
+# -XX:+UseContainerSupport：自动感知容器内存限制
+# -XX:MaxRAMPercentage=75.0：使用容器75%的内存作为堆
+# -Djava.security.egd=file:/dev/./urandom：加速随机数生成（Tomcat启动优化）
+ENTRYPOINT [&quot;java&quot;, \
+    &quot;-XX:+UseContainerSupport&quot;, \
+    &quot;-XX:MaxRAMPercentage=75.0&quot;, \
+    &quot;-Djava.security.egd=file:/dev/./urandom&quot;, \
+    &quot;-jar&quot;, &quot;app.jar&quot;]</code></pre></figure>
+<h3 id="示例2-使用jlink裁剪JRE-极致瘦身方案"><a href="#示例2-使用jlink裁剪JRE-极致瘦身方案" class="headerlink" title="示例2：使用jlink裁剪JRE（极致瘦身方案）"></a>示例2：使用jlink裁剪JRE（极致瘦身方案）</h3>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile"># ============================================
+# 阶段1：构建应用
+# ============================================
+FROM maven:3.9-eclipse-temurin-17 AS builder
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# ============================================
+# 阶段2：裁剪JRE
+# 使用jlink创建只包含所需模块的最小JRE
+# ============================================
+FROM eclipse-temurin:17-jdk-alpine AS jre-builder
+
+# 先分析应用依赖了哪些模块
+# 运行jdeps分析JAR包的模块依赖
+RUN jdeps --ignore-missing-deps \
+    --print-module-deps \
+    /app/target/*.jar &gt; /tmp/modules.txt
+
+# 使用jlink生成精简JRE
+# --no-header-files: 不包含头文件
+# --no-man-pages: 不包含手册页
+# --strip-debug: 剥离调试符号
+# --compress=2: 启用压缩（zip格式）
+RUN jlink \
+    --add-modules $(cat /tmp/modules.txt) \
+    --strip-debug \
+    --no-man-pages \
+    --no-header-files \
+    --compress=2 \
+    --output /jre
+
+# ============================================
+# 阶段3：最终运行镜像
+# ============================================
+FROM alpine:latest
+
+# 安装必要的库（jlink生成的JRE可能依赖glibc或musl）
+RUN apk add --no-cache libstdc++
+
+# 复制精简JRE和应用
+COPY --from=jre-builder /jre /opt/jre
+COPY --from=builder /app/target/*.jar /app/app.jar
+
+# 添加非root用户
+RUN addgroup -S appgroup &amp;&amp; adduser -S appuser -G appgroup
+USER appuser
+
+WORKDIR /app
+EXPOSE 8080
+
+ENTRYPOINT [&quot;/opt/jre/bin/java&quot;, \
+    &quot;-XX:+UseContainerSupport&quot;, \
+    &quot;-XX:MaxRAMPercentage=75.0&quot;, \
+    &quot;-jar&quot;, &quot;app.jar&quot;]</code></pre></figure>
+<h3 id="示例3-前端-后端全栈多阶段构建-前端资源打包"><a href="#示例3-前端-后端全栈多阶段构建-前端资源打包" class="headerlink" title="示例3：前端+后端全栈多阶段构建（前端资源打包）"></a>示例3：前端+后端全栈多阶段构建（前端资源打包）</h3>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile"># ============================================
+# 阶段1：构建前端资源
+# ============================================
+FROM node:20-alpine AS frontend-builder
+WORKDIR /frontend
+
+# 利用Docker层缓存
+COPY frontend/package*.json .
+RUN npm ci --only=production
+
+# 构建前端资源
+COPY frontend/ .
+RUN npm run build
+
+# ============================================
+# 阶段2：构建后端应用
+# ============================================
+FROM maven:3.9-eclipse-temurin-17 AS backend-builder
+WORKDIR /backend
+
+COPY backend/pom.xml .
+RUN mvn dependency:go-offline -B
+
+COPY backend/src ./src
+RUN mvn clean package -DskipTests
+
+# ============================================
+# 阶段3：组装最终镜像
+# ============================================
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+# 复制后端JAR
+COPY --from=backend-builder /backend/target/*.jar app.jar
+
+# 将前端静态资源嵌入JAR（如果后端是Spring Boot，前端资源放在static目录）
+# 或者复制为独立目录，由Nginx或其他Web服务器提供服务
+COPY --from=frontend-builder /frontend/dist/ /app/static/
+
+EXPOSE 8080
+ENTRYPOINT [&quot;java&quot;, &quot;-jar&quot;, &quot;app.jar&quot;]</code></pre></figure>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="多阶段构建-vs-其他瘦身方案"><a href="#多阶段构建-vs-其他瘦身方案" class="headerlink" title="多阶段构建 vs 其他瘦身方案"></a>多阶段构建 vs 其他瘦身方案</h3>
+<p>| 方案 | 优点 | 缺点 | 适用场景 |</p>
+<p>|------|------|------|----------|</p>
+<p>| <strong>多阶段构建</strong> | 构建过程可复现、层缓存友好、无需额外工具 | Dockerfile复杂度提升 | 所有Java/Go/Node项目 |</p>
+<p>| <strong>DockerSlim</strong> | 自动化分析运行时依赖、无需修改Dockerfile | 需要额外安装工具、分析时间较长 | 已有镜像的快速瘦身 |</p>
+<p>| <strong>Distroless镜像</strong> | 极简、安全（无shell）、体积小 | 调试困难（无shell）、不兼容所有语言 | 追求极致安全的场景 |</p>
+<p>| <strong>GraalVM Native Image</strong> | 启动快（毫秒级）、内存占用低 | 构建时间长、反射兼容性问题 | 无状态服务、Serverless |</p>
+<p>| <strong>自定义基础镜像</strong> | 完全可控 | 维护成本高 | 大型团队、有安全合规要求 |</p>
+<h3 id="实践对比-Spring-Boot应用镜像大小"><a href="#实践对比-Spring-Boot应用镜像大小" class="headerlink" title="实践对比：Spring Boot应用镜像大小"></a>实践对比：Spring Boot应用镜像大小</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 传统单阶段构建
+openjdk:17-jdk + mvn package = 780MB
+
+# 多阶段构建 + JRE
+eclipse-temurin:17-jre-alpine + jar = 220MB
+
+# 多阶段构建 + jlink精简JRE
+alpine + 精简JRE + jar = 140MB
+
+# 多阶段构建 + jlink + 压缩
+alpine + 压缩JRE + jar = 120MB</code></pre></figure>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>利用Docker层缓存</strong>：先复制<code>pom.xml</code>或<code>package.json</code>，再复制源码。依赖层只要文件不变就不会失效。</li>
+</ol>
+<ol>
+<li><strong>使用.dockerignore文件</strong>：排除<code>target/</code>、<code>.git/</code>、<code>node_modules/</code>等目录，减小构建上下文。</li>
+</ol>
+<figure class="highlight dockerignore"><pre><code class="language-dockerignore">target/
+.git/
+.idea/
+*.iml
+node_modules/
+dist/</code></pre></figure>
+<ol>
+<li><strong>按需选择基础镜像</strong>：优先选择<code>alpine</code>变体，但要注意兼容性。例如，某些原生库在alpine上不可用。</li>
+</ol>
+<ol>
+<li><strong>使用非root用户运行</strong>：降低安全风险，防止容器内提权。</li>
+</ol>
+<ol>
+<li><strong>设置合理的资源限制</strong>：JVM应用一定要配置<code>-XX:MaxRAMPercentage</code>，避免容器内存限制导致OOM。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<ol>
+<li><strong>坑：<code>COPY --from</code>复制了错误路径</strong></li>
+</ol>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile">   # 错误：target目录下可能有多个jar
+   COPY --from=builder /app/target/*.jar app.jar
+   # 正确：明确指定jar名称
+   COPY --from=builder /app/target/my-app-1.0.0.jar app.jar</code></pre></figure>
+<ol>
+<li><strong>坑：alpine镜像缺少glibc</strong></li>
+</ol>
+<p>某些Java原生库（如SNI、DNS解析）依赖glibc，在alpine（使用musl）上会报错。解决方案：</p>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile">   RUN apk add --no-cache libc6-compat</code></pre></figure>
+<ol>
+<li><strong>坑：时区问题</strong></li>
+</ol>
+<p>alpine镜像默认UTC时间，会导致日志时间不对。记得设置时区。</p>
+<ol>
+<li><strong>坑：JVM在容器中的内存感知</strong></li>
+</ol>
+<p>老版本JVM（Java 8u131之前）不感知容器内存限制，导致OOM。使用Java 17+并配置<code>UseContainerSupport</code>。</p>
+<ol>
+<li><strong>坑：Maven依赖下载慢</strong></li>
+</ol>
+<p>使用阿里云镜像加速：</p>
+<figure class="highlight xml"><pre><code class="language-xml">   &lt;settings&gt;
+     &lt;mirrors&gt;
+       &lt;mirror&gt;
+         &lt;id&gt;alimaven&lt;/id&gt;
+         &lt;url&gt;https://maven.aliyun.com/repository/public&lt;/url&gt;
+       &lt;/mirror&gt;
+     &lt;/mirrors&gt;
+   &lt;/settings&gt;</code></pre></figure>
+<h3 id="调试技巧"><a href="#调试技巧" class="headerlink" title="调试技巧"></a>调试技巧</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 查看镜像层信息
+docker history my-image:latest
+
+# 比较两个镜像的大小差异
+docker images --format &quot;table {{.Repository}}\t{{.Tag}}\t{{.Size}}&quot;
+
+# 查看具体层的文件系统差异
+docker run --rm my-image:latest ls -la /app
+
+# 分析JAR包依赖的JDK模块
+jdeps --ignore-missing-deps --print-module-deps my-app.jar</code></pre></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>多阶段构建是Docker镜像瘦身的核心武器，它通过分离构建环境和运行环境，让最终镜像只保留运行所需的最小文件集。结合JRE选择、jlink裁剪、层缓存优化等技巧，我们可以将Spring Boot应用镜像从800MB压缩到120MB左右，部署速度提升数倍。</p>
+<p>但瘦身只是容器化的一部分。延伸思考几个方向：</p>
+<ol>
+<li><strong>构建缓存策略</strong>：如何在多阶段构建中进一步优化缓存命中率？</li>
+<li><strong>安全扫描</strong>：瘦身后的镜像如何集成Trivy、Clair等安全扫描工具？</li>
+<li><strong>OCI标准</strong>：是否考虑使用<code>docker buildx</code>构建多平台镜像？</li>
+<li><strong>CI/CD集成</strong>：如何将多阶段构建融入GitLab CI或GitHub Actions流水线？</li>
+</ol>
+<p>容器化是一条持续优化的道路，希望这篇文章能帮你迈出坚实的一步。如果你在实践中遇到其他问题，欢迎在评论区交流讨论。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
