@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作 | 小曾博客</title>
+  <meta name="description" content="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作 引言 想象一下，你是一位餐厅老板，生意火爆到后厨完全失控：传菜员（LLM）只知道把菜单丢给厨师，厨师（工具调用）做完一道菜就等着，没人统筹冷菜、热菜、甜品的出餐顺序。结果就是客人等到崩溃，厨房乱成一锅粥。 这就是当前很多LLM应用的缩影——单次调用、无状态、无规划。但真实的业务场景，比如“帮我对比这三份合同的">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作">
+  <meta name="twitter:description" content="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作 引言 想象一下，你是一位餐厅老板，生意火爆到后厨完全失控：传菜员（LLM）只知道把菜单丢给厨师，厨师（工具调用）做完一道菜就等着，没人统筹冷菜、热菜、甜品的出餐顺序。结果就是客人等到崩溃，厨房乱成一锅粥。 这就是当前很多LLM应用的缩影——单次调用、无状态、无规划。但真实的业务场景，比如“帮我对比这三份合同的">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/6953/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作 引言 想象一下，你是一位餐厅老板，生意火爆到后厨完全失控：传菜员（LLM）只知道把菜单丢给厨师，厨师（工具调用）做完一道菜就等着，没人统筹冷菜、热菜、甜品的出餐顺序。结果就是客人等到崩溃，厨房乱成一锅粥。 这就是当前很多LLM应用的缩影——单次调用、无状态、无规划。但真实的业务场景，比如“帮我对比这三份合同的">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/6953/800/400">
+  <meta property="article:published_time" content="2026-08-19T20:24:04.000Z">
+  <meta property="article:modified_time" content="2026-08-19T20:24:04.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Agent模式-ReAct-Plan-and-Execute-Multi-Agent协作"><span class="toc-text">Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-单线程-到-交响乐团"><span class="toc-text">核心概念：从“单线程”到“交响乐团”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比"><span class="toc-text">生活类比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析-LangGraph-实现对比"><span class="toc-text">源码/原理深度分析：LangGraph 实现对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-ReAct-的核心循环-LangGraph-源码视角"><span class="toc-text">1. ReAct 的核心循环（LangGraph 源码视角）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-Plan-and-Execute-的架构差异"><span class="toc-text">2. Plan-and-Execute 的架构差异</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-Multi-Agent-的消息传递机制"><span class="toc-text">3. Multi-Agent 的消息传递机制</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的完整示例"><span class="toc-text">实战代码：三个可运行的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-ReAct-模式-智能客服工单处理"><span class="toc-text">示例1：ReAct 模式——智能客服工单处理</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-Plan-and-Execute-模式-市场调研报告生成"><span class="toc-text">示例2：Plan-and-Execute 模式——市场调研报告生成</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-Multi-Agent-模式-跨部门协作的合同审查"><span class="toc-text">示例3：Multi-Agent 模式——跨部门协作的合同审查</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-业界实现全景"><span class="toc-text">方案对比：业界实现全景</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结与延伸思考"><span class="toc-text">总结与延伸思考</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/6953/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-19"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-19</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-19"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-19</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Agent模式-ReAct-Plan-and-Execute-Multi-Agent协作"><a href="#Agent模式-ReAct-Plan-and-Execute-Multi-Agent协作" class="headerlink" title="Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作"></a>Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你是一位餐厅老板，生意火爆到后厨完全失控：传菜员（LLM）只知道把菜单丢给厨师，厨师（工具调用）做完一道菜就等着，没人统筹冷菜、热菜、甜品的出餐顺序。结果就是客人等到崩溃，厨房乱成一锅粥。</p>
+<p>这就是当前很多LLM应用的缩影——单次调用、无状态、无规划。但真实的业务场景，比如“帮我对比这三份合同的风险条款并生成摘要报告”，远不是一次Prompt能搞定的。它需要<strong>拆解</strong>（读合同→提取条款→对比→生成报告）、<strong>决策</strong>（哪份合同先读？摘要用什么格式？）、<strong>多步工具调用</strong>（文件解析、向量检索、数据库查询、文本生成）。</p>
+<p>业界已经沉淀出三种主流的Agent编排模式：<strong>ReAct</strong>（推理+行动交替）、<strong>Plan-and-Execute</strong>（先规划后执行）、<strong>Multi-Agent</strong>（多角色协作）。本文将从源码层面拆解这三者的本质差异，并给出可直接落地的代码示例。</p>
+<h2 id="核心概念-从-单线程-到-交响乐团"><a href="#核心概念-从-单线程-到-交响乐团" class="headerlink" title="核心概念：从“单线程”到“交响乐团”"></a>核心概念：从“单线程”到“交响乐团”</h2>
+<h3 id="生活类比"><a href="#生活类比" class="headerlink" title="生活类比"></a>生活类比</h3>
+<ul>
+<li><strong>ReAct</strong> 像一个<strong>经验丰富的急诊医生</strong>：观察病人症状（Observation）→ 判断病因（Thought）→ 开检查单（Action）→ 看检查结果（Observation）→ 再判断…每一步都依赖上一步的实时反馈，灵活但可能绕弯路。</li>
+</ul>
+<ul>
+<li><strong>Plan-and-Execute</strong> 像<strong>工程项目经理</strong>：先召开启动会，画出完整的甘特图（Plan），然后交给施工队按图施工（Execute）。施工队遇到小问题可以微调，但大方向不变。效率高，但应对突发变化能力弱。</li>
+</ul>
+<ul>
+<li><strong>Multi-Agent</strong> 像<strong>一家创业公司</strong>：CEO（规划Agent）拆解目标，CTO（技术Agent）负责实现，CFO（财务Agent）负责成本核算，HR（HR Agent）负责资源协调。每个Agent有独立人格、独立记忆、独立工具集，通过消息传递协作。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>| 模式 | 核心循环 | 状态管理 | 适用场景 |</p>
+<p>|------|---------|---------|---------|</p>
+<p>| ReAct | Thought → Action → Observation 循环 | 短期上下文窗口 | 需要动态推理、工具结果不可预知的场景 |</p>
+<p>| Plan-and-Execute | 一次性规划 → 逐步执行 → 可选再规划 | 长期计划 + 短期执行栈 | 任务步骤明确、执行路径相对固定的场景 |</p>
+<p>| Multi-Agent | 多角色并发/串行消息传递 | 每个Agent独立状态 + 共享消息总线 | 需要角色分离、权限隔离、并行处理的复杂任务 |</p>
+<h2 id="源码-原理深度分析-LangGraph-实现对比"><a href="#源码-原理深度分析-LangGraph-实现对比" class="headerlink" title="源码/原理深度分析：LangGraph 实现对比"></a>源码/原理深度分析：LangGraph 实现对比</h2>
+<p>LangGraph 是目前实现这三类模式最底层的框架，它把Agent定义为<strong>状态图</strong>（StateGraph），节点是函数，边是路由逻辑。</p>
+<h3 id="1-ReAct-的核心循环-LangGraph-源码视角"><a href="#1-ReAct-的核心循环-LangGraph-源码视角" class="headerlink" title="1. ReAct 的核心循环（LangGraph 源码视角）"></a>1. ReAct 的核心循环（LangGraph 源码视角）</h3>
+<p>LangGraph 的 ReAct 实现本质是一个 <code>StateGraph</code>，包含 <code>agent</code> 和 <code>tools</code> 两个节点，通过 <code>should_continue</code> 条件边形成循环：</p>
+<figure class="highlight python"><pre><code class="language-python">from langgraph.graph import StateGraph, END
+from typing import TypedDict, Annotated, List
+import operator
+
+class AgentState(TypedDict):
+    messages: Annotated[List, operator.add]  # 消息列表，自动累加
+
+# 定义节点函数
+def call_model(state: AgentState):
+    # 调用 LLM，让它决定是回答问题还是调用工具
+    response = llm.invoke(state[&quot;messages&quot;])
+    return {&quot;messages&quot;: [response]}
+
+def call_tool(state: AgentState):
+    # 解析 LLM 返回的 tool_calls，执行工具，返回结果
+    tool_calls = state[&quot;messages&quot;][-1].tool_calls
+    results = [execute_tool(tc) for tc in tool_calls]
+    return {&quot;messages&quot;: results}
+
+# 条件路由：如果 LLM 没有生成 tool_calls，则结束；否则继续循环
+def should_continue(state: AgentState):
+    if not state[&quot;messages&quot;][-1].tool_calls:
+        return &quot;end&quot;
+    return &quot;continue&quot;
+
+# 构建图
+graph = StateGraph(AgentState)
+graph.add_node(&quot;agent&quot;, call_model)
+graph.add_node(&quot;tools&quot;, call_tool)
+graph.set_entry_point(&quot;agent&quot;)
+graph.add_conditional_edges(&quot;agent&quot;, should_continue, {&quot;continue&quot;: &quot;tools&quot;, &quot;end&quot;: END})
+graph.add_edge(&quot;tools&quot;, &quot;agent&quot;)  # 工具结果回传给 agent</code></pre></figure>
+<p><strong>关键洞察</strong>：ReAct 的“思考-行动”循环在 LangGraph 中就是<strong>图的自环</strong>。状态通过 <code>messages</code> 字段不断累加，LLM 每次都能看到完整的历史。这种设计的代价是<strong>上下文窗口消耗巨大</strong>，一次复杂任务可能产生几万token的中间推理过程。</p>
+<h3 id="2-Plan-and-Execute-的架构差异"><a href="#2-Plan-and-Execute-的架构差异" class="headerlink" title="2. Plan-and-Execute 的架构差异"></a>2. Plan-and-Execute 的架构差异</h3>
+<p>Plan-and-Execute 不是简单的循环，而是<strong>两阶段图</strong>：第一个节点生成完整计划（包含多个步骤），第二个节点循环执行计划中的步骤。</p>
+<figure class="highlight python"><pre><code class="language-python">class PlanState(TypedDict):
+    plan: List[str]          # 计划步骤列表
+    current_step: int        # 当前执行到第几步
+    results: List[str]       # 每步的结果
+    past_steps: Annotated[List[tuple], operator.add]  # 历史步骤
+
+def planner(state: PlanState):
+    # 一次性生成完整计划
+    plan_prompt = f&quot;任务: {task}\n请生成步骤清单（每行一个步骤）&quot;
+    plan_text = llm.invoke(plan_prompt)
+    steps = [s.strip() for s in plan_text.split(&quot;\n&quot;) if s.strip()]
+    return {&quot;plan&quot;: steps, &quot;current_step&quot;: 0}
+
+def executor(state: PlanState):
+    # 执行当前步骤，更新状态
+    step = state[&quot;plan&quot;][state[&quot;current_step&quot;]]
+    result = execute_step(step, state[&quot;results&quot;])  # 可访问之前步骤的结果
+    return {
+        &quot;results&quot;: state[&quot;results&quot;] + [result],
+        &quot;current_step&quot;: state[&quot;current_step&quot;] + 1,
+        &quot;past_steps&quot;: [(step, result)]
+    }
+
+def should_continue_plan(state: PlanState):
+    return &quot;continue&quot; if state[&quot;current_step&quot;] &lt; len(state[&quot;plan&quot;]) else &quot;end&quot;</code></pre></figure>
+<p><strong>关键差异</strong>：ReAct 的“下一步做什么”是<strong>每步动态决策</strong>的，而 Plan-and-Execute 的“下一步”是<strong>预先定义</strong>的。前者灵活但token消耗大，后者高效但无法应对“计划赶不上变化”——如果第一步的结果推翻了第二步的前提，Plan-and-Execute 就会硬着头皮执行错误步骤。进阶方案是加入“重新规划”（Re-Plan）节点，但那是后话。</p>
+<h3 id="3-Multi-Agent-的消息传递机制"><a href="#3-Multi-Agent-的消息传递机制" class="headerlink" title="3. Multi-Agent 的消息传递机制"></a>3. Multi-Agent 的消息传递机制</h3>
+<p>Multi-Agent 在 LangGraph 中是<strong>多个StateGraph的组合</strong>。每个子Agent有自己的状态和循环，Agent之间通过 <code>Send</code> API 进行异步消息传递。</p>
+<figure class="highlight python"><pre><code class="language-python">from langgraph.constants import Send
+from langgraph.graph import StateGraph
+
+class MultiAgentState(TypedDict):
+    task: str
+    agent_outputs: dict  # 各Agent的输出汇总
+
+# 子Agent 1：数据收集
+def data_agent(state):
+    data = query_database(state[&quot;task&quot;])
+    return {&quot;agent_outputs&quot;: {&quot;data&quot;: data}}
+
+# 子Agent 2：分析
+def analysis_agent(state):
+    data = state[&quot;agent_outputs&quot;][&quot;data&quot;]
+    analysis = llm.invoke(f&quot;分析以下数据: {data}&quot;)
+    return {&quot;agent_outputs&quot;: {&quot;analysis&quot;: analysis}}
+
+# 子Agent 3：报告生成
+def report_agent(state):
+    analysis = state[&quot;agent_outputs&quot;][&quot;analysis&quot;]
+    report = llm.invoke(f&quot;基于分析生成报告: {analysis}&quot;)
+    return {&quot;agent_outputs&quot;: {&quot;report&quot;: report}}
+
+# 用 Send 实现并行分发
+def spawn_agents(state):
+    # 根据任务动态决定哪些Agent参与，并行启动
+    return [
+        Send(&quot;data_agent&quot;, state),
+        Send(&quot;analysis_agent&quot;, state),
+        Send(&quot;report_agent&quot;, state),
+    ]
+
+builder = StateGraph(MultiAgentState)
+builder.add_node(&quot;data_agent&quot;, data_agent)
+builder.add_node(&quot;analysis_agent&quot;, analysis_agent)
+builder.add_node(&quot;report_agent&quot;, report_agent)
+builder.add_conditional_edges(&quot;router&quot;, spawn_agents, [&quot;data_agent&quot;, &quot;analysis_agent&quot;, &quot;report_agent&quot;])</code></pre></figure>
+<p><strong>关键洞察</strong>：Multi-Agent 的核心价值在于<strong>隔离与并行</strong>。每个Agent可以有自己的Prompt模板、工具白名单、甚至独立的LLM模型（比如规划用GPT-4o，工具调用用Claude）。缺点是<strong>通信开销大</strong>，如果Agent间需要频繁交换中间结果，性能会急剧下降。</p>
+<h2 id="实战代码-三个可运行的完整示例"><a href="#实战代码-三个可运行的完整示例" class="headerlink" title="实战代码：三个可运行的完整示例"></a>实战代码：三个可运行的完整示例</h2>
+<h3 id="示例1-ReAct-模式-智能客服工单处理"><a href="#示例1-ReAct-模式-智能客服工单处理" class="headerlink" title="示例1：ReAct 模式——智能客服工单处理"></a>示例1：ReAct 模式——智能客服工单处理</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+场景：用户提交工单，Agent需要判断问题类型，查询知识库，调用API处理，最后生成回复。
+&quot;&quot;&quot;
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
+from typing import Dict
+
+# 1. 定义工具
+@tool
+def search_knowledge_base(query: str) -&gt; str:
+    &quot;&quot;&quot;搜索内部知识库，返回相关文档片段&quot;&quot;&quot;
+    # 模拟知识库检索
+    knowledge = {
+        &quot;密码重置&quot;: &quot;用户可通过企业微信自服务门户重置密码，需验证手机号&quot;,
+        &quot;网络故障&quot;: &quot;首先重启路由器，若仍无法上网请联系IT服务台分机1234&quot;,
+        &quot;软件安装&quot;: &quot;标准软件可通过软件中心自助安装，特殊软件需提交审批单&quot;
+    }
+    for key, value in knowledge.items():
+        if key in query:
+            return value
+    return &quot;未找到相关知识，建议转人工&quot;
+
+@tool
+def create_ticket(priority: str, category: str) -&gt; str:
+    &quot;&quot;&quot;在ITSM系统创建工单，返回工单号&quot;&quot;&quot;
+    import uuid
+    ticket_id = f&quot;INC-{uuid.uuid4().hex[:8].upper()}&quot;
+    return f&quot;已创建工单 {ticket_id}，优先级: {priority}，分类: {category}&quot;
+
+# 2. 初始化LLM和Agent
+llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0)
+agent = create_react_agent(llm, [search_knowledge_base, create_ticket])
+
+# 3. 运行Agent
+def handle_ticket(user_input: str) -&gt; Dict:
+    result = agent.invoke({
+        &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_input}]
+    })
+    return {
+        &quot;final_answer&quot;: result[&quot;messages&quot;][-1].content,
+        &quot;steps&quot;: [m.content for m in result[&quot;messages&quot;][1:-1] if m.type == &quot;ai&quot;]
+    }
+
+# 测试
+if __name__ == &quot;__main__&quot;:
+    response = handle_ticket(&quot;我的电脑连不上公司WiFi，试了重启也不行，帮我处理一下&quot;)
+    print(&quot;最终回复:&quot;, response[&quot;final_answer&quot;])
+    print(&quot;\n推理过程:&quot;)
+    for step in response[&quot;steps&quot;]:
+        print(f&quot;  → {step[:80]}...&quot;)</code></pre></figure>
+<h3 id="示例2-Plan-and-Execute-模式-市场调研报告生成"><a href="#示例2-Plan-and-Execute-模式-市场调研报告生成" class="headerlink" title="示例2：Plan-and-Execute 模式——市场调研报告生成"></a>示例2：Plan-and-Execute 模式——市场调研报告生成</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+场景：给定一个产品，Agent需要生成一份包含市场分析、竞品对比、定价建议的完整报告。
+&quot;&quot;&quot;
+from langchain_openai import ChatOpenAI
+from langchain.prompts import PromptTemplate
+from typing import List, Dict
+import json
+
+class PlanExecuteAgent:
+    def __init__(self, llm):
+        self.llm = llm
+        self.plan = []
+        self.results = {}
+        self.current_step = 0
+
+    def create_plan(self, task: str) -&gt; List[str]:
+        &quot;&quot;&quot;Step 1: 生成执行计划&quot;&quot;&quot;
+        prompt = PromptTemplate.from_template(
+            &quot;&quot;&quot;为任务生成详细的执行计划，每行一个步骤，步骤要具体可执行。
+任务: {task}
+要求: 最多5个步骤，每个步骤必须包含明确的输入和输出。
+输出格式: JSON数组，如 [&quot;步骤1描述&quot;, &quot;步骤2描述&quot;]&quot;&quot;&quot;
+        )
+        response = self.llm.invoke(prompt.format(task=task))
+        # 解析JSON计划
+        plan = json.loads(response.content)
+        self.plan = plan
+        print(f&quot;📋 计划生成: {plan}&quot;)
+        return plan
+
+    def execute_step(self, step: str, context: Dict) -&gt; str:
+        &quot;&quot;&quot;Step 2: 执行单个步骤&quot;&quot;&quot;
+        prompt = PromptTemplate.from_template(
+            &quot;&quot;&quot;执行以下步骤，并返回结果。
+步骤: {step}
+已有的上下文信息:
+{context}
+
+请直接输出步骤的执行结果，不要解释过程。&quot;&quot;&quot;
+        )
+        response = self.llm.invoke(prompt.format(
+            step=step,
+            context=json.dumps(context, ensure_ascii=False)[:2000]
+        ))
+        return response.content
+
+    def re_plan_if_needed(self, step_result: str) -&gt; bool:
+        &quot;&quot;&quot;Step 3 (可选): 判断是否需要重新规划&quot;&quot;&quot;
+        # 简单策略：如果结果中包含&quot;无法&quot;、&quot;错误&quot;等关键词，触发重新规划
+        if any(word in step_result for word in [&quot;无法&quot;, &quot;错误&quot;, &quot;失败&quot;]):
+            print(&quot;⚠️ 检测到异常，重新规划中...&quot;)
+            return True
+        return False
+
+    def run(self, task: str) -&gt; str:
+        # 阶段一：规划
+        self.create_plan(task)
+
+        # 阶段二：执行循环
+        while self.current_step &lt; len(self.plan):
+            step = self.plan[self.current_step]
+            print(f&quot;\n🔧 执行步骤 {self.current_step+1}: {step}&quot;)
+
+            # 收集之前的结果作为上下文
+            context = {&quot;task&quot;: task, &quot;results&quot;: self.results}
+
+            # 执行当前步骤
+            result = self.execute_step(step, context)
+            self.results[f&quot;step_{self.current_step}&quot;] = result
+            print(f&quot;✅ 步骤结果: {result[:100]}...&quot;)
+
+            # 检查是否需要重新规划（简化版）
+            if self.re_plan_if_needed(result):
+                self.create_plan(task)  # 重新生成计划
+                self.current_step = 0   # 从头执行
+                continue
+
+            self.current_step += 1
+
+        # 阶段三：汇总最终报告
+        final_prompt = PromptTemplate.from_template(
+            &quot;&quot;&quot;基于以下各步骤结果，生成最终报告。
+任务: {task}
+步骤结果:
+{results}
+
+请输出结构化的报告，包含标题、正文、结论。&quot;&quot;&quot;
+        )
+        final_response = self.llm.invoke(final_prompt.format(
+            task=task,
+            results=json.dumps(self.results, ensure_ascii=False, indent=2)
+        ))
+        return final_response.content
+
+# 使用示例
+if __name__ == &quot;__main__&quot;:
+    llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0.3)
+    agent = PlanExecuteAgent(llm)
+    report = agent.run(&quot;分析智能手表市场，给出新品牌进入建议&quot;)
+    print(&quot;\n\n📄 最终报告:\n&quot;, report)</code></pre></figure>
+<h3 id="示例3-Multi-Agent-模式-跨部门协作的合同审查"><a href="#示例3-Multi-Agent-模式-跨部门协作的合同审查" class="headerlink" title="示例3：Multi-Agent 模式——跨部门协作的合同审查"></a>示例3：Multi-Agent 模式——跨部门协作的合同审查</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+场景：一份合同需要法务（风险审查）、财务（成本评估）、技术（可行性评估）三个角色协作审查。
+&quot;&quot;&quot;
+from langchain_openai import ChatOpenAI
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, Dict, List
+import asyncio
+
+# 定义共享状态
+class ContractReviewState(TypedDict):
+    contract_text: str
+    legal_findings: str = &quot;&quot;
+    finance_findings: str = &quot;&quot;
+    tech_findings: str = &quot;&quot;
+    final_decision: str = &quot;&quot;
+
+# 三个子Agent的Prompt模板
+LEGAL_PROMPT = &quot;&quot;&quot;你是资深法务专家。审查以下合同，找出风险条款。
+合同内容: {contract}
+输出格式:
+- 风险等级: 高/中/低
+- 风险条款列表: 
+  1. 条款原文摘要 - 风险描述 - 修改建议&quot;&quot;&quot;
+
+FINANCE_PROMPT = &quot;&quot;&quot;你是财务总监。评估以下合同的经济合理性。
+合同内容: {contract}
+重点关注: 付款条件、违约金、成本分摊、税务条款。
+输出格式:
+- 成本评估: 合理/偏高/偏低
+- 关键财务条款分析&quot;&quot;&quot;
+
+TECH_PROMPT = &quot;&quot;&quot;你是技术架构师。评估以下合同的技术可行性。
+合同内容: {contract}
+重点关注: 交付物技术要求、验收标准、技术支持范围。
+输出格式:
+- 技术可行性: 高/中/低
+- 技术风险点&quot;&quot;&quot;
+
+# 各Agent的处理函数
+def legal_agent(state: ContractReviewState):
+    llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0.2)
+    response = llm.invoke(LEGAL_PROMPT.format(contract=state[&quot;contract_text&quot;]))
+    return {&quot;legal_findings&quot;: response.content}
+
+def finance_agent(state: ContractReviewState):
+    llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0.2)
+    response = llm.invoke(FINANCE_PROMPT.format(contract=state[&quot;contract_text&quot;]))
+    return {&quot;finance_findings&quot;: response.content}
+
+def tech_agent(state: ContractReviewState):
+    llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0.2)
+    response = llm.invoke(TECH_PROMPT.format(contract=state[&quot;contract_text&quot;]))
+    return {&quot;tech_findings&quot;: response.content}
+
+# 汇总决策节点
+def final_review(state: ContractReviewState):
+    llm = ChatOpenAI(model=&quot;gpt-4&quot;, temperature=0.2)
+    summary_prompt = &quot;&quot;&quot;你是CEO，综合以下三个部门的意见，做出最终决策。
+法务意见: {legal}
+财务意见: {finance}
+技术意见: {tech}
+
+请输出:
+1. 综合风险评估
+2. 是否批准签署（批准/有条件批准/拒绝）
+3. 附加条件（如有）&quot;&quot;&quot;
+    response = llm.invoke(summary_prompt.format(
+        legal=state[&quot;legal_findings&quot;],
+        finance=state[&quot;finance_findings&quot;],
+        tech=state[&quot;tech_findings&quot;]
+    ))
+    return {&quot;final_decision&quot;: response.content}
+
+# 构建多Agent图
+def build_multi_agent_graph():
+    graph = StateGraph(ContractReviewState)
+
+    # 添加节点
+    graph.add_node(&quot;legal&quot;, legal_agent)
+    graph.add_node(&quot;finance&quot;, finance_agent)
+    graph.add_node(&quot;tech&quot;, tech_agent)
+    graph.add_node(&quot;ceo_review&quot;, final_review)
+
+    # 并行执行三个子Agent（无依赖关系）
+    graph.set_entry_point(&quot;legal&quot;)
+    graph.add_edge(&quot;legal&quot;, &quot;finance&quot;)
+    graph.add_edge(&quot;finance&quot;, &quot;tech&quot;)
+    graph.add_edge(&quot;tech&quot;, &quot;ceo_review&quot;)
+    graph.add_edge(&quot;ceo_review&quot;, END)
+
+    return graph.compile()
+
+# 运行
+if __name__ == &quot;__main__&quot;:
+    contract_sample = &quot;&quot;&quot;本合同约定甲方支付预付款50%，验收合格后支付剩余50%。违约金为合同总额的30%。交付物需包含完整的API接口文档及源代码。技术验收标准为系统可用性99.9%。&quot;&quot;&quot;
+
+    app = build_multi_agent_graph()
+    final_state = app.invoke({&quot;contract_text&quot;: contract_sample})
+
+    print(&quot;=&quot;*50)
+    print(&quot;🤖 法务审查结果:\n&quot;, final_state[&quot;legal_findings&quot;])
+    print(&quot;=&quot;*50)
+    print(&quot;💰 财务审查结果:\n&quot;, final_state[&quot;finance_findings&quot;])
+    print(&quot;=&quot;*50)
+    print(&quot;🛠️ 技术审查结果:\n&quot;, final_state[&quot;tech_findings&quot;])
+    print(&quot;=&quot;*50)
+    print(&quot;🏛️ CEO最终决策:\n&quot;, final_state[&quot;final_decision&quot;])</code></pre></figure>
+<h2 id="方案对比-业界实现全景"><a href="#方案对比-业界实现全景" class="headerlink" title="方案对比：业界实现全景"></a>方案对比：业界实现全景</h2>
+<div class="mermaid">
+graph TD
+    A[Agent编排模式] --> B[ReAct]
+    A --> C[Plan-and-Execute]
+    A --> D[Multi-Agent]
+    
+    B --> B1[LangChain AgentExecutor]
+    B --> B2[LangGraph create_react_agent]
+    B --> B3[AutoGPT]
+    
+    C --> C1[LangChain PlanAndExecute]
+    C --> C2[BabyAGI]
+    C --> C3[LangGraph 手动实现]
+    
+    D --> D1[AutoGen]
+    D --> D2[CrewAI]
+    D --> D3[LangGraph Multi-Agent]
+    
+    B1 -.->|"简单但笨重"| B2
+    C1 -.->|"计划易过期"| C3
+    D1 -.->|"对话驱动"| D2
+</div>
+<p>| 框架 | 模式支持 | 状态持久化 | 可视化 | 学习曲线 | 生产就绪度 |</p>
+<p>|------|---------|-----------|--------|---------|-----------|</p>
+<p>| LangGraph | 全部支持 | ✅ Checkpointer | ✅ 原生 | 陡峭 | 高 |</p>
+<p>| AutoGen | Multi-Agent为主 | ✅ 对话历史 | ❌ | 中等 | 中 |</p>
+<p>| CrewAI | Multi-Agent为主 | ❌ | ❌ | 平缓 | 中 |</p>
+<p>| LangChain AgentExecutor | ReAct为主 | ❌ | ❌ | 平缓 | 低（易踩坑） |</p>
+<p>| BabyAGI | Plan-Execute | ❌ | ❌ | 中等 | 低 |</p>
+<p><strong>关键结论</strong>：LangGraph 是唯一一个能在<strong>同一个框架内</strong>优雅实现三种模式的工具，且支持Checkpoint持久化、人工介入（Human-in-the-loop）、流式输出等生产级特性。如果你已经决定用LangChain生态，直接上LangGraph是正解。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>混合模式</strong>：不要死守一种模式。推荐“外Plan内ReAct”——外层用Plan-and-Execute规划大步骤，每个步骤内部用ReAct动态决策。LangGraph的嵌套图可以完美支持。</li>
+</ol>
+<ol>
+<li><strong>状态最小化</strong>：Multi-Agent模式下，Agent间传递的消息要精简。传“结论”而不是传“全部推理过程”，否则token消耗会指数级增长。</li>
+</ol>
+<ol>
+<li><strong>工具调用容错</strong>：真实环境中的工具（API、数据库）可能失败。一定要在工具层加 try-catch，返回结构化错误信息，让LLM能理解错误并尝试替代方案。</li>
+</ol>
+<ol>
+<li><strong>人工审批闸门</strong>：对于关键操作（如支付、删除数据），在LangGraph中用 <code>interrupt_before</code> 注入人工审批节点。这是生产级Agent的必备能力。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<p>| 坑 | 现象 | 解决方案 |</p>
+<p>|----|------|---------|</p>
+<p>| 上下文爆炸 | 请求耗时从2s涨到30s，成本翻10倍 | 使用 <code>trim_messages</code> 压缩中间步骤，或切换到Plan模式 |</p>
+<p>| 工具循环死锁 | Agent反复调用同一个失败的工具 | 设置最大迭代次数，并在工具错误信息中明确提示“不要再调用此工具” |</p>
+<p>| Multi-Agent死锁 | Agent A 等 B 的结果，B 等 A 的结果 | 使用 <code>Send</code> API实现异步消息，避免同步等待；设置超时机制 |</p>
+<p>| 计划过期 | Plan执行到一半，外部条件已变化 | 在Plan模式中加入“重新规划”节点，每N步检查一次计划有效性 |</p>
+<p>| 模型幻觉 | Agent编造工具返回结果 | 严格要求工具返回结构化为JSON，并在Prompt中强调“只可引用真实返回的数据” |</p>
+<h2 id="总结与延伸思考"><a href="#总结与延伸思考" class="headerlink" title="总结与延伸思考"></a>总结与延伸思考</h2>
+<p>三种模式本质上是<strong>“思考密度”</strong>和<strong>“规划深度”</strong>的权衡：</p>
+<ul>
+<li><strong>ReAct</strong> 是“走一步看一步”的游击队，适合探索未知问题，但效率低、成本高。</li>
+</ul>
+<ul>
+<li><strong>Plan-and-Execute</strong> 是“先画图纸再施工”的工程队，适合流程稳定的重复任务，但应变能力弱。</li>
+</ul>
+<ul>
+<li><strong>Multi-Agent</strong> 是“多兵种协同”的集团军，适合复杂分工任务，但指挥通信成本高。</li>
+</ul>
+<p><strong>延伸思考</strong>：未来的Agent编排会走向<strong>自适应模式</strong>——让LLM自己根据任务复杂度动态选择ReAct、Plan或Multi-Agent。LangGraph已经提供了 <code>create_agent</code> 的配置化入口，这将是Agent框架的下一波演进方向。</p>
+<p>最后，无论你选择哪种模式，记住这条铁律：<strong>Agent的价值不在“会思考”，而在“会正确地使用工具”。</strong> 花在工具设计和异常处理上的时间，永远比调Prompt更值得。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

@@ -181,6 +181,13 @@
       "subtopic": "Docker多阶段构建与镜像瘦身最佳实践",
       "date": "2026-08-18",
       "url": "/2026/08/18/Docker多阶段构建与镜像瘦身最佳实践/"
+    },
+    {
+      "title": "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
+      "category": "ai-ml",
+      "subtopic": "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
+      "date": "2026-08-19",
+      "url": "/2026/08/19/Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作/"
     }
   ],
   "used_subtopics": {
@@ -199,7 +206,8 @@
       "多模态AI应用开发：GPT-4V + LangChain",
       "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
       "LangChain表达式语言（LCEL）与Runnable协议深度解析",
-      "LangSmith + LangFuse：LLM应用的可观测性全链路追踪"
+      "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
+      "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -248,6 +256,7 @@
     "LangSmith + LangFuse：LLM应用的可观测性全链路追踪": "d2ede72dae3c6d32e16e41cec56f1bbd4288e697d3f016261d14f92af02fa075",
     "微服务框架Nameko的设计与使用": "1f67bbd14df0c4732b06d235f1996f2947ce0ac6b8729a1a7f20e7c402c0cc4f",
     "Go Context的设计与链路追踪实践": "1f154b51d9453fe493462c6b1c8af3c33c210d28b31338eca77dcddf304b7136",
-    "Docker多阶段构建与镜像瘦身最佳实践": "161f0b2717398536a26a34fff6a2879088e0ea871493c4f0164716bff59809de"
+    "Docker多阶段构建与镜像瘦身最佳实践": "161f0b2717398536a26a34fff6a2879088e0ea871493c4f0164716bff59809de",
+    "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作": "e2160a88bcc79bffffdf84f73e6765c3726eeb04f64709bd24c0f9fb1893d923"
   }
 }
