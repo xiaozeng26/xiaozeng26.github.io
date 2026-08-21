@@ -195,6 +195,13 @@
       "subtopic": "Python内存管理与对象池机制",
       "date": "2026-08-20",
       "url": "/2026/08/20/Python内存管理与对象池机制：从CPython源码到高性能实践/"
+    },
+    {
+      "title": "Go错误处理范式与errors包源码",
+      "category": "golang",
+      "subtopic": "Go错误处理范式与errors包源码",
+      "date": "2026-08-21",
+      "url": "/2026/08/21/Go错误处理范式与errors包源码/"
     }
   ],
   "used_subtopics": {
@@ -236,7 +243,8 @@
       "Testify + GoMock单元测试最佳实践",
       "Go内存管理：栈与堆、逃逸分析",
       "Go调度器GMP模型深度剖析",
-      "Go Context的设计与链路追踪实践"
+      "Go Context的设计与链路追踪实践",
+      "Go错误处理范式与errors包源码"
     ]
   },
   "content_hashes": {
@@ -266,6 +274,7 @@
     "Go Context的设计与链路追踪实践": "1f154b51d9453fe493462c6b1c8af3c33c210d28b31338eca77dcddf304b7136",
     "Docker多阶段构建与镜像瘦身最佳实践": "161f0b2717398536a26a34fff6a2879088e0ea871493c4f0164716bff59809de",
     "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作": "e2160a88bcc79bffffdf84f73e6765c3726eeb04f64709bd24c0f9fb1893d923",
-    "Python内存管理与对象池机制": "75c304c7cf8920f40b9499c2d92137417fe8f4e2ae969e2d7cd4debc2cc79039"
+    "Python内存管理与对象池机制": "75c304c7cf8920f40b9499c2d92137417fe8f4e2ae969e2d7cd4debc2cc79039",
+    "Go错误处理范式与errors包源码": "ccad2c59fb7c38b9e0d18e6ab8fa6e2b37882d20563e55f25348ba0fa163ad52"
   }
 }
