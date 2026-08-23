@@ -209,6 +209,13 @@
       "subtopic": "Java Agent字节码增强技术实战",
       "date": "2026-08-22",
       "url": "/2026/08/22/Java Agent字节码增强技术实战：从入门到APM系统架构师/"
+    },
+    {
+      "title": "Docker存储驱动：overlay2、aufs、devicemapper原理",
+      "category": "cloud-native",
+      "subtopic": "Docker存储驱动：overlay2、aufs、devicemapper原理",
+      "date": "2026-08-23",
+      "url": "/2026/08/23/Docker存储驱动：overlay2、aufs、devicemapper原理/"
     }
   ],
   "used_subtopics": {
@@ -243,7 +250,8 @@
       "Istio服务网格Sidecar注入与流量管理",
       "Kubernetes调度器源码分析与自定义调度",
       "容器化应用的12-Factor原则实践",
-      "Docker多阶段构建与镜像瘦身最佳实践"
+      "Docker多阶段构建与镜像瘦身最佳实践",
+      "Docker存储驱动：overlay2、aufs、devicemapper原理"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -284,6 +292,7 @@
     "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作": "e2160a88bcc79bffffdf84f73e6765c3726eeb04f64709bd24c0f9fb1893d923",
     "Python内存管理与对象池机制": "75c304c7cf8920f40b9499c2d92137417fe8f4e2ae969e2d7cd4debc2cc79039",
     "Go错误处理范式与errors包源码": "ccad2c59fb7c38b9e0d18e6ab8fa6e2b37882d20563e55f25348ba0fa163ad52",
-    "Java Agent字节码增强技术实战": "a82e19eb02a038cd94f6bc40b92baaf64d716de02e0a9bc6b5db28cd1c07f9f3"
+    "Java Agent字节码增强技术实战": "a82e19eb02a038cd94f6bc40b92baaf64d716de02e0a9bc6b5db28cd1c07f9f3",
+    "Docker存储驱动：overlay2、aufs、devicemapper原理": "bd4b0a8842ef4cc5bc72d741a0c01ee34c058cf44a0b11dc16db4d621e433c18"
   }
 }
