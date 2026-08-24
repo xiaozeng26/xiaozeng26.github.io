@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LangGraph Checkpointing：持久化与Human-in-the-Loop模式 | 小曾博客</title>
+  <meta name="description" content="LangGraph Checkpointing：持久化与Human-in-the-Loop模式 引言 想象这样一个场景：你正在使用一个复杂的AI代理系统处理一笔银行转账。系统已经完成了用户身份验证、风险评估、合规检查，正准备执行转账操作——突然，进程崩溃了。用户重新发起请求时，整个流程从头开始，用户又被问了一遍“请问您的身份证号是？”。 这不仅仅是体验问题，更是架构问题。在传统的单体应用中，一次请">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LangGraph Checkpointing：持久化与Human-in-the-Loop模式">
+  <meta name="twitter:description" content="LangGraph Checkpointing：持久化与Human-in-the-Loop模式 引言 想象这样一个场景：你正在使用一个复杂的AI代理系统处理一笔银行转账。系统已经完成了用户身份验证、风险评估、合规检查，正准备执行转账操作——突然，进程崩溃了。用户重新发起请求时，整个流程从头开始，用户又被问了一遍“请问您的身份证号是？”。 这不仅仅是体验问题，更是架构问题。在传统的单体应用中，一次请">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9828/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="LangGraph Checkpointing：持久化与Human-in-the-Loop模式">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="LangGraph Checkpointing：持久化与Human-in-the-Loop模式 引言 想象这样一个场景：你正在使用一个复杂的AI代理系统处理一笔银行转账。系统已经完成了用户身份验证、风险评估、合规检查，正准备执行转账操作——突然，进程崩溃了。用户重新发起请求时，整个流程从头开始，用户又被问了一遍“请问您的身份证号是？”。 这不仅仅是体验问题，更是架构问题。在传统的单体应用中，一次请">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9828/800/400">
+  <meta property="article:published_time" content="2026-08-24T20:26:44.000Z">
+  <meta property="article:modified_time" content="2026-08-24T20:26:44.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#LangGraph-Checkpointing-持久化与Human-in-the-Loop模式"><span class="toc-text">LangGraph Checkpointing：持久化与Human-in-the-Loop模式</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-书签-到-时间旅行"><span class="toc-text">核心概念：从“书签”到“时间旅行”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-电子书阅读器的-书签-与-历史记录"><span class="toc-text">生活类比：电子书阅读器的“书签”与“历史记录”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析-LangGraph-Checkpointing如何工作"><span class="toc-text">源码深度分析：LangGraph Checkpointing如何工作</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心抽象-BaseCheckpointSaver"><span class="toc-text">核心抽象：BaseCheckpointSaver</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Pregel引擎与Checkpoint的交互"><span class="toc-text">Pregel引擎与Checkpoint的交互</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#分支与时间旅行-CheckpointList的威力"><span class="toc-text">分支与时间旅行：CheckpointList的威力</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-从入门到HITL"><span class="toc-text">实战代码：从入门到HITL</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-基础持久化-SqliteSaver实现跨会话恢复"><span class="toc-text">示例1：基础持久化——SqliteSaver实现跨会话恢复</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-Human-in-the-Loop-人工审批暂停与恢复"><span class="toc-text">示例2：Human-in-the-Loop——人工审批暂停与恢复</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-时间旅行-回溯到任意历史状态"><span class="toc-text">示例3：时间旅行——回溯到任意历史状态</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Checkpointing的三大实现路线"><span class="toc-text">方案对比：Checkpointing的三大实现路线</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#深度对比"><span class="toc-text">深度对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#四个必须避开的坑"><span class="toc-text">四个必须避开的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三条最佳实践"><span class="toc-text">三条最佳实践</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/9828/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">LangGraph Checkpointing：持久化与Human-in-the-Loop模式</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-24"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-24</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-24"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-24</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="LangGraph-Checkpointing-持久化与Human-in-the-Loop模式"><a href="#LangGraph-Checkpointing-持久化与Human-in-the-Loop模式" class="headerlink" title="LangGraph Checkpointing：持久化与Human-in-the-Loop模式"></a>LangGraph Checkpointing：持久化与Human-in-the-Loop模式</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象这样一个场景：你正在使用一个复杂的AI代理系统处理一笔银行转账。系统已经完成了用户身份验证、风险评估、合规检查，正准备执行转账操作——突然，进程崩溃了。用户重新发起请求时，整个流程从头开始，用户又被问了一遍“请问您的身份证号是？”。</p>
+<p>这不仅仅是体验问题，更是架构问题。在传统的单体应用中，一次请求的生命周期通常在毫秒级，进程崩溃的概率低到可以忽略。但在LangGraph这类<strong>有状态、多步骤、长耗时</strong>的Agent架构中，一个工作流可能运行数分钟甚至数小时，期间可能涉及多次LLM调用、外部API交互、人工审批环节。任何一次崩溃都意味着上下文丢失，而LLM对话的上下文重建成本极高——不仅是金钱成本（Token费用），更是时间成本和用户信任成本。</p>
+<p>这正是LangGraph Checkpointing要解决的核心问题：<strong>让Agent工作流在任意节点暂停、恢复、甚至分支重放，而不会丢失任何状态。</strong></p>
+<p>更关键的是，Checkpointing是<strong>Human-in-the-Loop（HITL）</strong>模式的基石。没有持久化，就无法实现“机器暂停，等人确认，再继续执行”的交互范式。今天，我们从源码级别拆解LangGraph的Checkpoint机制，并给出可落地的实战代码。</p>
+<h2 id="核心概念-从-书签-到-时间旅行"><a href="#核心概念-从-书签-到-时间旅行" class="headerlink" title="核心概念：从“书签”到“时间旅行”"></a>核心概念：从“书签”到“时间旅行”</h2>
+<h3 id="生活类比-电子书阅读器的-书签-与-历史记录"><a href="#生活类比-电子书阅读器的-书签-与-历史记录" class="headerlink" title="生活类比：电子书阅读器的“书签”与“历史记录”"></a>生活类比：电子书阅读器的“书签”与“历史记录”</h3>
+<p>想象你在读一本电子书。Checkpointing就像阅读器自动保存的<strong>书签</strong>——你随时合上iPad，下次打开时，它精准地把你带回上次离开的段落，连高亮标记、翻页位置都分毫不差。</p>
+<p>但LangGraph的Checkpoint更强。它不只是“书签”，而是<strong>完整的“历史记录”</strong>：你可以回退到第10页重新阅读（分支重放），也可以跳转到第20页看看另一条故事线（时间旅行），甚至可以对比两次阅读的差异（状态Diff）。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>LangGraph的State是<strong>线程级（Thread-level）</strong>的。一个<code>thread_id</code>对应一条独立的Agent执行轨迹。Checkpoint则是State在某个<strong>超级步骤（Super-step）</strong>结束时的<strong>不可变快照</strong>。</p>
+<figure class="highlight python"><pre><code class="language-python"># 伪代码：Checkpoint的数据结构
+class Checkpoint:
+    thread_id: str          # 线程标识
+    step: int               # 步数
+    state: dict             # 完整状态快照
+    parent: Optional[CheckpointID]  # 父检查点，构成链式结构
+    metadata: dict          # 时间戳、LLM调用次数等元信息</code></pre></figure>
+<p>每次图执行经过一个节点后，LangGraph会调用<code>BaseCheckpointSaver</code>将当前状态序列化并存储。这不仅仅是简单的KV存储，而是一个<strong>支持并发写入、条件读取、分支检索</strong>的版本化状态系统。</p>
+<h2 id="源码深度分析-LangGraph-Checkpointing如何工作"><a href="#源码深度分析-LangGraph-Checkpointing如何工作" class="headerlink" title="源码深度分析：LangGraph Checkpointing如何工作"></a>源码深度分析：LangGraph Checkpointing如何工作</h2>
+<h3 id="核心抽象-BaseCheckpointSaver"><a href="#核心抽象-BaseCheckpointSaver" class="headerlink" title="核心抽象：BaseCheckpointSaver"></a>核心抽象：BaseCheckpointSaver</h3>
+<p>LangGraph的持久化接口定义在<code>langgraph.checkpoint.base</code>中，核心抽象如下：</p>
+<figure class="highlight python"><pre><code class="language-python">class BaseCheckpointSaver(ABC):
+    @abstractmethod
+    def put(self, config: dict, checkpoint: Checkpoint, metadata: dict) -&gt; None:
+        &quot;&quot;&quot;写入一个检查点&quot;&quot;&quot;
+
+    @abstractmethod
+    def get_tuple(self, config: dict) -&gt; Optional[CheckpointTuple]:
+        &quot;&quot;&quot;获取指定配置的检查点（含父指针）&quot;&quot;&quot;
+
+    @abstractmethod
+    def list(self, config: dict, *, limit: int = 10) -&gt; Iterator[CheckpointTuple]:
+        &quot;&quot;&quot;列出历史检查点（用于时间旅行）&quot;&quot;&quot;</code></pre></figure>
+<p>注意<code>get_tuple</code>返回的是<code>CheckpointTuple</code>，它包含<code>checkpoint</code>和<code>parent_checkpoint_id</code>。这个设计是为了构建<strong>链式结构</strong>——每次状态更新都指向其父检查点，形成一个不可变的追加日志。</p>
+<h3 id="Pregel引擎与Checkpoint的交互"><a href="#Pregel引擎与Checkpoint的交互" class="headerlink" title="Pregel引擎与Checkpoint的交互"></a>Pregel引擎与Checkpoint的交互</h3>
+<p>LangGraph的执行引擎是<code>Pregel</code>（受Google Pregel图计算模型启发）。在每次节点执行前，引擎会调用<code>_get_checkpoint</code>从Saver中恢复状态；节点执行完毕后，调用<code>_put_checkpoint</code>保存新状态。</p>
+<figure class="highlight python"><pre><code class="language-python"># Pregel._run_step 简化代码
+def _run_step(self, input: dict, config: dict) -&gt; dict:
+    # 1. 从持久化存储中恢复状态
+    checkpoint = self._get_checkpoint(config)
+    
+    # 2. 将checkpoint中的状态作为起始输入
+    state = checkpoint.state if checkpoint else self.graph.input_schema(**input)
+    
+    # 3. 执行节点（可能包含多次LLM调用）
+    for task in self._tasks_for_step(state, config):
+        result = task.execute()
+        state = self._update_state(state, result)
+    
+    # 4. **原子性地**保存新检查点
+    self._put_checkpoint(config, state, metadata)
+    return state</code></pre></figure>
+<p>关键点在于第4步的<strong>原子性</strong>。LangGraph使用<code>InMemorySaver</code>时，通过Python的<code>threading.Lock</code>保证同一线程内的原子操作；使用<code>SqliteSaver</code>时，通过数据库事务保证崩溃一致性。</p>
+<h3 id="分支与时间旅行-CheckpointList的威力"><a href="#分支与时间旅行-CheckpointList的威力" class="headerlink" title="分支与时间旅行：CheckpointList的威力"></a>分支与时间旅行：CheckpointList的威力</h3>
+<p>HITL模式的核心能力来自<code>get_next_version</code>和<code>list</code>的组合。当人类审批者拒绝某个操作时，我们可以：</p>
+<ol>
+<li>通过<code>list</code>获取所有历史检查点</li>
+<li>选择某个历史检查点作为新起点</li>
+<li>用新的用户输入构造<code>config</code>，传入<code>invoke</code>，实现<strong>从指定步骤重放</strong></li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python"># 时间旅行实现
+def replay_from_step(thread_id: str, step_number: int, new_input: dict):
+    config = {&quot;configurable&quot;: {&quot;thread_id&quot;: thread_id}}
+    checkpoints = saver.list(config, limit=100)
+    target_checkpoint = next(cp for cp in checkpoints if cp.metadata[&quot;step&quot;] == step_number)
+    
+    # 构造带有父指针的配置
+    replay_config = {
+        &quot;configurable&quot;: {
+            &quot;thread_id&quot;: thread_id,
+            &quot;checkpoint_id&quot;: target_checkpoint.checkpoint[&quot;id&quot;],
+        }
+    }
+    return graph.invoke(new_input, config=replay_config)</code></pre></figure>
+<p>这里有一个隐藏的坑：<strong><code>checkpoint_id</code>必须与<code>thread_id</code>配合使用</strong>。LangGraph的<code>get_tuple</code>会优先查找<code>checkpoint_id</code>，如果找不到再回退到该线程的最新检查点。</p>
+<h2 id="实战代码-从入门到HITL"><a href="#实战代码-从入门到HITL" class="headerlink" title="实战代码：从入门到HITL"></a>实战代码：从入门到HITL</h2>
+<h3 id="示例1-基础持久化-SqliteSaver实现跨会话恢复"><a href="#示例1-基础持久化-SqliteSaver实现跨会话恢复" class="headerlink" title="示例1：基础持久化——SqliteSaver实现跨会话恢复"></a>示例1：基础持久化——SqliteSaver实现跨会话恢复</h3>
+<figure class="highlight python"><pre><code class="language-python">import sqlite3
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.sqlite import SqliteSaver
+from typing import TypedDict, Annotated
+import operator
+
+# 定义状态结构
+class AgentState(TypedDict):
+    messages: Annotated[list, operator.add]
+    current_step: int
+    user_approved: bool
+
+# 定义图节点
+def step_a(state: AgentState):
+    print(f&quot;执行Step A，当前步数：{state[&#x27;current_step&#x27;]}&quot;)
+    return {&quot;messages&quot;: [&quot;A执行完毕&quot;], &quot;current_step&quot;: state[&quot;current_step&quot;] + 1}
+
+def step_b(state: AgentState):
+    print(f&quot;执行Step B，当前步数：{state[&#x27;current_step&#x27;]}&quot;)
+    return {&quot;messages&quot;: [&quot;B执行完毕&quot;], &quot;current_step&quot;: state[&quot;current_step&quot;] + 1}
+
+def step_c(state: AgentState):
+    print(f&quot;执行Step C，当前步数：{state[&#x27;current_step&#x27;]}&quot;)
+    return {&quot;messages&quot;: [&quot;C执行完毕&quot;], &quot;current_step&quot;: state[&quot;current_step&quot;] + 1}
+
+# 构建图
+builder = StateGraph(AgentState)
+builder.add_node(&quot;a&quot;, step_a)
+builder.add_node(&quot;b&quot;, step_b)
+builder.add_node(&quot;c&quot;, step_c)
+builder.set_entry_point(&quot;a&quot;)
+builder.add_edge(&quot;a&quot;, &quot;b&quot;)
+builder.add_edge(&quot;b&quot;, &quot;c&quot;)
+builder.add_edge(&quot;c&quot;, END)
+
+# 关键：使用SqliteSaver（内存中创建临时文件）
+conn = sqlite3.connect(&quot;:memory:&quot;, check_same_thread=False)
+saver = SqliteSaver(conn)
+graph = builder.compile(checkpointer=saver)
+
+# 第一次执行——完整跑完
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;demo-1&quot;}}
+result = graph.invoke({&quot;messages&quot;: [], &quot;current_step&quot;: 0, &quot;user_approved&quot;: True}, config)
+print(f&quot;第一次执行结果：{result[&#x27;messages&#x27;]}&quot;)
+
+# 模拟进程重启——重新连接同一个数据库
+conn2 = sqlite3.connect(&quot;:memory:&quot;, check_same_thread=False)
+saver2 = SqliteSaver(conn2)
+graph2 = builder.compile(checkpointer=saver2)
+
+# 第二次执行——不提供初始输入，从检查点恢复
+config2 = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;demo-1&quot;}}
+result2 = graph2.invoke(None, config2)
+print(f&quot;恢复执行结果：{result2[&#x27;messages&#x27;]}&quot;)</code></pre></figure>
+<p><strong>注意</strong>：SqliteSaver的<code>check_same_thread=False</code>是必须的，因为LangGraph可能在不同线程调用Saver。另外，<code>invoke(None)</code>表示从已有检查点恢复，而不是新开流程。</p>
+<h3 id="示例2-Human-in-the-Loop-人工审批暂停与恢复"><a href="#示例2-Human-in-the-Loop-人工审批暂停与恢复" class="headerlink" title="示例2：Human-in-the-Loop——人工审批暂停与恢复"></a>示例2：Human-in-the-Loop——人工审批暂停与恢复</h3>
+<figure class="highlight python"><pre><code class="language-python">from langgraph.checkpoint.memory import MemorySaver
+from typing import TypedDict, Literal
+import time
+
+class ApprovalState(TypedDict):
+    transaction_id: str
+    amount: float
+    approval_status: Literal[&quot;pending&quot;, &quot;approved&quot;, &quot;rejected&quot;]
+    risk_score: float
+
+def assess_risk(state: ApprovalState):
+    &quot;&quot;&quot;模拟风控评估&quot;&quot;&quot;
+    print(&quot;🏦 风控引擎评估中...&quot;)
+    time.sleep(1)
+    # 模拟规则引擎打分
+    risk_score = min(100, state[&quot;amount&quot;] / 1000 * 5)
+    return {&quot;risk_score&quot;: risk_score}
+
+def request_human_approval(state: ApprovalState):
+    &quot;&quot;&quot;暂停并等待人工审批&quot;&quot;&quot;
+    print(f&quot;⚠️  交易 {state[&#x27;transaction_id&#x27;]} 金额 ${state[&#x27;amount&#x27;]} 需要人工审批&quot;)
+    # 注意：这里不返回任何状态更新，图会在此节点暂停
+    return {}
+
+def execute_transaction(state: ApprovalState):
+    print(f&quot;💸 交易执行成功！交易ID：{state[&#x27;transaction_id&#x27;]}&quot;)
+    return {&quot;approval_status&quot;: &quot;approved&quot;}
+
+def reject_transaction(state: ApprovalState):
+    print(f&quot;❌ 交易被拒绝！交易ID：{state[&#x27;transaction_id&#x27;]}&quot;)
+    return {&quot;approval_status&quot;: &quot;rejected&quot;}
+
+# 构建带条件分支的图
+builder = StateGraph(ApprovalState)
+builder.add_node(&quot;risk&quot;, assess_risk)
+builder.add_node(&quot;human&quot;, request_human_approval)
+builder.add_node(&quot;execute&quot;, execute_transaction)
+builder.add_node(&quot;reject&quot;, reject_transaction)
+
+builder.set_entry_point(&quot;risk&quot;)
+builder.add_edge(&quot;risk&quot;, &quot;human&quot;)
+
+# 条件边：根据人工审批结果决定走向
+def route_after_approval(state: ApprovalState):
+    if state[&quot;approval_status&quot;] == &quot;approved&quot;:
+        return &quot;execute&quot;
+    elif state[&quot;approval_status&quot;] == &quot;rejected&quot;:
+        return &quot;reject&quot;
+    return &quot;human&quot;  # 保持等待
+
+builder.add_conditional_edges(&quot;human&quot;, route_after_approval, 
+                                {&quot;execute&quot;: &quot;execute&quot;, &quot;reject&quot;: &quot;reject&quot;, &quot;human&quot;: &quot;human&quot;})
+builder.add_edge(&quot;execute&quot;, END)
+builder.add_edge(&quot;reject&quot;, END)
+
+# 使用内存持久化（生产环境请替换为Sqlite/Postgres）
+graph = builder.compile(checkpointer=MemorySaver())
+
+# 模拟用户发起交易
+initial_state = {
+    &quot;transaction_id&quot;: &quot;TXN-2024-001&quot;,
+    &quot;amount&quot;: 15000,
+    &quot;approval_status&quot;: &quot;pending&quot;,
+    &quot;risk_score&quot;: 0
+}
+
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;approval-flow-1&quot;}}
+
+# 第一次调用——执行到human节点后自动暂停
+result = graph.invoke(initial_state, config)
+print(f&quot;当前状态：{result[&#x27;approval_status&#x27;]}，风险分：{result[&#x27;risk_score&#x27;]}&quot;)
+
+# =========== 模拟管理员审批 ===========
+# 关键：再次invoke，但只更新approval_status字段
+admin_config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;approval-flow-1&quot;}}
+new_state = {&quot;approval_status&quot;: &quot;approved&quot;}  # 增量更新
+
+# 继续执行图
+final_result = graph.invoke(new_state, admin_config)
+print(f&quot;最终状态：{final_result[&#x27;approval_status&#x27;]}&quot;)
+
+# 测试拒绝场景
+config2 = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;approval-flow-2&quot;}}
+graph.invoke({&quot;transaction_id&quot;: &quot;TXN-2024-002&quot;, &quot;amount&quot;: 5000, 
+              &quot;approval_status&quot;: &quot;pending&quot;, &quot;risk_score&quot;: 0}, config2)
+reject_result = graph.invoke({&quot;approval_status&quot;: &quot;rejected&quot;}, config2)
+print(f&quot;拒绝场景最终状态：{reject_result[&#x27;approval_status&#x27;]}&quot;)</code></pre></figure>
+<p><strong>核心机制</strong>：当节点返回的状态与当前状态无差异（或返回空dict）时，LangGraph会认为该节点是“终态”，暂停执行。后续<code>invoke</code>会从暂停点继续。这是<code>interrupt_before</code>的隐式用法——实际上LangGraph还提供了<code>interrupt_before</code>参数显式控制暂停节点。</p>
+<h3 id="示例3-时间旅行-回溯到任意历史状态"><a href="#示例3-时间旅行-回溯到任意历史状态" class="headerlink" title="示例3：时间旅行——回溯到任意历史状态"></a>示例3：时间旅行——回溯到任意历史状态</h3>
+<figure class="highlight python"><pre><code class="language-python">from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.graph import StateGraph, END
+import sqlite3
+
+# 定义状态
+class DebugState(TypedDict):
+    counter: int
+    log: Annotated[list, operator.add]
+
+def increment(state: DebugState):
+    new_counter = state[&quot;counter&quot;] + 1
+    print(f&quot;计数器增加：{state[&#x27;counter&#x27;]} -&gt; {new_counter}&quot;)
+    return {&quot;counter&quot;: new_counter, &quot;log&quot;: [f&quot;increment to {new_counter}&quot;]}
+
+# 构建线性图
+builder = StateGraph(DebugState)
+builder.add_node(&quot;inc1&quot;, increment)
+builder.add_node(&quot;inc2&quot;, increment)
+builder.add_node(&quot;inc3&quot;, increment)
+builder.set_entry_point(&quot;inc1&quot;)
+builder.add_edge(&quot;inc1&quot;, &quot;inc2&quot;)
+builder.add_edge(&quot;inc2&quot;, &quot;inc3&quot;)
+builder.add_edge(&quot;inc3&quot;, END)
+
+conn = sqlite3.connect(&quot;:memory:&quot;, check_same_thread=False)
+saver = SqliteSaver(conn)
+graph = builder.compile(checkpointer=saver)
+
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;time-travel-demo&quot;}}
+result = graph.invoke({&quot;counter&quot;: 0, &quot;log&quot;: []}, config)
+print(f&quot;最终状态：{result}&quot;)
+
+# =========== 时间旅行 ===========
+# 获取所有历史检查点
+checkpoints = list(saver.list(config, limit=10))
+print(f&quot;\n历史检查点数量：{len(checkpoints)}&quot;)
+
+# 查看每个检查点的状态
+for i, cp_tuple in enumerate(checkpoints):
+    cp = cp_tuple.checkpoint
+    print(f&quot;检查点 {i}: 步数={cp[&#x27;step&#x27;]}, 状态={cp[&#x27;state&#x27;]}&quot;)
+
+# 回退到第二步执行前（检查点索引1，即inc2执行前）
+target_cp = checkpoints[1].checkpoint
+replay_config = {
+    &quot;configurable&quot;: {
+        &quot;thread_id&quot;: &quot;time-travel-demo&quot;,
+        &quot;checkpoint_id&quot;: target_cp[&quot;id&quot;]
+    }
+}
+
+# 重新执行（从inc2开始）
+print(&quot;\n🔄 开始时间旅行重放...&quot;)
+replay_result = graph.invoke(None, replay_config)
+print(f&quot;重放后的状态：{replay_result}&quot;)</code></pre></figure>
+<p><strong>关键洞察</strong>：时间旅行不是修改历史，而是<strong>基于历史状态创建新的分支</strong>。原有线程的记录还在，但新的执行路径会以目标检查点为父节点继续延伸。</p>
+<h2 id="方案对比-Checkpointing的三大实现路线"><a href="#方案对比-Checkpointing的三大实现路线" class="headerlink" title="方案对比：Checkpointing的三大实现路线"></a>方案对比：Checkpointing的三大实现路线</h2>
+<p>| 方案 | 存储介质 | 并发性能 | 事务性 | 适用场景 |</p>
+<p>|------|---------|---------|--------|---------|</p>
+<p>| <code>MemorySaver</code> | 内存 | 极高 | 无 | 单进程、测试、无状态原型 |</p>
+<p>| <code>SqliteSaver</code> | SQLite文件 | 中（写锁） | 支持 | 单机生产、中小规模、轻量部署 |</p>
+<p>| <code>PostgresSaver</code> | PostgreSQL | 高（MVCC） | 强 | 多实例、生产级、需要HA |</p>
+<h3 id="深度对比"><a href="#深度对比" class="headerlink" title="深度对比"></a>深度对比</h3>
+<p><strong>MemorySaver</strong>：本质是<code>dict</code> + <code>Lock</code>。看似简单，但它的<code>put</code>方法使用了<strong>读写锁</strong>，读操作可并发，写操作互斥。适合快速原型验证，但进程崩溃即丢失。</p>
+<p><strong>SqliteSaver</strong>：利用SQLite的<code>BEGIN IMMEDIATE</code>事务。其<code>put</code>方法会执行<code>INSERT OR REPLACE</code>。注意：<strong>SQLite的写锁是数据库级的</strong>，高并发写入会串行化。对于Agent场景（写入频率不高，但写入体积大），SQLite反而够用。</p>
+<p><strong>PostgresSaver</strong>：使用<code>SELECT ... FOR UPDATE</code>和<code>SERIALIZABLE</code>事务隔离级别。支持多进程同时读写。其序列化格式是<code>JSONB</code>，配合<code>pgvector</code>甚至可以直接存储向量状态。</p>
+<p><strong>选型建议</strong>：</p>
+<ul>
+<li>单机部署、状态<1GB：用SQLite</li>
+</ul>
+<ul>
+<li>多实例部署、需要故障恢复：用Postgres</li>
+</ul>
+<ul>
+<li>极致性能、可接受恢复重建：用Memory + 定期快照</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="四个必须避开的坑"><a href="#四个必须避开的坑" class="headerlink" title="四个必须避开的坑"></a>四个必须避开的坑</h3>
+<p><strong>坑1：在节点内部修改状态对象</strong></p>
+<figure class="highlight python"><pre><code class="language-python"># ❌ 错误：直接修改传入的state
+def bad_node(state):
+    state[&quot;counter&quot;] += 1  # 这会污染检查点！
+    return state
+
+# ✅ 正确：返回新的状态字典
+def good_node(state):
+    return {&quot;counter&quot;: state[&quot;counter&quot;] + 1}</code></pre></figure>
+<p>LangGraph的<code>_update_state</code>会深度比较新旧状态差异，直接修改可变对象可能导致检查点无法正确捕获变更。</p>
+<p><strong>坑2：线程ID使用不当</strong></p>
+<figure class="highlight python"><pre><code class="language-python"># ❌ 每次请求都生成新thread_id，导致无法恢复
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: uuid4().hex}}
+
+# ✅ 从请求上下文（如用户ID）派生稳定thread_id
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: f&quot;user-{user_id}-task-{task_id}&quot;}}</code></pre></figure>
+<p><strong>坑3：忽略<code>checkpoint_id</code>的优先级</strong></p>
+<p>当<code>config</code>中同时存在<code>thread_id</code>和<code>checkpoint_id</code>时，LangGraph优先使用<code>checkpoint_id</code>。这会导致“我明明更新了状态，但执行还是旧的”的错觉。</p>
+<p><strong>坑4：在<code>interrupt</code>节点返回非空状态</strong></p>
+<figure class="highlight python"><pre><code class="language-python"># ❌ 错误：interrupt节点返回了状态
+def interrupt_node(state):
+    state[&quot;approved&quot;] = True  # 这会导致图不暂停！
+    return {&quot;approved&quot;: True}
+
+# ✅ 正确：interrupt节点返回空状态
+def interrupt_node(state):
+    print(&quot;等待人工审批...&quot;)
+    return {}  # 空状态触发暂停</code></pre></figure>
+<h3 id="三条最佳实践"><a href="#三条最佳实践" class="headerlink" title="三条最佳实践"></a>三条最佳实践</h3>
+<ol>
+<li><strong>定期压缩检查点</strong>：长时间运行的Agent会产生大量检查点。建议每小时合并旧检查点，只保留关键节点（如每个HITL决策点的状态）。</li>
+</ol>
+<ol>
+<li><strong>使用<code>get_state</code>而非直接访问Saver</strong>：<code>graph.get_state(config)</code>会返回当前状态，包括图内部的<code>next</code>节点信息，比直接读Saver更安全。</li>
+</ol>
+<ol>
+<li><strong>为检查点添加业务元数据</strong>：</li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python">saver.put(config, checkpoint, metadata={
+    &quot;user_id&quot;: user_id,
+    &quot;business_step&quot;: &quot;approval&quot;,
+    &quot;llm_cost&quot;: total_tokens * price
+})</code></pre></figure>
+<p>这为后续的审计、成本分析、异常回溯提供了数据基础。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>LangGraph的Checkpointing远远超出了“保存进度”的范畴。它是Agent工作流<strong>可观测性</strong>、<strong>可恢复性</strong>和<strong>人机协作</strong>的基石。通过源码分析我们看到，它的核心设计是<strong>不可变检查点链</strong> + <strong>基于父指针的分支重放</strong>，这赋予了Agent系统类似Git的版本控制能力。</p>
+<p>延伸思考：当你的Agent工作流需要处理<strong>多用户并发审批</strong>（如多人会签）时，单一的<code>thread_id</code>会失效。LangGraph 0.2+的<code>checkpoint_id</code>支持多级嵌套，可以解决这个问题——这将是下一篇博客的主题。在那之前，建议你动手将现有的Agent流程加上Checkpointing，体验一次“状态不丢失”的安全感。</p>
+<blockquote>
+<p>代码仓库：<a href="https://github.com" target="_blank">github.com/yourname/langgraph-checkpointing-demo</a> （示例代码可直接运行）</p>
+</blockquote>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

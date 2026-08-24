@@ -216,6 +216,13 @@
       "subtopic": "Docker存储驱动：overlay2、aufs、devicemapper原理",
       "date": "2026-08-23",
       "url": "/2026/08/23/Docker存储驱动：overlay2、aufs、devicemapper原理/"
+    },
+    {
+      "title": "LangGraph Checkpointing：持久化与Human-in-the-Loop模式",
+      "category": "ai-ml",
+      "subtopic": "LangGraph Checkpointing：持久化与Human-in-the-Loop模式",
+      "date": "2026-08-24",
+      "url": "/2026/08/24/LangGraph Checkpointing：持久化与Human-in-the-Loop模式/"
     }
   ],
   "used_subtopics": {
@@ -237,7 +244,8 @@
       "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
       "LangChain表达式语言（LCEL）与Runnable协议深度解析",
       "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
-      "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作"
+      "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
+      "LangGraph Checkpointing：持久化与Human-in-the-Loop模式"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -293,6 +301,7 @@
     "Python内存管理与对象池机制": "75c304c7cf8920f40b9499c2d92137417fe8f4e2ae969e2d7cd4debc2cc79039",
     "Go错误处理范式与errors包源码": "ccad2c59fb7c38b9e0d18e6ab8fa6e2b37882d20563e55f25348ba0fa163ad52",
     "Java Agent字节码增强技术实战": "a82e19eb02a038cd94f6bc40b92baaf64d716de02e0a9bc6b5db28cd1c07f9f3",
-    "Docker存储驱动：overlay2、aufs、devicemapper原理": "bd4b0a8842ef4cc5bc72d741a0c01ee34c058cf44a0b11dc16db4d621e433c18"
+    "Docker存储驱动：overlay2、aufs、devicemapper原理": "bd4b0a8842ef4cc5bc72d741a0c01ee34c058cf44a0b11dc16db4d621e433c18",
+    "LangGraph Checkpointing：持久化与Human-in-the-Loop模式": "6b0c065d81d83977183d5df20953db2483bb93e49ab4222d52172d292c74a07c"
   }
 }
