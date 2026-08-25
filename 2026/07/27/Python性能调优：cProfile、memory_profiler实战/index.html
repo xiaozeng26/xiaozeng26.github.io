@@ -514,22 +514,82 @@ if __name__ == &quot;__main__&quot;:
 </ul>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="cProfile-vs-py-spy-vs-手动埋点"><a href="#cProfile-vs-py-spy-vs-手动埋点" class="headerlink" title="cProfile vs py-spy vs 手动埋点"></a>cProfile vs py-spy vs 手动埋点</h3>
-<p>| 特性 | cProfile | py-spy | 手动埋点 |</p>
-<p>|------|----------|--------|----------|</p>
-<p>| <strong>原理</strong> | 确定性，钩子回调 | 采样，读取/proc/pid/stat | 手动记录时间戳 |</p>
-<p>| <strong>性能开销</strong> | 10-30% | 1-5% | 几乎无 |</p>
-<p>| <strong>精度</strong> | 精确到每个函数调用 | 统计级别，亚毫秒级 | 取决于实现 |</p>
-<p>| <strong>生产环境</strong> | 不适合长期运行 | 适合在线分析 | 适合关键路径 |</p>
-<p>| <strong>学习成本</strong> | 低，内置工具 | 中，需要安装 | 高，需自行实现 |</p>
-<p>| <strong>适用场景</strong> | 开发/测试环境调优 | 生产环境问题排查 | 长期监控关键指标 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>cProfile</th>
+<th>py-spy</th>
+<th>手动埋点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>原理</strong></td>
+<td>确定性，钩子回调</td>
+<td>采样，读取/proc/pid/stat</td>
+<td>手动记录时间戳</td>
+</tr><tr>
+<td><strong>性能开销</strong></td>
+<td>10-30%</td>
+<td>1-5%</td>
+<td>几乎无</td>
+</tr><tr>
+<td><strong>精度</strong></td>
+<td>精确到每个函数调用</td>
+<td>统计级别，亚毫秒级</td>
+<td>取决于实现</td>
+</tr><tr>
+<td><strong>生产环境</strong></td>
+<td>不适合长期运行</td>
+<td>适合在线分析</td>
+<td>适合关键路径</td>
+</tr><tr>
+<td><strong>学习成本</strong></td>
+<td>低，内置工具</td>
+<td>中，需要安装</td>
+<td>高，需自行实现</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>开发/测试环境调优</td>
+<td>生产环境问题排查</td>
+<td>长期监控关键指标</td>
+</tr></tbody></table>
 <h3 id="memory-profiler-vs-tracemalloc-vs-objgraph"><a href="#memory-profiler-vs-tracemalloc-vs-objgraph" class="headerlink" title="memory_profiler vs tracemalloc vs objgraph"></a>memory_profiler vs tracemalloc vs objgraph</h3>
-<p>| 特性 | memory_profiler | tracemalloc | objgraph |</p>
-<p>|------|-----------------|-------------|----------|</p>
-<p>| <strong>粒度</strong> | 逐行内存变化 | 每个分配回溯 | 对象引用关系 |</p>
-<p>| <strong>性能影响</strong> | 5-10倍慢 | 2-5倍慢 | 快（仅分析引用） |</p>
-<p>| <strong>适用场景</strong> | 发现哪行代码分配内存多 | 追踪内存泄漏源头 | 可视化对象引用链 |</p>
-<p>| <strong>易用性</strong> | 高，装饰器即可 | 中，需手动启停 | 中，需分析图 |</p>
-<p>| <strong>Python版本</strong> | 2.7+ | 3.4+ | 2.7+ |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>memory_profiler</th>
+<th>tracemalloc</th>
+<th>objgraph</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>粒度</strong></td>
+<td>逐行内存变化</td>
+<td>每个分配回溯</td>
+<td>对象引用关系</td>
+</tr><tr>
+<td><strong>性能影响</strong></td>
+<td>5-10倍慢</td>
+<td>2-5倍慢</td>
+<td>快（仅分析引用）</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>发现哪行代码分配内存多</td>
+<td>追踪内存泄漏源头</td>
+<td>可视化对象引用链</td>
+</tr><tr>
+<td><strong>易用性</strong></td>
+<td>高，装饰器即可</td>
+<td>中，需手动启停</td>
+<td>中，需分析图</td>
+</tr><tr>
+<td><strong>Python版本</strong></td>
+<td>2.7+</td>
+<td>3.4+</td>
+<td>2.7+</td>
+</tr></tbody></table>
 <p><strong>选择建议</strong>：</p>
 <ul>
 <li>快速定位CPU瓶颈：cProfile + pstats</li>

@@ -893,15 +893,59 @@ if __name__ == &quot;__main__&quot;:
         print(f&quot;助手: {answer}&quot;)</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="主流RAG方案对比"><a href="#主流RAG方案对比" class="headerlink" title="主流RAG方案对比"></a>主流RAG方案对比</h3>
-<p>| 特性 | 朴素RAG | 进阶RAG（本文方案） | 微调模型 | 知识图谱增强 |</p>
-<p>|------|---------|-------------------|----------|-------------|</p>
-<p>| <strong>实现复杂度</strong> | 低 | 中 | 高 | 高 |</p>
-<p>| <strong>检索精度</strong> | 低 | 高 | N/A | 高（关系准确） |</p>
-<p>| <strong>更新成本</strong> | 低（改文档即可） | 低 | 高（需重新训练） | 中（需维护图谱） |</p>
-<p>| <strong>可解释性</strong> | 中 | 高（可溯源） | 低（黑盒） | 高 |</p>
-<p>| <strong>处理长尾知识</strong> | 好 | 好 | 差（数据稀疏） | 中 |</p>
-<p>| <strong>对话连贯性</strong> | 差 | 好（带上下文） | 好 | 中 |</p>
-<p>| <strong>适用场景</strong> | 简单QA | 企业知识库 | 特定风格生成 | 关系推理 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>朴素RAG</th>
+<th>进阶RAG（本文方案）</th>
+<th>微调模型</th>
+<th>知识图谱增强</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>实现复杂度</strong></td>
+<td>低</td>
+<td>中</td>
+<td>高</td>
+<td>高</td>
+</tr><tr>
+<td><strong>检索精度</strong></td>
+<td>低</td>
+<td>高</td>
+<td>N/A</td>
+<td>高（关系准确）</td>
+</tr><tr>
+<td><strong>更新成本</strong></td>
+<td>低（改文档即可）</td>
+<td>低</td>
+<td>高（需重新训练）</td>
+<td>中（需维护图谱）</td>
+</tr><tr>
+<td><strong>可解释性</strong></td>
+<td>中</td>
+<td>高（可溯源）</td>
+<td>低（黑盒）</td>
+<td>高</td>
+</tr><tr>
+<td><strong>处理长尾知识</strong></td>
+<td>好</td>
+<td>好</td>
+<td>差（数据稀疏）</td>
+<td>中</td>
+</tr><tr>
+<td><strong>对话连贯性</strong></td>
+<td>差</td>
+<td>好（带上下文）</td>
+<td>好</td>
+<td>中</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>简单QA</td>
+<td>企业知识库</td>
+<td>特定风格生成</td>
+<td>关系推理</td>
+</tr></tbody></table>
 <h3 id="为什么选择进阶RAG"><a href="#为什么选择进阶RAG" class="headerlink" title="为什么选择进阶RAG？"></a>为什么选择进阶RAG？</h3>
 <ol>
 <li><strong>成本效益</strong>：不需要昂贵的模型训练，只需更新文档即可更新知识</li>

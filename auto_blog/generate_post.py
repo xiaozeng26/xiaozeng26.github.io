@@ -681,6 +681,39 @@ def markdown_to_html(md_text):
             result.append(f'<blockquote>\n<p>{text}</p>\n</blockquote>')
             pending_quote = []
 
+    def _split_table_row(line):
+        """把一行表格拆成单元格（去掉首尾的 |）"""
+        s = line.strip()
+        if s.startswith('|'):
+            s = s[1:]
+        if s.endswith('|'):
+            s = s[:-1]
+        return [c.strip() for c in s.split('|')]
+
+    def _is_sep_row(line):
+        """判断是否为表格分隔行，如 |---|:---:|---:|"""
+        s = line.strip()
+        if '|' not in s:
+            return False
+        cells = _split_table_row(s)
+        if not cells:
+            return False
+        return all(re.fullmatch(r':?-+:?', c) for c in cells)
+
+    def _table_aligns(line):
+        """从分隔行解析每列对齐方式，None 表示默认（不加 align 属性）"""
+        aligns = []
+        for c in _split_table_row(line):
+            if c.startswith(':') and c.endswith(':'):
+                aligns.append('center')
+            elif c.startswith(':'):
+                aligns.append('left')
+            elif c.endswith(':'):
+                aligns.append('right')
+            else:
+                aligns.append(None)
+        return aligns
+
     pending_ul = []   # 缓存连续的无序列表项
     pending_ol = []   # 缓存连续的有序列表项
     pending_quote = []  # 缓存连续的引用行
@@ -781,6 +814,38 @@ def markdown_to_html(md_text):
         elif stripped in ('---', '***', '___', '* * *'):
             _flush_block()
             result.append('<hr>')
+
+        # --- Markdown 表格 ---
+        elif '|' in line and i + 1 < len(lines) and _is_sep_row(lines[i + 1]):
+            _flush_block()
+            header_cells = [_inline(c) for c in _split_table_row(line)]
+            aligns = _table_aligns(lines[i + 1])
+            i += 2  # 跳过表头与分隔行
+
+            rows = []
+            while i < len(lines) and lines[i].strip() and '|' in lines[i]:
+                rows.append([_inline(c) for c in _split_table_row(lines[i])])
+                i += 1
+
+            def _cell(tag, cells):
+                parts = []
+                for c, a in zip(cells, aligns):
+                    if a:
+                        parts.append(f'<{tag} align="{a}">{c}</{tag}>')
+                    else:
+                        parts.append(f'<{tag}>{c}</{tag}>')
+                return '\n'.join(parts)
+
+            th = _cell('th', header_cells)
+            result.append(f'<table>\n<thead>\n<tr>\n{th}\n</tr>\n</thead>')
+
+            body_html = '<tbody>'
+            for row in rows:
+                td = _cell('td', row)
+                body_html += f'<tr>\n{td}\n</tr>'
+            body_html += '</tbody></table>'
+            result.append(body_html)
+            continue
 
         # --- 普通段落 ---
         else:

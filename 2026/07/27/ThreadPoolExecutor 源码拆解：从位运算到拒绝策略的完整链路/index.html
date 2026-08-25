@@ -529,12 +529,36 @@ stateDiagram-v2
     }
 }</code></pre></figure>
 <h2 id="方案对比-Executors-工厂方法的陷阱"><a href="#方案对比-Executors-工厂方法的陷阱" class="headerlink" title="方案对比：Executors 工厂方法的陷阱"></a>方案对比：Executors 工厂方法的陷阱</h2>
-<p>| 工厂方法 | 队列类型 | 队列容量 | 风险 |</p>
-<p>|---------|---------|---------|------|</p>
-<p>| <code>newFixedThreadPool(n)</code> | LinkedBlockingQueue | <strong>Integer.MAX_VALUE</strong> | 队列无限增长 → OOM |</p>
-<p>| <code>newCachedThreadPool()</code> | SynchronousQueue | 0 | 线程数无限增长 → OOM（线程栈内存） |</p>
-<p>| <code>newSingleThreadExecutor()</code> | LinkedBlockingQueue | <strong>Integer.MAX_VALUE</strong> | 同 FixedThreadPool |</p>
-<p>| <code>newScheduledThreadPool(n)</code> | DelayedWorkQueue | <strong>Integer.MAX_VALUE</strong> | 同上 |</p>
+<table>
+<thead>
+<tr>
+<th>工厂方法</th>
+<th>队列类型</th>
+<th>队列容量</th>
+<th>风险</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>newFixedThreadPool(n)</code></td>
+<td>LinkedBlockingQueue</td>
+<td><strong>Integer.MAX_VALUE</strong></td>
+<td>队列无限增长 → OOM</td>
+</tr><tr>
+<td><code>newCachedThreadPool()</code></td>
+<td>SynchronousQueue</td>
+<td>0</td>
+<td>线程数无限增长 → OOM（线程栈内存）</td>
+</tr><tr>
+<td><code>newSingleThreadExecutor()</code></td>
+<td>LinkedBlockingQueue</td>
+<td><strong>Integer.MAX_VALUE</strong></td>
+<td>同 FixedThreadPool</td>
+</tr><tr>
+<td><code>newScheduledThreadPool(n)</code></td>
+<td>DelayedWorkQueue</td>
+<td><strong>Integer.MAX_VALUE</strong></td>
+<td>同上</td>
+</tr></tbody></table>
 <p><strong>核心问题</strong>：<code>Executors</code> 把"方便"建立在了"无界"之上，而"无界"在生产环境中就是一颗定时炸弹。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="推荐做法"><a href="#推荐做法" class="headerlink" title="✅ 推荐做法"></a>✅ 推荐做法</h3>
