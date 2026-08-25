@@ -718,15 +718,51 @@ func TestConcurrentMockUsage(t *testing.T) {
     wg2.Wait()
 }</code></pre></figure>
 <h2 id="方案对比-Testify-vs-GoMock-vs-其他方案"><a href="#方案对比-Testify-vs-GoMock-vs-其他方案" class="headerlink" title="方案对比：Testify vs GoMock vs 其他方案"></a>方案对比：Testify vs GoMock vs 其他方案</h2>
-<p>| 维度 | Testify Mock | GoMock | 手工Fake |</p>
-<p>|------|-------------|--------|----------|</p>
-<p>| <strong>类型安全</strong> | 运行时检查 | 编译期检查 | 编译期检查 |</p>
-<p>| <strong>代码生成</strong> | 无需 | 需要mockgen | 无需 |</p>
-<p>| <strong>调用顺序验证</strong> | 不支持 | 支持InOrder | 手动实现 |</p>
-<p>| <strong>并发安全</strong> | 需要加锁 | 内置安全 | 视实现而定 |</p>
-<p>| <strong>学习曲线</strong> | 平缓 | 中等 | 陡峭 |</p>
-<p>| <strong>维护成本</strong> | 低 | 中等（需维护生成代码） | 高 |</p>
-<p>| <strong>适用场景</strong> | 中小项目、快速迭代 | 大型项目、严格类型要求 | 有复杂业务逻辑的替身 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Testify Mock</th>
+<th>GoMock</th>
+<th>手工Fake</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>类型安全</strong></td>
+<td>运行时检查</td>
+<td>编译期检查</td>
+<td>编译期检查</td>
+</tr><tr>
+<td><strong>代码生成</strong></td>
+<td>无需</td>
+<td>需要mockgen</td>
+<td>无需</td>
+</tr><tr>
+<td><strong>调用顺序验证</strong></td>
+<td>不支持</td>
+<td>支持InOrder</td>
+<td>手动实现</td>
+</tr><tr>
+<td><strong>并发安全</strong></td>
+<td>需要加锁</td>
+<td>内置安全</td>
+<td>视实现而定</td>
+</tr><tr>
+<td><strong>学习曲线</strong></td>
+<td>平缓</td>
+<td>中等</td>
+<td>陡峭</td>
+</tr><tr>
+<td><strong>维护成本</strong></td>
+<td>低</td>
+<td>中等（需维护生成代码）</td>
+<td>高</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>中小项目、快速迭代</td>
+<td>大型项目、严格类型要求</td>
+<td>有复杂业务逻辑的替身</td>
+</tr></tbody></table>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
 <ol>

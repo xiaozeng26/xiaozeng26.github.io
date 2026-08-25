@@ -419,13 +419,47 @@ protected ByteBuf newDirectBuffer(int initialCapacity, int maxCapacity) {
     }
 }</code></pre></figure>
 <h2 id="方案对比-Netty-vs-其他IO模型"><a href="#方案对比-Netty-vs-其他IO模型" class="headerlink" title="方案对比：Netty vs 其他IO模型"></a>方案对比：Netty vs 其他IO模型</h2>
-<p>| 维度 | Netty (NIO) | Tomcat (BIO) | Vert.x (Reactor) | Node.js (libuv) |</p>
-<p>|------|--------------|---------------|------------------|-----------------|</p>
-<p>| 线程模型 | 主从Reactor | 线程池+阻塞IO | 多Reactor+EventBus | 单线程事件循环 |</p>
-<p>| 高并发连接 | 优（万级） | 差（千级） | 优 | 优（但CPU受限）|</p>
-<p>| 编程复杂度 | 高（Pipeline）| 低 | 中（Verticle）| 低（异步回调）|</p>
-<p>| 适合场景 | 网关、RPC、长连接 | 传统Web应用 | 全异步微服务 | IO密集型Web |</p>
-<p>| 零拷贝支持 | 原生支持 | 无 | 依赖底层 | 部分支持 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Netty (NIO)</th>
+<th>Tomcat (BIO)</th>
+<th>Vert.x (Reactor)</th>
+<th>Node.js (libuv)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>线程模型</td>
+<td>主从Reactor</td>
+<td>线程池+阻塞IO</td>
+<td>多Reactor+EventBus</td>
+<td>单线程事件循环</td>
+</tr><tr>
+<td>高并发连接</td>
+<td>优（万级）</td>
+<td>差（千级）</td>
+<td>优</td>
+<td>优（但CPU受限）</td>
+</tr><tr>
+<td>编程复杂度</td>
+<td>高（Pipeline）</td>
+<td>低</td>
+<td>中（Verticle）</td>
+<td>低（异步回调）</td>
+</tr><tr>
+<td>适合场景</td>
+<td>网关、RPC、长连接</td>
+<td>传统Web应用</td>
+<td>全异步微服务</td>
+<td>IO密集型Web</td>
+</tr><tr>
+<td>零拷贝支持</td>
+<td>原生支持</td>
+<td>无</td>
+<td>依赖底层</td>
+<td>部分支持</td>
+</tr></tbody></table>
 <p><strong>关键洞察</strong>：Node.js的单线程模型虽然简单，但在多核CPU上无法充分利用资源；Vert.x基于Netty但抽象更高，牺牲了部分灵活性；Netty在灵活性和性能之间取得了最佳平衡，这也是为什么Spring WebFlux、Dubbo、gRPC都选择它。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="必踩的5个坑"><a href="#必踩的5个坑" class="headerlink" title="必踩的5个坑"></a>必踩的5个坑</h3>

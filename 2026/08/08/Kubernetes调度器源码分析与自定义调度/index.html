@@ -847,12 +847,41 @@ profiles:
 <figure class="highlight bash"><pre><code class="language-bash">kube-scheduler --config=scheduler-config.yaml --v=5</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="四种自定义调度方案对比"><a href="#四种自定义调度方案对比" class="headerlink" title="四种自定义调度方案对比"></a>四种自定义调度方案对比</h3>
-<p>| 方案 | 复杂度 | 灵活性 | 维护成本 | 适用场景 |</p>
-<p>|------|--------|--------|----------|----------|</p>
-<p>| <strong>Webhook调度器</strong> | 低 | 高 | 中 | 调度逻辑完全外置，需要集成外部系统 |</p>
-<p>| <strong>Scheduler Extender</strong> | 中 | 中 | 中 | 在现有调度器基础上追加过滤/打分逻辑 |</p>
-<p>| <strong>调度器框架插件</strong> | 中 | 高 | 低 | 需要深度定制调度行为，且希望与K8s版本兼容 |</p>
-<p>| <strong>修改kube-scheduler源码</strong> | 高 | 最高 | 高 | 需要修改调度核心逻辑，且有足够人力维护 |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>复杂度</th>
+<th>灵活性</th>
+<th>维护成本</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Webhook调度器</strong></td>
+<td>低</td>
+<td>高</td>
+<td>中</td>
+<td>调度逻辑完全外置，需要集成外部系统</td>
+</tr><tr>
+<td><strong>Scheduler Extender</strong></td>
+<td>中</td>
+<td>中</td>
+<td>中</td>
+<td>在现有调度器基础上追加过滤/打分逻辑</td>
+</tr><tr>
+<td><strong>调度器框架插件</strong></td>
+<td>中</td>
+<td>高</td>
+<td>低</td>
+<td>需要深度定制调度行为，且希望与K8s版本兼容</td>
+</tr><tr>
+<td><strong>修改kube-scheduler源码</strong></td>
+<td>高</td>
+<td>最高</td>
+<td>高</td>
+<td>需要修改调度核心逻辑，且有足够人力维护</td>
+</tr></tbody></table>
 <h3 id="关键差异分析"><a href="#关键差异分析" class="headerlink" title="关键差异分析"></a>关键差异分析</h3>
 <p><strong>调度器框架</strong>是官方推荐的方式，因为：</p>
 <ol>

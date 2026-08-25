@@ -440,13 +440,47 @@ spec:
   - name: tmp
     emptyDir: {}</code></pre></figure>
 <h2 id="方案对比-RBAC-vs-其他授权模式"><a href="#方案对比-RBAC-vs-其他授权模式" class="headerlink" title="方案对比：RBAC vs 其他授权模式"></a>方案对比：RBAC vs 其他授权模式</h2>
-<p>| 特性 | RBAC（推荐） | ABAC | Node Authorization | Webhook |</p>
-<p>|------|------------|------|-------------------|---------|</p>
-<p>| <strong>粒度</strong> | 角色级 | 属性级（更细） | 节点级 | 自定义 |</p>
-<p>| <strong>配置复杂度</strong> | 低 | 高（属性爆炸） | 低 | 中 |</p>
-<p>| <strong>可维护性</strong> | 好 | 差（JSON策略难维护） | 好 | 取决于实现 |</p>
-<p>| <strong>性能</strong> | 快（缓存） | 中等 | 快 | 受网络延迟影响 |</p>
-<p>| <strong>适用场景</strong> | 大多数场景 | 复杂属性匹配 | 节点自授权 | 自定义策略 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>RBAC（推荐）</th>
+<th>ABAC</th>
+<th>Node Authorization</th>
+<th>Webhook</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>粒度</strong></td>
+<td>角色级</td>
+<td>属性级（更细）</td>
+<td>节点级</td>
+<td>自定义</td>
+</tr><tr>
+<td><strong>配置复杂度</strong></td>
+<td>低</td>
+<td>高（属性爆炸）</td>
+<td>低</td>
+<td>中</td>
+</tr><tr>
+<td><strong>可维护性</strong></td>
+<td>好</td>
+<td>差（JSON策略难维护）</td>
+<td>好</td>
+<td>取决于实现</td>
+</tr><tr>
+<td><strong>性能</strong></td>
+<td>快（缓存）</td>
+<td>中等</td>
+<td>快</td>
+<td>受网络延迟影响</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>大多数场景</td>
+<td>复杂属性匹配</td>
+<td>节点自授权</td>
+<td>自定义策略</td>
+</tr></tbody></table>
 <p><strong>我的建议</strong>：95%的场景使用RBAC足够。ABAC虽然粒度更细，但策略管理成本极高，除非你有非常特殊的属性匹配需求，否则不要碰。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="黄金法则"><a href="#黄金法则" class="headerlink" title="黄金法则"></a>黄金法则</h3>

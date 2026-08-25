@@ -385,11 +385,35 @@ public class PressureAwareMessageSender {
 }</code></pre></figure>
 <p><strong>核心思想</strong>：通过判断上下文中的压测标记，将消息路由到预定义的“影子队列”。消费端也需要做相应的判断，识别出压测消息，并执行特殊的处理逻辑（例如，不发送真实短信，而是记录日志）。</p>
 <h2 id="方案对比-流量染色-vs-其他压测方案"><a href="#方案对比-流量染色-vs-其他压测方案" class="headerlink" title="方案对比：流量染色 vs. 其他压测方案"></a>方案对比：流量染色 vs. 其他压测方案</h2>
-<p>| 方案 | 核心原理 | 优点 | 缺点 | 适用场景 |</p>
-<p>| :--- | :--- | :--- | :--- | :--- |</p>
-<p>| <strong>流量染色（全链路压测）</strong> | 在请求中加入特殊标记，并在调用链中透传，实现数据与逻辑隔离 | 1. <strong>最接近真实</strong>：直接在真实环境压测，结果可信度高。<br>2. <strong>覆盖完整链路</strong>：能够压测到所有依赖服务、数据库、缓存。<br>3. <strong>精细化控制</strong>：可以精确控制压测流量比例。 | 1. <strong>技术复杂度高</strong>：需要全链路支持透传，改造工作量大。<br>2. <strong>数据隔离难</strong>：需要为压测数据准备单独的数据存储或清理策略。<br>3. <strong>风险仍存</strong>：压测流量可能触发未预料的系统副作用。 | 核心业务链路，大促前保障，需要最高可信度的压测场景。 |</p>
-<p>| <strong>录制回放</strong> | 将线上的真实请求流量录制下来，在压测环境中回放。 | 1. <strong>流量真实</strong>：请求数据是真实的，场景覆盖度高。<br>2. <strong>无需改造业务</strong>：对业务代码侵入性小。 | 1. <strong>依赖录制环境</strong>：需要构建录制环境。<br>2. <strong>无法模拟新场景</strong>：无法模拟活动期间产生的新请求模式。<br>3. <strong>数据关联问题</strong>：难以处理请求间有状态依赖的场景（如先登录后下单）。 | 回归测试，验证新版本性能是否回退。 |</p>
-<p>| <strong>负载模型预估</strong> | 根据历史数据和业务预期，建立负载模型，通过工具（如JMeter）模拟请求。 | 1. <strong>简单易行</strong>：工具成熟，上手快。<br>2. <strong>无需生产环境</strong>：在测试环境即可进行。 | 1. <strong>失真</strong>：测试环境配置、数据量、网络环境与生产差异大。<br>2. <strong>链路不全</strong>：无法覆盖所有外部依赖。 | 日常性能回归，初步容量评估。 |</p>
+<table>
+<thead>
+<tr>
+<th align="left">方案</th>
+<th align="left">核心原理</th>
+<th align="left">优点</th>
+<th align="left">缺点</th>
+<th align="left">适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>流量染色（全链路压测）</strong></td>
+<td align="left">在请求中加入特殊标记，并在调用链中透传，实现数据与逻辑隔离</td>
+<td align="left">1. <strong>最接近真实</strong>：直接在真实环境压测，结果可信度高。<br>2. <strong>覆盖完整链路</strong>：能够压测到所有依赖服务、数据库、缓存。<br>3. <strong>精细化控制</strong>：可以精确控制压测流量比例。</td>
+<td align="left">1. <strong>技术复杂度高</strong>：需要全链路支持透传，改造工作量大。<br>2. <strong>数据隔离难</strong>：需要为压测数据准备单独的数据存储或清理策略。<br>3. <strong>风险仍存</strong>：压测流量可能触发未预料的系统副作用。</td>
+<td align="left">核心业务链路，大促前保障，需要最高可信度的压测场景。</td>
+</tr><tr>
+<td align="left"><strong>录制回放</strong></td>
+<td align="left">将线上的真实请求流量录制下来，在压测环境中回放。</td>
+<td align="left">1. <strong>流量真实</strong>：请求数据是真实的，场景覆盖度高。<br>2. <strong>无需改造业务</strong>：对业务代码侵入性小。</td>
+<td align="left">1. <strong>依赖录制环境</strong>：需要构建录制环境。<br>2. <strong>无法模拟新场景</strong>：无法模拟活动期间产生的新请求模式。<br>3. <strong>数据关联问题</strong>：难以处理请求间有状态依赖的场景（如先登录后下单）。</td>
+<td align="left">回归测试，验证新版本性能是否回退。</td>
+</tr><tr>
+<td align="left"><strong>负载模型预估</strong></td>
+<td align="left">根据历史数据和业务预期，建立负载模型，通过工具（如JMeter）模拟请求。</td>
+<td align="left">1. <strong>简单易行</strong>：工具成熟，上手快。<br>2. <strong>无需生产环境</strong>：在测试环境即可进行。</td>
+<td align="left">1. <strong>失真</strong>：测试环境配置、数据量、网络环境与生产差异大。<br>2. <strong>链路不全</strong>：无法覆盖所有外部依赖。</td>
+<td align="left">日常性能回归，初步容量评估。</td>
+</tr></tbody></table>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <ol>
 <li> <strong>数据隔离是第一要务</strong></li>

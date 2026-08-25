@@ -623,13 +623,47 @@ graph TD
     E --> E2[缺点: 学习曲线陡峭]
 </div>
 <h3 id="对比表格"><a href="#对比表格" class="headerlink" title="对比表格"></a>对比表格</h3>
-<p>| 特性 | Go | Java | Python | Rust |</p>
-<p>|------|-----|------|--------|------|</p>
-<p>| 错误表示 | 接口值 | 异常对象 | 异常对象 | 枚举类型 |</p>
-<p>| 传播方式 | 显式返回 | 隐式抛出 | 隐式抛出 | 显式返回 |</p>
-<p>| 是否可忽略 | 是（<code>_</code>） | 编译期检查 | 运行时忽略 | 必须处理 |</p>
-<p>| 上下文包装 | <code>%w</code> | 异常链 | <code>from</code>关键字 | <code>map_err</code> |</p>
-<p>| 模式匹配 | <code>errors.Is/As</code> | <code>catch</code>块 | <code>except</code>块 | <code>match</code> |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Go</th>
+<th>Java</th>
+<th>Python</th>
+<th>Rust</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>错误表示</td>
+<td>接口值</td>
+<td>异常对象</td>
+<td>异常对象</td>
+<td>枚举类型</td>
+</tr><tr>
+<td>传播方式</td>
+<td>显式返回</td>
+<td>隐式抛出</td>
+<td>隐式抛出</td>
+<td>显式返回</td>
+</tr><tr>
+<td>是否可忽略</td>
+<td>是（<code>_</code>）</td>
+<td>编译期检查</td>
+<td>运行时忽略</td>
+<td>必须处理</td>
+</tr><tr>
+<td>上下文包装</td>
+<td><code>%w</code></td>
+<td>异常链</td>
+<td><code>from</code>关键字</td>
+<td><code>map_err</code></td>
+</tr><tr>
+<td>模式匹配</td>
+<td><code>errors.Is/As</code></td>
+<td><code>catch</code>块</td>
+<td><code>except</code>块</td>
+<td><code>match</code></td>
+</tr></tbody></table>
 <p><strong>Go的核心优势</strong>在于错误处理的<strong>显式性和可组合性</strong>。它不像Java那样强制你声明异常（导致方法签名爆炸），也不像Python那样允许忽略异常（导致隐藏错误）。通过<code>errors.Is</code>和<code>errors.As</code>，Go在编译期和运行期之间找到了一个平衡点。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="✅ 最佳实践"></a>✅ 最佳实践</h3>

@@ -447,12 +447,41 @@ func main() {
     fmt.Println(&quot;All requests processed&quot;)
 }</code></pre></figure>
 <h2 id="方案对比-内存管理策略"><a href="#方案对比-内存管理策略" class="headerlink" title="方案对比：内存管理策略"></a>方案对比：内存管理策略</h2>
-<p>| 方案 | 栈分配 | 堆分配 | sync.Pool | 对象池 |</p>
-<p>|------|--------|--------|-----------|--------|</p>
-<p>| <strong>速度</strong> | 最快（纳秒级） | 较快（需GC） | 快（复用） | 快（复用） |</p>
-<p>| <strong>内存压力</strong> | 零压力 | 高（GC负担） | 低 | 低 |</p>
-<p>| <strong>适用场景</strong> | 局部变量、小对象 | 大对象、共享数据 | 频繁创建的小对象 | 大对象、连接 |</p>
-<p>| <strong>限制</strong> | 不能逃逸、大小受限 | 需要GC、有停顿 | 需要手动管理 | 需要手动管理 |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>栈分配</th>
+<th>堆分配</th>
+<th>sync.Pool</th>
+<th>对象池</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>速度</strong></td>
+<td>最快（纳秒级）</td>
+<td>较快（需GC）</td>
+<td>快（复用）</td>
+<td>快（复用）</td>
+</tr><tr>
+<td><strong>内存压力</strong></td>
+<td>零压力</td>
+<td>高（GC负担）</td>
+<td>低</td>
+<td>低</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>局部变量、小对象</td>
+<td>大对象、共享数据</td>
+<td>频繁创建的小对象</td>
+<td>大对象、连接</td>
+</tr><tr>
+<td><strong>限制</strong></td>
+<td>不能逃逸、大小受限</td>
+<td>需要GC、有停顿</td>
+<td>需要手动管理</td>
+<td>需要手动管理</td>
+</tr></tbody></table>
 <p><strong>选型建议</strong>：</p>
 <ul>
 <li>优先选择栈分配：局部变量、小对象、不共享数据</li>

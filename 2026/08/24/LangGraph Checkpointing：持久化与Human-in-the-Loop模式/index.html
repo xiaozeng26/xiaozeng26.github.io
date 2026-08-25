@@ -502,11 +502,35 @@ replay_result = graph.invoke(None, replay_config)
 print(f&quot;重放后的状态：{replay_result}&quot;)</code></pre></figure>
 <p><strong>关键洞察</strong>：时间旅行不是修改历史，而是<strong>基于历史状态创建新的分支</strong>。原有线程的记录还在，但新的执行路径会以目标检查点为父节点继续延伸。</p>
 <h2 id="方案对比-Checkpointing的三大实现路线"><a href="#方案对比-Checkpointing的三大实现路线" class="headerlink" title="方案对比：Checkpointing的三大实现路线"></a>方案对比：Checkpointing的三大实现路线</h2>
-<p>| 方案 | 存储介质 | 并发性能 | 事务性 | 适用场景 |</p>
-<p>|------|---------|---------|--------|---------|</p>
-<p>| <code>MemorySaver</code> | 内存 | 极高 | 无 | 单进程、测试、无状态原型 |</p>
-<p>| <code>SqliteSaver</code> | SQLite文件 | 中（写锁） | 支持 | 单机生产、中小规模、轻量部署 |</p>
-<p>| <code>PostgresSaver</code> | PostgreSQL | 高（MVCC） | 强 | 多实例、生产级、需要HA |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>存储介质</th>
+<th>并发性能</th>
+<th>事务性</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MemorySaver</code></td>
+<td>内存</td>
+<td>极高</td>
+<td>无</td>
+<td>单进程、测试、无状态原型</td>
+</tr><tr>
+<td><code>SqliteSaver</code></td>
+<td>SQLite文件</td>
+<td>中（写锁）</td>
+<td>支持</td>
+<td>单机生产、中小规模、轻量部署</td>
+</tr><tr>
+<td><code>PostgresSaver</code></td>
+<td>PostgreSQL</td>
+<td>高（MVCC）</td>
+<td>强</td>
+<td>多实例、生产级、需要HA</td>
+</tr></tbody></table>
 <h3 id="深度对比"><a href="#深度对比" class="headerlink" title="深度对比"></a>深度对比</h3>
 <p><strong>MemorySaver</strong>：本质是<code>dict</code> + <code>Lock</code>。看似简单，但它的<code>put</code>方法使用了<strong>读写锁</strong>，读操作可并发，写操作互斥。适合快速原型验证，但进程崩溃即丢失。</p>
 <p><strong>SqliteSaver</strong>：利用SQLite的<code>BEGIN IMMEDIATE</code>事务。其<code>put</code>方法会执行<code>INSERT OR REPLACE</code>。注意：<strong>SQLite的写锁是数据库级的</strong>，高并发写入会串行化。对于Agent场景（写入频率不高，但写入体积大），SQLite反而够用。</p>

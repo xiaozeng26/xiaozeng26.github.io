@@ -591,15 +591,59 @@ graph LR
         K[Django] -->|DRF| L[REST HTTP]
     end
 </div>
-<p>| 特性 | Nameko | FastAPI+HTTP | gRPC | Spring Cloud |</p>
-<p>|------|--------|-------------|------|--------------|</p>
-<p>| <strong>通信模式</strong> | RPC+Events | REST | gRPC (HTTP/2) | REST+消息 |</p>
-<p>| <strong>消息队列</strong> | 内置RabbitMQ | 需集成Celery | 需集成NATS | 需集成Stream |</p>
-<p>| <strong>并发模型</strong> | Greenlet协程 | asyncio | 线程池 | 线程池 |</p>
-<p>| <strong>服务发现</strong> | 无内置 | 需集成Consul | 需集成etcd | Eureka内置 |</p>
-<p>| <strong>学习曲线</strong> | 中等 | 简单 | 较陡 | 陡峭 |</p>
-<p>| <strong>适合场景</strong> | 中小型微服务 | 高并发Web | 高性能RPC | 大型企业 |</p>
-<p>| <strong>调试难度</strong> | 较难（需看MQ日志） | 简单 | 中等 | 中等 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Nameko</th>
+<th>FastAPI+HTTP</th>
+<th>gRPC</th>
+<th>Spring Cloud</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>通信模式</strong></td>
+<td>RPC+Events</td>
+<td>REST</td>
+<td>gRPC (HTTP/2)</td>
+<td>REST+消息</td>
+</tr><tr>
+<td><strong>消息队列</strong></td>
+<td>内置RabbitMQ</td>
+<td>需集成Celery</td>
+<td>需集成NATS</td>
+<td>需集成Stream</td>
+</tr><tr>
+<td><strong>并发模型</strong></td>
+<td>Greenlet协程</td>
+<td>asyncio</td>
+<td>线程池</td>
+<td>线程池</td>
+</tr><tr>
+<td><strong>服务发现</strong></td>
+<td>无内置</td>
+<td>需集成Consul</td>
+<td>需集成etcd</td>
+<td>Eureka内置</td>
+</tr><tr>
+<td><strong>学习曲线</strong></td>
+<td>中等</td>
+<td>简单</td>
+<td>较陡</td>
+<td>陡峭</td>
+</tr><tr>
+<td><strong>适合场景</strong></td>
+<td>中小型微服务</td>
+<td>高并发Web</td>
+<td>高性能RPC</td>
+<td>大型企业</td>
+</tr><tr>
+<td><strong>调试难度</strong></td>
+<td>较难（需看MQ日志）</td>
+<td>简单</td>
+<td>中等</td>
+<td>中等</td>
+</tr></tbody></table>
 <p><strong>关键差异分析</strong>：</p>
 <ol>
 <li><strong>消息模式 vs HTTP模式</strong>：</li>
@@ -690,13 +734,35 @@ class TracingProvider(ProviderCollector):
         self._method = fn
         return self</code></pre></figure>
 <h3 id="5-常见坑清单"><a href="#5-常见坑清单" class="headerlink" title="5. 常见坑清单"></a>5. 常见坑清单</h3>
-<p>| 坑 | 症状 | 解决方案 |</p>
-<p>|----|------|---------|</p>
-<p>| <strong>Greenlet阻塞</strong> | 一个慢请求导致整个服务无响应 | 使用<code>eventlet.tpool</code>执行阻塞I/O |</p>
-<p>| <strong>消息顺序</strong> | 同一用户的订单事件乱序 | 使用<code>routing_key</code>保证分区有序 |</p>
-<p>| <strong>连接泄漏</strong> | 长时间运行后客户端卡死 | 始终使用<code>with rpc_client()</code>上下文 |</p>
-<p>| <strong>事件风暴</strong> | 一个事件触发大量下游调用 | 实现熔断器（如<code>circuitbreaker</code>库） |</p>
-<p>| <strong>循环依赖</strong> | A服务调B，B服务又调A | 使用事件驱动解耦，避免循环RPC |</p>
+<table>
+<thead>
+<tr>
+<th>坑</th>
+<th>症状</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Greenlet阻塞</strong></td>
+<td>一个慢请求导致整个服务无响应</td>
+<td>使用<code>eventlet.tpool</code>执行阻塞I/O</td>
+</tr><tr>
+<td><strong>消息顺序</strong></td>
+<td>同一用户的订单事件乱序</td>
+<td>使用<code>routing_key</code>保证分区有序</td>
+</tr><tr>
+<td><strong>连接泄漏</strong></td>
+<td>长时间运行后客户端卡死</td>
+<td>始终使用<code>with rpc_client()</code>上下文</td>
+</tr><tr>
+<td><strong>事件风暴</strong></td>
+<td>一个事件触发大量下游调用</td>
+<td>实现熔断器（如<code>circuitbreaker</code>库）</td>
+</tr><tr>
+<td><strong>循环依赖</strong></td>
+<td>A服务调B，B服务又调A</td>
+<td>使用事件驱动解耦，避免循环RPC</td>
+</tr></tbody></table>
 <h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
 <p>Nameko是一个被严重低估的微服务框架。它用最少的抽象，提供了最本质的微服务能力：<strong>RPC的同步可靠通信</strong>和<strong>事件驱动的异步解耦</strong>。</p>
 <p>回顾核心要点：</p>

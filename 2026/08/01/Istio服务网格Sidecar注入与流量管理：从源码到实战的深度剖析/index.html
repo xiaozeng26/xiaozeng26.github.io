@@ -483,16 +483,56 @@ spec:
           weight: 100
 EOF</code></pre></figure>
 <h2 id="方案对比-Istio-vs-Linkerd-vs-Consul-Connect"><a href="#方案对比-Istio-vs-Linkerd-vs-Consul-Connect" class="headerlink" title="方案对比：Istio vs Linkerd vs Consul Connect"></a>方案对比：Istio vs Linkerd vs Consul Connect</h2>
-<p>| 特性 | Istio | Linkerd | Consul Connect |</p>
-<p>|------|-------|---------|----------------|</p>
-<p>| <strong>数据面</strong> | Envoy（功能强大，资源开销高） | 自研Rust代理（轻量，功能精简） | Envoy（需自行部署） |</p>
-<p>| <strong>控制面</strong> | istiod（单体，集成了Pilot/Citadel/Galley） | 单一控制面组件 | Consul Server + Connect |</p>
-<p>| <strong>协议支持</strong> | HTTP/1.1, HTTP/2, gRPC, TCP, WebSocket | HTTP/1.1, HTTP/2, gRPC, TCP | TCP, HTTP/1.1, gRPC |</p>
-<p>| <strong>流量治理</strong> | 丰富（超时、重试、熔断、故障注入、镜像等） | 基础（超时、重试，但不支持故障注入） | 基础（仅支持L4层策略） |</p>
-<p>| <strong>安全</strong> | 全面的mTLS + RBAC + JWT认证 | mTLS（自动但功能较简单） | mTLS + Consul ACL |</p>
-<p>| <strong>可观测性</strong> | 深度集成Prometheus/Grafana/Kiali | 内置Prometheus指标，但可视化能力弱 | 依赖第三方工具 |</p>
-<p>| <strong>学习曲线</strong> | 陡峭（概念多，配置复杂） | 平缓（更简单，更易上手） | 中等（需熟悉Consul生态） |</p>
-<p>| <strong>适用场景</strong> | 大型复杂微服务、多语言、需要细粒度流量管理 | 中小规模、追求低资源消耗和简单运维 | 已深度使用Consul做服务发现的团队 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Istio</th>
+<th>Linkerd</th>
+<th>Consul Connect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>数据面</strong></td>
+<td>Envoy（功能强大，资源开销高）</td>
+<td>自研Rust代理（轻量，功能精简）</td>
+<td>Envoy（需自行部署）</td>
+</tr><tr>
+<td><strong>控制面</strong></td>
+<td>istiod（单体，集成了Pilot/Citadel/Galley）</td>
+<td>单一控制面组件</td>
+<td>Consul Server + Connect</td>
+</tr><tr>
+<td><strong>协议支持</strong></td>
+<td>HTTP/1.1, HTTP/2, gRPC, TCP, WebSocket</td>
+<td>HTTP/1.1, HTTP/2, gRPC, TCP</td>
+<td>TCP, HTTP/1.1, gRPC</td>
+</tr><tr>
+<td><strong>流量治理</strong></td>
+<td>丰富（超时、重试、熔断、故障注入、镜像等）</td>
+<td>基础（超时、重试，但不支持故障注入）</td>
+<td>基础（仅支持L4层策略）</td>
+</tr><tr>
+<td><strong>安全</strong></td>
+<td>全面的mTLS + RBAC + JWT认证</td>
+<td>mTLS（自动但功能较简单）</td>
+<td>mTLS + Consul ACL</td>
+</tr><tr>
+<td><strong>可观测性</strong></td>
+<td>深度集成Prometheus/Grafana/Kiali</td>
+<td>内置Prometheus指标，但可视化能力弱</td>
+<td>依赖第三方工具</td>
+</tr><tr>
+<td><strong>学习曲线</strong></td>
+<td>陡峭（概念多，配置复杂）</td>
+<td>平缓（更简单，更易上手）</td>
+<td>中等（需熟悉Consul生态）</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>大型复杂微服务、多语言、需要细粒度流量管理</td>
+<td>中小规模、追求低资源消耗和简单运维</td>
+<td>已深度使用Consul做服务发现的团队</td>
+</tr></tbody></table>
 <p><strong>选型建议</strong>：</p>
 <ul>
 <li>如果你需要<strong>最强大的流量管理能力</strong>（如故障注入、流量镜像），且能接受较高的资源开销和运维复杂度，选<strong>Istio</strong>。</li>

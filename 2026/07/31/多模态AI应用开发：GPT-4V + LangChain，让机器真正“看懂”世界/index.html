@@ -666,16 +666,65 @@ if __name__ == &quot;__main__&quot;:
 <li>元数据追踪：记录图片页码和路径，便于溯源</li>
 </ul>
 <h2 id="方案对比-GPT-4V-vs-其他多模态方案"><a href="#方案对比-GPT-4V-vs-其他多模态方案" class="headerlink" title="方案对比：GPT-4V vs 其他多模态方案"></a>方案对比：GPT-4V vs 其他多模态方案</h2>
-<p>| 特性 | GPT-4V (OpenAI) | Claude 3 (Anthropic) | Gemini Pro (Google) | 开源方案 (LLaVA) |</p>
-<p>|------|-----------------|----------------------|---------------------|------------------|</p>
-<p>| <strong>视觉推理能力</strong> | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★☆☆ |</p>
-<p>| <strong>中文理解</strong> | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★☆☆ |</p>
-<p>| <strong>API稳定性</strong> | ★★★★★ | ★★★★☆ | ★★★★☆ | 自部署看硬件 |</p>
-<p>| <strong>细粒度控制</strong> | 有限（temperature等） | 类似OpenAI | 类似OpenAI | 完全控制 |</p>
-<p>| <strong>成本</strong> | 高 | 高 | 中高 | 低（需GPU） |</p>
-<p>| <strong>LangChain集成度</strong> | 官方支持最好 | 良好 | 良好 | 需自定义 |</p>
-<p>| <strong>图片输入限制</strong> | 最大20MB | 最大20MB | 最大20MB | 取决于显存 |</p>
-<p>| <strong>流式输出</strong> | ✅ | ✅ | ✅ | 可控 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>GPT-4V (OpenAI)</th>
+<th>Claude 3 (Anthropic)</th>
+<th>Gemini Pro (Google)</th>
+<th>开源方案 (LLaVA)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>视觉推理能力</strong></td>
+<td>★★★★★</td>
+<td>★★★★☆</td>
+<td>★★★★☆</td>
+<td>★★★☆☆</td>
+</tr><tr>
+<td><strong>中文理解</strong></td>
+<td>★★★★★</td>
+<td>★★★★☆</td>
+<td>★★★★☆</td>
+<td>★★★☆☆</td>
+</tr><tr>
+<td><strong>API稳定性</strong></td>
+<td>★★★★★</td>
+<td>★★★★☆</td>
+<td>★★★★☆</td>
+<td>自部署看硬件</td>
+</tr><tr>
+<td><strong>细粒度控制</strong></td>
+<td>有限（temperature等）</td>
+<td>类似OpenAI</td>
+<td>类似OpenAI</td>
+<td>完全控制</td>
+</tr><tr>
+<td><strong>成本</strong></td>
+<td>高</td>
+<td>高</td>
+<td>中高</td>
+<td>低（需GPU）</td>
+</tr><tr>
+<td><strong>LangChain集成度</strong></td>
+<td>官方支持最好</td>
+<td>良好</td>
+<td>良好</td>
+<td>需自定义</td>
+</tr><tr>
+<td><strong>图片输入限制</strong></td>
+<td>最大20MB</td>
+<td>最大20MB</td>
+<td>最大20MB</td>
+<td>取决于显存</td>
+</tr><tr>
+<td><strong>流式输出</strong></td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>可控</td>
+</tr></tbody></table>
 <p><strong>适用场景建议</strong>：</p>
 <ul>
 <li><strong>GPT-4V</strong>：对准确性要求高、需要复杂推理的场景（医疗影像、金融票据）</li>
@@ -698,13 +747,35 @@ if __name__ == &quot;__main__&quot;:
 <li><strong>成本控制</strong>：使用图片缓存、批量处理、对简单任务用文本模型（如GPT-4）先判断是否需要视觉</li>
 </ol>
 <h3 id="避坑指南"><a href="#避坑指南" class="headerlink" title="避坑指南"></a>避坑指南</h3>
-<p>| 坑 | 症状 | 解决方案 |</p>
-<p>|----|------|----------|</p>
-<p>| <strong>图片URL过期</strong> | 请求成功但模型报“无法读取图片” | 统一使用Base64编码 |</p>
-<p>| <strong>Token超限</strong> | 长图片+长文本导致400错误 | 压缩图片、截取关键区域 |</p>
-<p>| <strong>幻觉</strong> | 模型“编造”图片中不存在的内容 | 在Prompt中强调“只描述你确定看到的内容” |</p>
-<p>| <strong>时序问题</strong> | 多轮对话中图片“丢失” | 使用LangChain Memory机制保持上下文 |</p>
-<p>| <strong>并发限制</strong> | 大量图片请求触发Rate Limit | 使用<code>langchain</code>的<code>retry</code>装饰器或自建队列 |</p>
+<table>
+<thead>
+<tr>
+<th>坑</th>
+<th>症状</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>图片URL过期</strong></td>
+<td>请求成功但模型报“无法读取图片”</td>
+<td>统一使用Base64编码</td>
+</tr><tr>
+<td><strong>Token超限</strong></td>
+<td>长图片+长文本导致400错误</td>
+<td>压缩图片、截取关键区域</td>
+</tr><tr>
+<td><strong>幻觉</strong></td>
+<td>模型“编造”图片中不存在的内容</td>
+<td>在Prompt中强调“只描述你确定看到的内容”</td>
+</tr><tr>
+<td><strong>时序问题</strong></td>
+<td>多轮对话中图片“丢失”</td>
+<td>使用LangChain Memory机制保持上下文</td>
+</tr><tr>
+<td><strong>并发限制</strong></td>
+<td>大量图片请求触发Rate Limit</td>
+<td>使用<code>langchain</code>的<code>retry</code>装饰器或自建队列</td>
+</tr></tbody></table>
 <h3 id="性能优化技巧"><a href="#性能优化技巧" class="headerlink" title="性能优化技巧"></a>性能优化技巧</h3>
 <figure class="highlight python"><pre><code class="language-python">import asyncio
 from langchain_openai import AsyncChatOpenAI

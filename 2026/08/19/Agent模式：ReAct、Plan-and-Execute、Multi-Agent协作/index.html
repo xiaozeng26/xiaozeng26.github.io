@@ -237,11 +237,31 @@ var GLOBAL_CONFIG = {
 <li><strong>Multi-Agent</strong> 像<strong>一家创业公司</strong>：CEO（规划Agent）拆解目标，CTO（技术Agent）负责实现，CFO（财务Agent）负责成本核算，HR（HR Agent）负责资源协调。每个Agent有独立人格、独立记忆、独立工具集，通过消息传递协作。</li>
 </ul>
 <h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
-<p>| 模式 | 核心循环 | 状态管理 | 适用场景 |</p>
-<p>|------|---------|---------|---------|</p>
-<p>| ReAct | Thought → Action → Observation 循环 | 短期上下文窗口 | 需要动态推理、工具结果不可预知的场景 |</p>
-<p>| Plan-and-Execute | 一次性规划 → 逐步执行 → 可选再规划 | 长期计划 + 短期执行栈 | 任务步骤明确、执行路径相对固定的场景 |</p>
-<p>| Multi-Agent | 多角色并发/串行消息传递 | 每个Agent独立状态 + 共享消息总线 | 需要角色分离、权限隔离、并行处理的复杂任务 |</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>核心循环</th>
+<th>状态管理</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ReAct</td>
+<td>Thought → Action → Observation 循环</td>
+<td>短期上下文窗口</td>
+<td>需要动态推理、工具结果不可预知的场景</td>
+</tr><tr>
+<td>Plan-and-Execute</td>
+<td>一次性规划 → 逐步执行 → 可选再规划</td>
+<td>长期计划 + 短期执行栈</td>
+<td>任务步骤明确、执行路径相对固定的场景</td>
+</tr><tr>
+<td>Multi-Agent</td>
+<td>多角色并发/串行消息传递</td>
+<td>每个Agent独立状态 + 共享消息总线</td>
+<td>需要角色分离、权限隔离、并行处理的复杂任务</td>
+</tr></tbody></table>
 <h2 id="源码-原理深度分析-LangGraph-实现对比"><a href="#源码-原理深度分析-LangGraph-实现对比" class="headerlink" title="源码/原理深度分析：LangGraph 实现对比"></a>源码/原理深度分析：LangGraph 实现对比</h2>
 <p>LangGraph 是目前实现这三类模式最底层的框架，它把Agent定义为<strong>状态图</strong>（StateGraph），节点是函数，边是路由逻辑。</p>
 <h3 id="1-ReAct-的核心循环-LangGraph-源码视角"><a href="#1-ReAct-的核心循环-LangGraph-源码视角" class="headerlink" title="1. ReAct 的核心循环（LangGraph 源码视角）"></a>1. ReAct 的核心循环（LangGraph 源码视角）</h3>
@@ -633,13 +653,53 @@ graph TD
     C1 -.->|"计划易过期"| C3
     D1 -.->|"对话驱动"| D2
 </div>
-<p>| 框架 | 模式支持 | 状态持久化 | 可视化 | 学习曲线 | 生产就绪度 |</p>
-<p>|------|---------|-----------|--------|---------|-----------|</p>
-<p>| LangGraph | 全部支持 | ✅ Checkpointer | ✅ 原生 | 陡峭 | 高 |</p>
-<p>| AutoGen | Multi-Agent为主 | ✅ 对话历史 | ❌ | 中等 | 中 |</p>
-<p>| CrewAI | Multi-Agent为主 | ❌ | ❌ | 平缓 | 中 |</p>
-<p>| LangChain AgentExecutor | ReAct为主 | ❌ | ❌ | 平缓 | 低（易踩坑） |</p>
-<p>| BabyAGI | Plan-Execute | ❌ | ❌ | 中等 | 低 |</p>
+<table>
+<thead>
+<tr>
+<th>框架</th>
+<th>模式支持</th>
+<th>状态持久化</th>
+<th>可视化</th>
+<th>学习曲线</th>
+<th>生产就绪度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LangGraph</td>
+<td>全部支持</td>
+<td>✅ Checkpointer</td>
+<td>✅ 原生</td>
+<td>陡峭</td>
+<td>高</td>
+</tr><tr>
+<td>AutoGen</td>
+<td>Multi-Agent为主</td>
+<td>✅ 对话历史</td>
+<td>❌</td>
+<td>中等</td>
+<td>中</td>
+</tr><tr>
+<td>CrewAI</td>
+<td>Multi-Agent为主</td>
+<td>❌</td>
+<td>❌</td>
+<td>平缓</td>
+<td>中</td>
+</tr><tr>
+<td>LangChain AgentExecutor</td>
+<td>ReAct为主</td>
+<td>❌</td>
+<td>❌</td>
+<td>平缓</td>
+<td>低（易踩坑）</td>
+</tr><tr>
+<td>BabyAGI</td>
+<td>Plan-Execute</td>
+<td>❌</td>
+<td>❌</td>
+<td>中等</td>
+<td>低</td>
+</tr></tbody></table>
 <p><strong>关键结论</strong>：LangGraph 是唯一一个能在<strong>同一个框架内</strong>优雅实现三种模式的工具，且支持Checkpoint持久化、人工介入（Human-in-the-loop）、流式输出等生产级特性。如果你已经决定用LangChain生态，直接上LangGraph是正解。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
@@ -656,13 +716,35 @@ graph TD
 <li><strong>人工审批闸门</strong>：对于关键操作（如支付、删除数据），在LangGraph中用 <code>interrupt_before</code> 注入人工审批节点。这是生产级Agent的必备能力。</li>
 </ol>
 <h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
-<p>| 坑 | 现象 | 解决方案 |</p>
-<p>|----|------|---------|</p>
-<p>| 上下文爆炸 | 请求耗时从2s涨到30s，成本翻10倍 | 使用 <code>trim_messages</code> 压缩中间步骤，或切换到Plan模式 |</p>
-<p>| 工具循环死锁 | Agent反复调用同一个失败的工具 | 设置最大迭代次数，并在工具错误信息中明确提示“不要再调用此工具” |</p>
-<p>| Multi-Agent死锁 | Agent A 等 B 的结果，B 等 A 的结果 | 使用 <code>Send</code> API实现异步消息，避免同步等待；设置超时机制 |</p>
-<p>| 计划过期 | Plan执行到一半，外部条件已变化 | 在Plan模式中加入“重新规划”节点，每N步检查一次计划有效性 |</p>
-<p>| 模型幻觉 | Agent编造工具返回结果 | 严格要求工具返回结构化为JSON，并在Prompt中强调“只可引用真实返回的数据” |</p>
+<table>
+<thead>
+<tr>
+<th>坑</th>
+<th>现象</th>
+<th>解决方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>上下文爆炸</td>
+<td>请求耗时从2s涨到30s，成本翻10倍</td>
+<td>使用 <code>trim_messages</code> 压缩中间步骤，或切换到Plan模式</td>
+</tr><tr>
+<td>工具循环死锁</td>
+<td>Agent反复调用同一个失败的工具</td>
+<td>设置最大迭代次数，并在工具错误信息中明确提示“不要再调用此工具”</td>
+</tr><tr>
+<td>Multi-Agent死锁</td>
+<td>Agent A 等 B 的结果，B 等 A 的结果</td>
+<td>使用 <code>Send</code> API实现异步消息，避免同步等待；设置超时机制</td>
+</tr><tr>
+<td>计划过期</td>
+<td>Plan执行到一半，外部条件已变化</td>
+<td>在Plan模式中加入“重新规划”节点，每N步检查一次计划有效性</td>
+</tr><tr>
+<td>模型幻觉</td>
+<td>Agent编造工具返回结果</td>
+<td>严格要求工具返回结构化为JSON，并在Prompt中强调“只可引用真实返回的数据”</td>
+</tr></tbody></table>
 <h2 id="总结与延伸思考"><a href="#总结与延伸思考" class="headerlink" title="总结与延伸思考"></a>总结与延伸思考</h2>
 <p>三种模式本质上是<strong>“思考密度”</strong>和<strong>“规划深度”</strong>的权衡：</p>
 <ul>

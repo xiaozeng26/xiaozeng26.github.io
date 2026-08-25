@@ -228,10 +228,26 @@ var GLOBAL_CONFIG = {
 <p>假设你经营一家高端餐厅，后厨的每道菜谱都精确到克（比如“牛排120.35克”）。但实际烹饪时，厨师根本不需要这么精细——多3克少3克，客人尝不出来。于是你决定简化菜谱：把重量四舍五入到整数克（120克），把温度从“180.5℃”改成“180℃”。厨房效率大幅提升（更少的数据要记录和计算），而菜品口味几乎不受影响。</p>
 <p><strong>量化（Quantization）</strong> 就是这个逻辑：把模型权重从FP16（16位浮点数，需要2字节）压缩成INT8（1字节）甚至INT4（0.5字节），用更少的比特数表示相近的数值。代价是精度损失，但LLM有大量冗余参数，“四舍五入”掉的那些细节，模型完全能自行消化。</p>
 <h3 id="技术定义-什么是GPTQ和AWQ"><a href="#技术定义-什么是GPTQ和AWQ" class="headerlink" title="技术定义：什么是GPTQ和AWQ？"></a>技术定义：什么是GPTQ和AWQ？</h3>
-<p>| 方法 | 全称 | 核心思想 | 量化粒度 |</p>
-<p>|------|------|----------|----------|</p>
-<p>| GPTQ | Gradient-based Post-Training Quantization | 基于二阶梯度（Hessian矩阵）校准，最小化量化误差 | 按列分组（group-wise） |</p>
-<p>| AWQ | Activation-aware Weight Quantization | 根据激活值分布，保护“重要”权重通道 | 按通道 + 缩放因子 |</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>全称</th>
+<th>核心思想</th>
+<th>量化粒度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GPTQ</td>
+<td>Gradient-based Post-Training Quantization</td>
+<td>基于二阶梯度（Hessian矩阵）校准，最小化量化误差</td>
+<td>按列分组（group-wise）</td>
+</tr><tr>
+<td>AWQ</td>
+<td>Activation-aware Weight Quantization</td>
+<td>根据激活值分布，保护“重要”权重通道</td>
+<td>按通道 + 缩放因子</td>
+</tr></tbody></table>
 <p>两者的共同点是<strong>不需要重训练</strong>，只需少量校准数据（几百条文本），就能把70B模型压缩到可单卡部署的规模。</p>
 <h3 id="vLLM的核心-PagedAttention"><a href="#vLLM的核心-PagedAttention" class="headerlink" title="vLLM的核心：PagedAttention"></a>vLLM的核心：PagedAttention</h3>
 <p>vLLM的“杀手锏”是 <strong>PagedAttention</strong> 算法，灵感来自操作系统的虚拟内存分页。传统推理中，KV Cache是连续内存块，长度不可预测——就像你提前预订了20人包间，结果只来了5人，浪费了15个座位。PagedAttention把KV Cache拆成固定大小的“页”（block），动态分配，按需占用，内存使用率提升数倍。</p>
@@ -512,14 +528,46 @@ curl -X POST http://localhost:8000/generate \
   -H &quot;Content-Type: application/json&quot; \
   -d &#x27;{&quot;prompt&quot;: &quot;什么是大语言模型？&quot;, &quot;max_tokens&quot;: 200}&#x27;</code></pre></figure>
 <h2 id="方案对比-GPTQ-vs-AWQ-vs-GGUF"><a href="#方案对比-GPTQ-vs-AWQ-vs-GGUF" class="headerlink" title="方案对比：GPTQ vs AWQ vs GGUF"></a>方案对比：GPTQ vs AWQ vs GGUF</h2>
-<p>| 维度 | GPTQ | AWQ | GGUF（llama.cpp） |</p>
-<p>|------|------|-----|-------------------|</p>
-<p>| <strong>量化方式</strong> | 二阶梯度校准 | 激活感知缩放 | 混合精度（按层选择） |</p>
-<p>| <strong>精度损失</strong> | 中等 | 最小（通常优于GPTQ） | 可调（2-8bit） |</p>
-<p>| <strong>推理速度</strong> | 快（vLLM原生支持） | 快（vLLM原生支持） | 快（CPU/GPU均可） |</p>
-<p>| <strong>显存占用</strong> | INT4时约25% | INT4时约25% | 与GPTQ相近 |</p>
-<p>| <strong>硬件兼容</strong> | 需要GPU + CUDA | 需要GPU + CUDA | CPU-only也可以 |</p>
-<p>| <strong>适合场景</strong> | 高吞吐API服务 | 对精度要求高的场景 | 边缘设备、CPU部署 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>GPTQ</th>
+<th>AWQ</th>
+<th>GGUF（llama.cpp）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>量化方式</strong></td>
+<td>二阶梯度校准</td>
+<td>激活感知缩放</td>
+<td>混合精度（按层选择）</td>
+</tr><tr>
+<td><strong>精度损失</strong></td>
+<td>中等</td>
+<td>最小（通常优于GPTQ）</td>
+<td>可调（2-8bit）</td>
+</tr><tr>
+<td><strong>推理速度</strong></td>
+<td>快（vLLM原生支持）</td>
+<td>快（vLLM原生支持）</td>
+<td>快（CPU/GPU均可）</td>
+</tr><tr>
+<td><strong>显存占用</strong></td>
+<td>INT4时约25%</td>
+<td>INT4时约25%</td>
+<td>与GPTQ相近</td>
+</tr><tr>
+<td><strong>硬件兼容</strong></td>
+<td>需要GPU + CUDA</td>
+<td>需要GPU + CUDA</td>
+<td>CPU-only也可以</td>
+</tr><tr>
+<td><strong>适合场景</strong></td>
+<td>高吞吐API服务</td>
+<td>对精度要求高的场景</td>
+<td>边缘设备、CPU部署</td>
+</tr></tbody></table>
 <p><strong>选型建议</strong>：</p>
 <ul>
 <li>追求极限吞吐 → GPTQ + vLLM</li>

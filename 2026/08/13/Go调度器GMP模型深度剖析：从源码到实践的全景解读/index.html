@@ -453,13 +453,47 @@ graph TD
     E --> E2[消息传递]
     E --> E3[模型: M:N]
 </div>
-<p>| 维度 | Go GMP | Java线程池 | Node.js | Erlang |</p>
-<p>|------|--------|-----------|---------|--------|</p>
-<p>| 内存占用 | ~2KB/goroutine | ~1MB/线程 | ~4MB主线程 | ~0.5KB/进程 |</p>
-<p>| 最大并发 | 百万级 | 千级 | 万级（异步） | 百万级 |</p>
-<p>| 编程模型 | 同步阻塞 | 同步阻塞 | 异步回调 | 消息传递 |</p>
-<p>| 抢占式 | 是（10ms） | 是（OS级） | 否（需手动yield） | 是（reduction计数） |</p>
-<p>| 适用场景 | 微服务、网络服务 | 计算密集型、IO密集 | IO密集、实时 | 分布式、容错 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Go GMP</th>
+<th>Java线程池</th>
+<th>Node.js</th>
+<th>Erlang</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>内存占用</td>
+<td>~2KB/goroutine</td>
+<td>~1MB/线程</td>
+<td>~4MB主线程</td>
+<td>~0.5KB/进程</td>
+</tr><tr>
+<td>最大并发</td>
+<td>百万级</td>
+<td>千级</td>
+<td>万级（异步）</td>
+<td>百万级</td>
+</tr><tr>
+<td>编程模型</td>
+<td>同步阻塞</td>
+<td>同步阻塞</td>
+<td>异步回调</td>
+<td>消息传递</td>
+</tr><tr>
+<td>抢占式</td>
+<td>是（10ms）</td>
+<td>是（OS级）</td>
+<td>否（需手动yield）</td>
+<td>是（reduction计数）</td>
+</tr><tr>
+<td>适用场景</td>
+<td>微服务、网络服务</td>
+<td>计算密集型、IO密集</td>
+<td>IO密集、实时</td>
+<td>分布式、容错</td>
+</tr></tbody></table>
 <p><strong>关键差异</strong>：Go的独特之处在于<strong>让程序员用同步思维写代码，却获得异步的性能</strong>。Java需要你管理线程池大小、拒绝策略；Node.js需要你处理回调地狱；而Go只需要<code>go func()</code>。</p>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>

@@ -244,11 +244,27 @@ var GLOBAL_CONFIG = {
 <h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
 <p><strong>Java Agent</strong> 是JDK 1.5引入的一种机制，允许开发者编写一个特殊的JAR包，通过<code>java -javaagent:myagent.jar</code>参数在应用启动前（<code>premain</code>）或运行中（<code>agentmain</code>）拦截类加载过程，对字节码进行转换。</p>
 <p><strong>字节码增强</strong> 的核心技术栈：</p>
-<p>| 技术 | 定位 | 特点 |</p>
-<p>|------|------|------|</p>
-<p>| ASM | 底层字节码操作框架 | 直接操作字节码，性能最高，但学习曲线陡峭 |</p>
-<p>| Javassist | 源码级API | 可以用Java语法写增强逻辑，上手快，性能略逊 |</p>
-<p>| Byte Buddy | 高阶封装 | 流式API，动态生成子类/代理，兼顾易用性和性能 |</p>
+<table>
+<thead>
+<tr>
+<th>技术</th>
+<th>定位</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ASM</td>
+<td>底层字节码操作框架</td>
+<td>直接操作字节码，性能最高，但学习曲线陡峭</td>
+</tr><tr>
+<td>Javassist</td>
+<td>源码级API</td>
+<td>可以用Java语法写增强逻辑，上手快，性能略逊</td>
+</tr><tr>
+<td>Byte Buddy</td>
+<td>高阶封装</td>
+<td>流式API，动态生成子类/代理，兼顾易用性和性能</td>
+</tr></tbody></table>
 <h3 id="核心原理-JVM的Instrumentation机制"><a href="#核心原理-JVM的Instrumentation机制" class="headerlink" title="核心原理：JVM的Instrumentation机制"></a>核心原理：JVM的Instrumentation机制</h3>
 <div class="mermaid">
 graph TD
@@ -592,13 +608,47 @@ class AsyncReporter {
 }</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="Java-Agent-vs-其他字节码增强方案"><a href="#Java-Agent-vs-其他字节码增强方案" class="headerlink" title="Java Agent vs 其他字节码增强方案"></a>Java Agent vs 其他字节码增强方案</h3>
-<p>| 维度 | Java Agent | Spring AOP | Javassist运行时 | 手动ASM |</p>
-<p>|------|-----------|------------|----------------|---------|</p>
-<p>| <strong>侵入性</strong> | 无侵入，外部注入 | 需要Spring容器 | 需要代码嵌入 | 需要字节码知识 |</p>
-<p>| <strong>生效时机</strong> | 类加载前/运行中 | Bean初始化时 | 运行时 | 编译期 |</p>
-<p>| <strong>性能开销</strong> | 极低（字节码级） | 低（动态代理） | 中（反射调用） | 极高（直接操作） |</p>
-<p>| <strong>灵活度</strong> | 高，可监控任意类 | 受限，仅Spring Bean | 中等 | 最高 |</p>
-<p>| <strong>学习成本</strong> | 中（需要理解类加载机制） | 低 | 低 | 高 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Java Agent</th>
+<th>Spring AOP</th>
+<th>Javassist运行时</th>
+<th>手动ASM</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>侵入性</strong></td>
+<td>无侵入，外部注入</td>
+<td>需要Spring容器</td>
+<td>需要代码嵌入</td>
+<td>需要字节码知识</td>
+</tr><tr>
+<td><strong>生效时机</strong></td>
+<td>类加载前/运行中</td>
+<td>Bean初始化时</td>
+<td>运行时</td>
+<td>编译期</td>
+</tr><tr>
+<td><strong>性能开销</strong></td>
+<td>极低（字节码级）</td>
+<td>低（动态代理）</td>
+<td>中（反射调用）</td>
+<td>极高（直接操作）</td>
+</tr><tr>
+<td><strong>灵活度</strong></td>
+<td>高，可监控任意类</td>
+<td>受限，仅Spring Bean</td>
+<td>中等</td>
+<td>最高</td>
+</tr><tr>
+<td><strong>学习成本</strong></td>
+<td>中（需要理解类加载机制）</td>
+<td>低</td>
+<td>低</td>
+<td>高</td>
+</tr></tbody></table>
 <h3 id="业界APM工具对比"><a href="#业界APM工具对比" class="headerlink" title="业界APM工具对比"></a>业界APM工具对比</h3>
 <div class="mermaid">
 graph LR
@@ -611,12 +661,36 @@ graph LR
     C --> H[ASM]
     D --> I[传统日志框架]
 </div>
-<p>| 工具 | 技术栈 | 特点 | 适用场景 |</p>
-<p>|------|--------|------|---------|</p>
-<p>| <strong>SkyWalking</strong> | Java Agent + gRPC | 无侵入，支持多种语言 | 大型分布式系统 |</p>
-<p>| <strong>Pinpoint</strong> | Java Agent + Thrift | 调用链可视化强 | 需要精细追踪的场景 |</p>
-<p>| <strong>Arthas</strong> | Java Agent + 命令行 | 交互式诊断工具 | 线上问题快速定位 |</p>
-<p>| <strong>自研Agent</strong> | Byte Buddy/ASM | 定制化强，可控性高 | 特定业务监控需求 |</p>
+<table>
+<thead>
+<tr>
+<th>工具</th>
+<th>技术栈</th>
+<th>特点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SkyWalking</strong></td>
+<td>Java Agent + gRPC</td>
+<td>无侵入，支持多种语言</td>
+<td>大型分布式系统</td>
+</tr><tr>
+<td><strong>Pinpoint</strong></td>
+<td>Java Agent + Thrift</td>
+<td>调用链可视化强</td>
+<td>需要精细追踪的场景</td>
+</tr><tr>
+<td><strong>Arthas</strong></td>
+<td>Java Agent + 命令行</td>
+<td>交互式诊断工具</td>
+<td>线上问题快速定位</td>
+</tr><tr>
+<td><strong>自研Agent</strong></td>
+<td>Byte Buddy/ASM</td>
+<td>定制化强，可控性高</td>
+<td>特定业务监控需求</td>
+</tr></tbody></table>
 <h3 id="选择建议"><a href="#选择建议" class="headerlink" title="选择建议"></a>选择建议</h3>
 <ol>
 <li><strong>快速上线</strong>：直接用SkyWalking，开箱即用</li>

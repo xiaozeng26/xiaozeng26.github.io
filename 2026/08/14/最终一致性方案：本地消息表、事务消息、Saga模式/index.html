@@ -648,15 +648,51 @@ public class OrderSagaStateMachine {
     }
 }</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
-<p>| 维度 | 本地消息表 | 事务消息（RocketMQ） | Saga模式 |</p>
-<p>|------|-----------|---------------------|----------|</p>
-<p>| <strong>实现复杂度</strong> | 中等，需要额外维护消息表 | 较低，依赖MQ的能力 | 较高，需要设计状态机和补偿 |</p>
-<p>| <strong>一致性保证</strong> | 最终一致，有秒级延迟 | 最终一致，延迟更低 | 最终一致，可精确控制 |</p>
-<p>| <strong>适用场景</strong> | 中小规模系统，对延迟不敏感 | 已经使用RocketMQ的团队 | 长事务、复杂业务流程 |</p>
-<p>| <strong>侵入性</strong> | 需要修改业务代码 | 需要引入RocketMQ | 需要引入Saga框架 |</p>
-<p>| <strong>运维成本</strong> | 需要维护定时任务 | 依赖MQ的高可用 | 需要监控Saga执行状态 |</p>
-<p>| <strong>隔离性</strong> | 支持 | 支持 | 支持 |</p>
-<p>| <strong>幂等性</strong> | 需要消费端自行保证 | 需要消费端自行保证 | 需要每个步骤自行保证 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>本地消息表</th>
+<th>事务消息（RocketMQ）</th>
+<th>Saga模式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>实现复杂度</strong></td>
+<td>中等，需要额外维护消息表</td>
+<td>较低，依赖MQ的能力</td>
+<td>较高，需要设计状态机和补偿</td>
+</tr><tr>
+<td><strong>一致性保证</strong></td>
+<td>最终一致，有秒级延迟</td>
+<td>最终一致，延迟更低</td>
+<td>最终一致，可精确控制</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>中小规模系统，对延迟不敏感</td>
+<td>已经使用RocketMQ的团队</td>
+<td>长事务、复杂业务流程</td>
+</tr><tr>
+<td><strong>侵入性</strong></td>
+<td>需要修改业务代码</td>
+<td>需要引入RocketMQ</td>
+<td>需要引入Saga框架</td>
+</tr><tr>
+<td><strong>运维成本</strong></td>
+<td>需要维护定时任务</td>
+<td>依赖MQ的高可用</td>
+<td>需要监控Saga执行状态</td>
+</tr><tr>
+<td><strong>隔离性</strong></td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr><tr>
+<td><strong>幂等性</strong></td>
+<td>需要消费端自行保证</td>
+<td>需要消费端自行保证</td>
+<td>需要每个步骤自行保证</td>
+</tr></tbody></table>
 <h3 id="各方案优缺点详解"><a href="#各方案优缺点详解" class="headerlink" title="各方案优缺点详解"></a>各方案优缺点详解</h3>
 <p><strong>本地消息表</strong></p>
 <ul>

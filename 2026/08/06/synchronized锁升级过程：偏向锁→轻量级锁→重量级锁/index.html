@@ -240,11 +240,27 @@ var GLOBAL_CONFIG = {
 <li><strong>重量级锁</strong>：抢座位的人越来越多，纸上的名字写不下了。你干脆请了一个<strong>管理员（OS Mutex）</strong>，所有人来之前必须先找管理员登记排队，管理员统一协调。</li>
 </ul>
 <p>这个类比映射到 JVM 里就是：</p>
-<p>| 概念 | 生活类比 | 技术含义 |</p>
-<p>|------|----------|----------|</p>
-<p>| 偏向锁 | 座位上放书 | 同一线程重入时，无需任何 CAS 操作 |</p>
-<p>| 轻量级锁 | 纸上签名 | 通过 CAS 自旋获取锁，避免线程阻塞 |</p>
-<p>| 重量级锁 | 管理员登记 | 通过 OS Mutex 挂起/唤醒线程，涉及用户态和内核态切换 |</p>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>生活类比</th>
+<th>技术含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>偏向锁</td>
+<td>座位上放书</td>
+<td>同一线程重入时，无需任何 CAS 操作</td>
+</tr><tr>
+<td>轻量级锁</td>
+<td>纸上签名</td>
+<td>通过 CAS 自旋获取锁，避免线程阻塞</td>
+</tr><tr>
+<td>重量级锁</td>
+<td>管理员登记</td>
+<td>通过 OS Mutex 挂起/唤醒线程，涉及用户态和内核态切换</td>
+</tr></tbody></table>
 <h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
 <h3 id="对象头的秘密"><a href="#对象头的秘密" class="headerlink" title="对象头的秘密"></a>对象头的秘密</h3>
 <p>锁的状态信息存放在 Java 对象的 <strong>Mark Word</strong> 中（64 位 JVM 下占据 8 字节）。为了让你有个直观感受，下面是 64 位 HotSpot 中 Mark Word 的布局：</p>
@@ -509,14 +525,46 @@ graph TD
     D --> I[ReentrantReadWriteLock]
     D --> J[StampedLock 乐观读]
 </div>
-<p>| 维度 | synchronized | ReentrantLock | StampedLock |</p>
-<p>|------|--------------|---------------|-------------|</p>
-<p>| 锁升级 | 支持（偏向→轻量→重量） | 不支持（直接是 AQS 队列） | 不支持（乐观读/写锁切换） |</p>
-<p>| 可中断性 | 不支持 | 支持 | 不支持 |</p>
-<p>| 公平性 | 非公平 | 可配置公平/非公平 | 非公平 |</p>
-<p>| 性能（低竞争） | 最好（偏向锁） | 较好（CAS） | 好（乐观读） |</p>
-<p>| 性能（高竞争） | 差（OS 阻塞） | 较好（AQS 队列） | 读多写少时最好 |</p>
-<p>| 适用场景 | 简单同步块、低竞争 | 复杂并发控制、需要超时中断 | 读多写少、读写比例悬殊 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>synchronized</th>
+<th>ReentrantLock</th>
+<th>StampedLock</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>锁升级</td>
+<td>支持（偏向→轻量→重量）</td>
+<td>不支持（直接是 AQS 队列）</td>
+<td>不支持（乐观读/写锁切换）</td>
+</tr><tr>
+<td>可中断性</td>
+<td>不支持</td>
+<td>支持</td>
+<td>不支持</td>
+</tr><tr>
+<td>公平性</td>
+<td>非公平</td>
+<td>可配置公平/非公平</td>
+<td>非公平</td>
+</tr><tr>
+<td>性能（低竞争）</td>
+<td>最好（偏向锁）</td>
+<td>较好（CAS）</td>
+<td>好（乐观读）</td>
+</tr><tr>
+<td>性能（高竞争）</td>
+<td>差（OS 阻塞）</td>
+<td>较好（AQS 队列）</td>
+<td>读多写少时最好</td>
+</tr><tr>
+<td>适用场景</td>
+<td>简单同步块、低竞争</td>
+<td>复杂并发控制、需要超时中断</td>
+<td>读多写少、读写比例悬殊</td>
+</tr></tbody></table>
 <p><strong>最佳实践建议</strong>：</p>
 <ul>
 <li>如果只是简单的同步方法/块，直接用 <code>synchronized</code>，JVM 会帮你优化。</li>

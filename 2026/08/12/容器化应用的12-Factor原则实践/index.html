@@ -233,20 +233,63 @@ var GLOBAL_CONFIG = {
 <h3 id="生活类比-餐厅后厨的标准化"><a href="#生活类比-餐厅后厨的标准化" class="headerlink" title="生活类比：餐厅后厨的标准化"></a>生活类比：餐厅后厨的标准化</h3>
 <p>想象一家连锁餐厅。如果每家分店的厨师都按自己的习惯做菜——有的用本地采购的食材，有的用总部的冷冻食材，有的自己改配方——这家餐厅的口味必然失控。连锁餐厅的成功，靠的不是厨师的个人技艺，而是一套标准化的作业流程：统一的供应链、统一的配方、统一的设备操作规范。</p>
 <p>12-Factor原则就是软件应用的"连锁餐厅标准"。它定义了12条规则，确保你的应用在任何环境下都能以可预测的方式运行：</p>
-<p>| 原则 | 核心思想 | 容器化对应 |</p>
-<p>|------|---------|-----------|</p>
-<p>| 1. 基准代码 | 一份代码，多环境部署 | Git仓库 + 镜像Tag |</p>
-<p>| 2. 依赖 | 显式声明依赖 | Dockerfile中的依赖安装 |</p>
-<p>| 3. 配置 | 环境差异存入环境变量 | K8s ConfigMap/Secret |</p>
-<p>| 4. 后端服务 | 把后端服务当作附加资源 | Service/Ingress 抽象 |</p>
-<p>| 5. 构建-发布-运行 | 严格分离三个阶段 | CI/CD Pipeline |</p>
-<p>| 6. 进程 | 以无状态进程运行 | Pod的不可变特性 |</p>
-<p>| 7. 端口绑定 | 通过端口对外提供服务 | ContainerPort |</p>
-<p>| 8. 并发 | 通过进程模型横向扩展 | ReplicaSet/HPA |</p>
-<p>| 9. 易处理 | 快速启动和优雅退出 | 启动探针 + PreStop钩子 |</p>
-<p>| 10. 开发-生产一致 | 各环境尽可能一致 | 多阶段构建 + 相同基础镜像 |</p>
-<p>| 11. 日志 | 日志作为事件流 | stdout/stderr + 日志采集 |</p>
-<p>| 12. 管理进程 | 数据库迁移等一次性任务 | K8s Job/CronJob |</p>
+<table>
+<thead>
+<tr>
+<th>原则</th>
+<th>核心思想</th>
+<th>容器化对应</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. 基准代码</td>
+<td>一份代码，多环境部署</td>
+<td>Git仓库 + 镜像Tag</td>
+</tr><tr>
+<td>2. 依赖</td>
+<td>显式声明依赖</td>
+<td>Dockerfile中的依赖安装</td>
+</tr><tr>
+<td>3. 配置</td>
+<td>环境差异存入环境变量</td>
+<td>K8s ConfigMap/Secret</td>
+</tr><tr>
+<td>4. 后端服务</td>
+<td>把后端服务当作附加资源</td>
+<td>Service/Ingress 抽象</td>
+</tr><tr>
+<td>5. 构建-发布-运行</td>
+<td>严格分离三个阶段</td>
+<td>CI/CD Pipeline</td>
+</tr><tr>
+<td>6. 进程</td>
+<td>以无状态进程运行</td>
+<td>Pod的不可变特性</td>
+</tr><tr>
+<td>7. 端口绑定</td>
+<td>通过端口对外提供服务</td>
+<td>ContainerPort</td>
+</tr><tr>
+<td>8. 并发</td>
+<td>通过进程模型横向扩展</td>
+<td>ReplicaSet/HPA</td>
+</tr><tr>
+<td>9. 易处理</td>
+<td>快速启动和优雅退出</td>
+<td>启动探针 + PreStop钩子</td>
+</tr><tr>
+<td>10. 开发-生产一致</td>
+<td>各环境尽可能一致</td>
+<td>多阶段构建 + 相同基础镜像</td>
+</tr><tr>
+<td>11. 日志</td>
+<td>日志作为事件流</td>
+<td>stdout/stderr + 日志采集</td>
+</tr><tr>
+<td>12. 管理进程</td>
+<td>数据库迁移等一次性任务</td>
+<td>K8s Job/CronJob</td>
+</tr></tbody></table>
 <h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
 <p>12-Factor原则的核心理念是：<strong>应用应该是一个或多个无状态进程的集合，它们共享代码库、显式声明依赖、通过环境变量获取配置、将日志输出到stdout</strong>。这套原则在容器化时代如此重要，是因为容器本身就是"进程"的极致抽象——它把应用及其运行环境打包成一个不可变单元，使得上述原则的违反会更加致命。</p>
 <h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
@@ -617,13 +660,35 @@ spec:
         averageUtilization: 70</code></pre></figure>
 <h2 id="方案对比-12-Factor-vs-其他方法论"><a href="#方案对比-12-Factor-vs-其他方法论" class="headerlink" title="方案对比：12-Factor vs 其他方法论"></a>方案对比：12-Factor vs 其他方法论</h2>
 <h3 id="12-Factor-vs-传统单体应用"><a href="#12-Factor-vs-传统单体应用" class="headerlink" title="12-Factor vs 传统单体应用"></a>12-Factor vs 传统单体应用</h3>
-<p>| 维度 | 12-Factor | 传统单体 |</p>
-<p>|------|-----------|---------|</p>
-<p>| 配置管理 | 环境变量注入 | 配置文件（易漂移） |</p>
-<p>| 依赖管理 | 显式声明（go.mod/requirements.txt） | 隐式依赖（系统级） |</p>
-<p>| 扩展性 | 无状态进程水平扩展 | 垂直扩展为主 |</p>
-<p>| 部署方式 | 不可变镜像 + 编排 | 手动部署到服务器 |</p>
-<p>| 日志处理 | stdout + 日志采集器 | 文件日志，分散难收集 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>12-Factor</th>
+<th>传统单体</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>配置管理</td>
+<td>环境变量注入</td>
+<td>配置文件（易漂移）</td>
+</tr><tr>
+<td>依赖管理</td>
+<td>显式声明（go.mod/requirements.txt）</td>
+<td>隐式依赖（系统级）</td>
+</tr><tr>
+<td>扩展性</td>
+<td>无状态进程水平扩展</td>
+<td>垂直扩展为主</td>
+</tr><tr>
+<td>部署方式</td>
+<td>不可变镜像 + 编排</td>
+<td>手动部署到服务器</td>
+</tr><tr>
+<td>日志处理</td>
+<td>stdout + 日志采集器</td>
+<td>文件日志，分散难收集</td>
+</tr></tbody></table>
 <h3 id="12-Factor-vs-DDD-领域驱动设计"><a href="#12-Factor-vs-DDD-领域驱动设计" class="headerlink" title="12-Factor vs DDD（领域驱动设计）"></a>12-Factor vs DDD（领域驱动设计）</h3>
 <p>12-Factor和DDD不是竞争关系，而是互补关系。12-Factor关注的是"应用如何运行"，DDD关注的是"业务如何建模"。但在实践中，两者有时会有张力：</p>
 <div class="mermaid">

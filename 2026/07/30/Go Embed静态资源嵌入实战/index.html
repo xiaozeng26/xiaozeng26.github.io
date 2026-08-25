@@ -509,12 +509,36 @@ func listFiles(fsys fs.FS, dir string) {
     }
 }</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
-<p>| 方案 | 优点 | 缺点 | 适用场景 |</p>
-<p>|------|------|------|----------|</p>
-<p>| <strong>Go embed (原生)</strong> | 编译时嵌入，零依赖；性能最好；安全只读 | 文件路径受限；不支持动态加载 | 小型项目、配置文件、模板 |</p>
-<p>| <strong>go-bindata</strong> | 支持更多配置；可输出Go代码 | 需要额外工具；构建流程复杂 | 老项目迁移、需要自定义元数据 |</p>
-<p>| <strong>go-assets</strong> | 支持文件监控和热加载 | 运行时开销；不适合生产 | 开发环境调试 |</p>
-<p>| <strong>外部文件系统</strong> | 灵活；支持热更新 | 部署复杂；容易遗漏文件 | 大型项目、需要动态配置 |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Go embed (原生)</strong></td>
+<td>编译时嵌入，零依赖；性能最好；安全只读</td>
+<td>文件路径受限；不支持动态加载</td>
+<td>小型项目、配置文件、模板</td>
+</tr><tr>
+<td><strong>go-bindata</strong></td>
+<td>支持更多配置；可输出Go代码</td>
+<td>需要额外工具；构建流程复杂</td>
+<td>老项目迁移、需要自定义元数据</td>
+</tr><tr>
+<td><strong>go-assets</strong></td>
+<td>支持文件监控和热加载</td>
+<td>运行时开销；不适合生产</td>
+<td>开发环境调试</td>
+</tr><tr>
+<td><strong>外部文件系统</strong></td>
+<td>灵活；支持热更新</td>
+<td>部署复杂；容易遗漏文件</td>
+<td>大型项目、需要动态配置</td>
+</tr></tbody></table>
 <h3 id="架构对比图"><a href="#架构对比图" class="headerlink" title="架构对比图"></a>架构对比图</h3>
 <div class="mermaid">
 graph TD

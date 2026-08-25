@@ -702,13 +702,53 @@ public class MapPerformanceBenchmark {
 </ul>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="ConcurrentHashMap-vs-其他并发方案"><a href="#ConcurrentHashMap-vs-其他并发方案" class="headerlink" title="ConcurrentHashMap vs 其他并发方案"></a>ConcurrentHashMap vs 其他并发方案</h3>
-<p>| 方案 | 锁粒度 | 并发度 | 读性能 | 写性能 | 适用场景 |</p>
-<p>|------|--------|--------|--------|--------|----------|</p>
-<p>| Hashtable | 整表锁 | 1 | 低 | 低 | 不推荐使用 |</p>
-<p>| Collections.synchronizedMap | 整表锁 | 1 | 低 | 低 | 简单包装现有 Map |</p>
-<p>| ConcurrentHashMap (JDK7) | Segment | 16 | 高 | 中 | 旧系统维护 |</p>
-<p>| ConcurrentHashMap (JDK8) | 单个桶 | 数组长度 | 高 | 高 | 首选方案 |</p>
-<p>| ConcurrentSkipListMap | 无锁（CAS） | 高 | 中 | 中 | 需要有序键值对 |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>锁粒度</th>
+<th>并发度</th>
+<th>读性能</th>
+<th>写性能</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hashtable</td>
+<td>整表锁</td>
+<td>1</td>
+<td>低</td>
+<td>低</td>
+<td>不推荐使用</td>
+</tr><tr>
+<td>Collections.synchronizedMap</td>
+<td>整表锁</td>
+<td>1</td>
+<td>低</td>
+<td>低</td>
+<td>简单包装现有 Map</td>
+</tr><tr>
+<td>ConcurrentHashMap (JDK7)</td>
+<td>Segment</td>
+<td>16</td>
+<td>高</td>
+<td>中</td>
+<td>旧系统维护</td>
+</tr><tr>
+<td>ConcurrentHashMap (JDK8)</td>
+<td>单个桶</td>
+<td>数组长度</td>
+<td>高</td>
+<td>高</td>
+<td>首选方案</td>
+</tr><tr>
+<td>ConcurrentSkipListMap</td>
+<td>无锁（CAS）</td>
+<td>高</td>
+<td>中</td>
+<td>中</td>
+<td>需要有序键值对</td>
+</tr></tbody></table>
 <h3 id="ConcurrentHashMap-的局限性"><a href="#ConcurrentHashMap-的局限性" class="headerlink" title="ConcurrentHashMap 的局限性"></a>ConcurrentHashMap 的局限性</h3>
 <ol>
 <li><strong>不能存储 null 键值</strong>：<code>ConcurrentHashMap</code> 不允许 null 键和 null 值，因为无法区分"值为 null"和"不存在"。如果业务需要 null 值，考虑使用 <code>Optional</code> 包装。</li>

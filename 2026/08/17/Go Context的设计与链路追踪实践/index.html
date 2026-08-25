@@ -524,13 +524,41 @@ graph TD
     I --> J[请求结束, 取消Context]
 </div>
 <h3 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h3>
-<p>| 特性 | Go Context | Java ThreadLocal | Python ContextVar |</p>
-<p>|------|-----------|-----------------|-------------------|</p>
-<p>| <strong>取消传播</strong> | ✅ 原生支持 | ❌ 需手动实现 | ❌ 需手动实现 |</p>
-<p>| <strong>超时控制</strong> | ✅ 内置<code>WithTimeout</code> | ❌ 需第三方库 | ❌ 需第三方库 |</p>
-<p>| <strong>数据传递</strong> | ✅ 不可变，线程安全 | ⚠️ 可变，需小心 | ⚠️ 可变，但隔离 |</p>
-<p>| <strong>性能开销</strong> | 低（接口调用） | 低（ThreadLocal） | 中（需要ContextVar对象） |</p>
-<p>| <strong>生命周期</strong> | 显式管理（cancel） | 隐式（跟随线程） | 显式（进入/退出） |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Go Context</th>
+<th>Java ThreadLocal</th>
+<th>Python ContextVar</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>取消传播</strong></td>
+<td>✅ 原生支持</td>
+<td>❌ 需手动实现</td>
+<td>❌ 需手动实现</td>
+</tr><tr>
+<td><strong>超时控制</strong></td>
+<td>✅ 内置<code>WithTimeout</code></td>
+<td>❌ 需第三方库</td>
+<td>❌ 需第三方库</td>
+</tr><tr>
+<td><strong>数据传递</strong></td>
+<td>✅ 不可变，线程安全</td>
+<td>⚠️ 可变，需小心</td>
+<td>⚠️ 可变，但隔离</td>
+</tr><tr>
+<td><strong>性能开销</strong></td>
+<td>低（接口调用）</td>
+<td>低（ThreadLocal）</td>
+<td>中（需要ContextVar对象）</td>
+</tr><tr>
+<td><strong>生命周期</strong></td>
+<td>显式管理（cancel）</td>
+<td>隐式（跟随线程）</td>
+<td>显式（进入/退出）</td>
+</tr></tbody></table>
 <h3 id="核心差异深度分析"><a href="#核心差异深度分析" class="headerlink" title="核心差异深度分析"></a>核心差异深度分析</h3>
 <p><strong>为什么Go选择显式传递而非隐式？</strong></p>
 <p>Java的ThreadLocal是<strong>隐式传递</strong>——数据绑定在线程上，任何代码都能访问。这在调试时很“神奇”，但也容易造成<strong>隐式耦合</strong>：你无法从函数签名看出它依赖哪些外部数据。</p>

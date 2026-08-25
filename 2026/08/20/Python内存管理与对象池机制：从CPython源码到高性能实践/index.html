@@ -432,12 +432,41 @@ def compare_memory_usage():
 
 compare_memory_usage()</code></pre></figure>
 <h2 id="方案对比-不同内存管理策略的博弈"><a href="#方案对比-不同内存管理策略的博弈" class="headerlink" title="方案对比：不同内存管理策略的博弈"></a>方案对比：不同内存管理策略的博弈</h2>
-<p>| 策略 | 适用场景 | 优点 | 缺点 | 典型应用 |</p>
-<p>|------|---------|------|------|---------|</p>
-<p>| <strong>pymalloc</strong> | 小对象（<512B） | 分配快，减少系统调用 | 内存对齐浪费 | 所有Python默认 |</p>
-<p>| <strong>系统malloc</strong> | 大对象 | 内存利用率高 | 性能不稳定 | 大list, numpy数组 |</p>
-<p>| <strong>对象池</strong> | 频繁创建销毁的同类型 | 零GC开销 | 内存不立即释放 | int, float, tuple |</p>
-<p>| <strong>手动内存池</strong> | 自定义数据结构 | 完全控制 | 实现复杂 | C扩展模块 |</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>适用场景</th>
+<th>优点</th>
+<th>缺点</th>
+<th>典型应用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>pymalloc</strong></td>
+<td>小对象（<512B）</td>
+<td>分配快，减少系统调用</td>
+<td>内存对齐浪费</td>
+<td>所有Python默认</td>
+</tr><tr>
+<td><strong>系统malloc</strong></td>
+<td>大对象</td>
+<td>内存利用率高</td>
+<td>性能不稳定</td>
+<td>大list, numpy数组</td>
+</tr><tr>
+<td><strong>对象池</strong></td>
+<td>频繁创建销毁的同类型</td>
+<td>零GC开销</td>
+<td>内存不立即释放</td>
+<td>int, float, tuple</td>
+</tr><tr>
+<td><strong>手动内存池</strong></td>
+<td>自定义数据结构</td>
+<td>完全控制</td>
+<td>实现复杂</td>
+<td>C扩展模块</td>
+</tr></tbody></table>
 <h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
 <h3 id="常见坑1-误用可变默认参数导致的-对象池污染"><a href="#常见坑1-误用可变默认参数导致的-对象池污染" class="headerlink" title="🚨 常见坑1：误用可变默认参数导致的"对象池污染""></a>🚨 常见坑1：误用可变默认参数导致的"对象池污染"</h3>
 <figure class="highlight python"><pre><code class="language-python">def bad_append(item, lst=[]):  # 错误！默认列表是共享的

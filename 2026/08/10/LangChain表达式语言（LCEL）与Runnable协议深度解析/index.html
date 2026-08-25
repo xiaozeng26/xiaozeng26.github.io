@@ -439,16 +439,56 @@ asyncio.run(async_batch_process(texts))</code></pre></figure>
 <p><strong>关键点</strong>：<code>RunnableParallel</code>的<code>invoke</code>方法会并发执行所有子链，而不是串行。这里展示的<code>abatch</code>是另一个高级API，它同时利用了异步IO和批量处理，在处理大量文本时性能提升显著。</p>
 <h2 id="方案对比-LCEL-vs-其他编排方案"><a href="#方案对比-LCEL-vs-其他编排方案" class="headerlink" title="方案对比：LCEL vs 其他编排方案"></a>方案对比：LCEL vs 其他编排方案</h2>
 <p>在LangChain生态中，LCEL并非唯一的编排方式。下表对比了它与传统<code>Chain</code>、以及新兴<code>LangGraph</code>的差异：</p>
-<p>| 特性 | LCEL (Runnable) | 传统 Chain (LLMChain等) | LangGraph |</p>
-<p>|------|----------------|------------------------|-----------|</p>
-<p>| <strong>组合方式</strong> | <code>\|</code> 管道符，声明式 | 类继承，命令式 | 图结构，显式节点/边 |</p>
-<p>| <strong>流式支持</strong> | 一等公民，内置 | 需自定义回调 | 支持，但需配置 |</p>
-<p>| <strong>并行</strong> | 内置 <code>RunnableParallel</code> | 需手动 <code>ThreadPool</code> | 通过图拓扑实现 |</p>
-<p>| <strong>条件分支</strong> | <code>RunnableBranch</code> | 需 <code>if-else</code> 写在代码中 | 原生支持条件边 |</p>
-<p>| <strong>循环/迭代</strong> | 不直接支持 | 不直接支持 | 原生支持（用于代理） |</p>
-<p>| <strong>状态管理</strong> | 无（纯函数式） | 无 | 有状态图 |</p>
-<p>| <strong>调试友好度</strong> | 配置传递回调，较友好 | 黑盒，较难 | 可视化，最友好 |</p>
-<p>| <strong>适合场景</strong> | 简单到中等复杂度的线性/并行链路 | 遗留代码 | 复杂代理、循环、人类介入 |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>LCEL (Runnable)</th>
+<th>传统 Chain (LLMChain等)</th>
+<th>LangGraph</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>组合方式</strong></td>
+<td><code>|</code> 管道符，声明式</td>
+<td>类继承，命令式</td>
+<td>图结构，显式节点/边</td>
+</tr><tr>
+<td><strong>流式支持</strong></td>
+<td>一等公民，内置</td>
+<td>需自定义回调</td>
+<td>支持，但需配置</td>
+</tr><tr>
+<td><strong>并行</strong></td>
+<td>内置 <code>RunnableParallel</code></td>
+<td>需手动 <code>ThreadPool</code></td>
+<td>通过图拓扑实现</td>
+</tr><tr>
+<td><strong>条件分支</strong></td>
+<td><code>RunnableBranch</code></td>
+<td>需 <code>if-else</code> 写在代码中</td>
+<td>原生支持条件边</td>
+</tr><tr>
+<td><strong>循环/迭代</strong></td>
+<td>不直接支持</td>
+<td>不直接支持</td>
+<td>原生支持（用于代理）</td>
+</tr><tr>
+<td><strong>状态管理</strong></td>
+<td>无（纯函数式）</td>
+<td>无</td>
+<td>有状态图</td>
+</tr><tr>
+<td><strong>调试友好度</strong></td>
+<td>配置传递回调，较友好</td>
+<td>黑盒，较难</td>
+<td>可视化，最友好</td>
+</tr><tr>
+<td><strong>适合场景</strong></td>
+<td>简单到中等复杂度的线性/并行链路</td>
+<td>遗留代码</td>
+<td>复杂代理、循环、人类介入</td>
+</tr></tbody></table>
 <p><strong>深度解读</strong>：</p>
 <ul>
 <li><strong>LCEL vs 传统Chain</strong>：LCEL是LangChain的“现代Hipster”方案，它用组合优于继承的设计哲学彻底替代了<code>Chain</code>类。你可以将LCEL视为Java 8的Stream API取代传统的<code>for</code>循环——功能等价，但表达力、可读性和性能特性完全不同。</li>

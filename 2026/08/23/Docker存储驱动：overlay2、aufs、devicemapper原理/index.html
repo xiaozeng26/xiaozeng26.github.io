@@ -731,13 +731,41 @@ graph TD
     D --> D2[缺点: 性能差/配置复杂/空间浪费]
 </div>
 <h3 id="性能对比"><a href="#性能对比" class="headerlink" title="性能对比"></a>性能对比</h3>
-<p>| 维度 | overlay2 | aufs | devicemapper |</p>
-<p>|------|----------|------|--------------|</p>
-<p>| 读性能 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |</p>
-<p>| 写性能 | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐ |</p>
-<p>| 内存效率 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |</p>
-<p>| 空间效率 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |</p>
-<p>| 稳定性 | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>overlay2</th>
+<th>aufs</th>
+<th>devicemapper</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>读性能</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+<td>⭐⭐</td>
+</tr><tr>
+<td>写性能</td>
+<td>⭐⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+<td>⭐</td>
+</tr><tr>
+<td>内存效率</td>
+<td>⭐⭐⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+<td>⭐⭐</td>
+</tr><tr>
+<td>空间效率</td>
+<td>⭐⭐⭐⭐</td>
+<td>⭐⭐⭐⭐</td>
+<td>⭐⭐</td>
+</tr><tr>
+<td>稳定性</td>
+<td>⭐⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+<td>⭐⭐⭐</td>
+</tr></tbody></table>
 <h3 id="选型建议"><a href="#选型建议" class="headerlink" title="选型建议"></a>选型建议</h3>
 <ul>
 <li><strong>生产环境（Linux 4.0+）</strong>：首选 overlay2，这是目前最成熟的方案</li>

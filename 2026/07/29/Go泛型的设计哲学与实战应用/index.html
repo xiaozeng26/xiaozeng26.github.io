@@ -531,16 +531,65 @@ func main() {
     Publish(bus, event)
 }</code></pre></figure>
 <h2 id="方案对比-Go泛型-vs-其他方案"><a href="#方案对比-Go泛型-vs-其他方案" class="headerlink" title="方案对比：Go泛型 vs 其他方案"></a>方案对比：Go泛型 vs 其他方案</h2>
-<p>| 特性 | Go泛型 | Java泛型（擦除式） | C++模板 | Rust泛型（单态化） |</p>
-<p>|------|--------|-------------------|---------|-------------------|</p>
-<p>| 编译策略 | 字典传递 | 类型擦除 | 代码特化 | 代码特化 |</p>
-<p>| 运行时开销 | 极小 | 无（但会装箱） | 无 | 无 |</p>
-<p>| 代码膨胀 | 可控 | 无 | 严重 | 可控 |</p>
-<p>| 类型安全 | 编译时 | 编译时+擦除警告 | 编译时 | 编译时 |</p>
-<p>| 学习曲线 | 中 | 低 | 高 | 中高 |</p>
-<p>| 泛型方法 | 支持 | 支持 | 支持 | 支持 |</p>
-<p>| 泛型结构体 | 支持 | 支持 | 支持 | 支持 |</p>
-<p>| 类型约束 | 接口+类型集 | 通配符 | 概念(concept) | trait |</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Go泛型</th>
+<th>Java泛型（擦除式）</th>
+<th>C++模板</th>
+<th>Rust泛型（单态化）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>编译策略</td>
+<td>字典传递</td>
+<td>类型擦除</td>
+<td>代码特化</td>
+<td>代码特化</td>
+</tr><tr>
+<td>运行时开销</td>
+<td>极小</td>
+<td>无（但会装箱）</td>
+<td>无</td>
+<td>无</td>
+</tr><tr>
+<td>代码膨胀</td>
+<td>可控</td>
+<td>无</td>
+<td>严重</td>
+<td>可控</td>
+</tr><tr>
+<td>类型安全</td>
+<td>编译时</td>
+<td>编译时+擦除警告</td>
+<td>编译时</td>
+<td>编译时</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>中</td>
+<td>低</td>
+<td>高</td>
+<td>中高</td>
+</tr><tr>
+<td>泛型方法</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr><tr>
+<td>泛型结构体</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+<td>支持</td>
+</tr><tr>
+<td>类型约束</td>
+<td>接口+类型集</td>
+<td>通配符</td>
+<td>概念(concept)</td>
+<td>trait</td>
+</tr></tbody></table>
 <h3 id="适用场景分析"><a href="#适用场景分析" class="headerlink" title="适用场景分析"></a>适用场景分析</h3>
 <p><strong>Go泛型最适合：</strong></p>
 <ol>

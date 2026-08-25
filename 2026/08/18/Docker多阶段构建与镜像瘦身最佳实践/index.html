@@ -450,13 +450,41 @@ EXPOSE 8080
 ENTRYPOINT [&quot;java&quot;, &quot;-jar&quot;, &quot;app.jar&quot;]</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
 <h3 id="多阶段构建-vs-其他瘦身方案"><a href="#多阶段构建-vs-其他瘦身方案" class="headerlink" title="多阶段构建 vs 其他瘦身方案"></a>多阶段构建 vs 其他瘦身方案</h3>
-<p>| 方案 | 优点 | 缺点 | 适用场景 |</p>
-<p>|------|------|------|----------|</p>
-<p>| <strong>多阶段构建</strong> | 构建过程可复现、层缓存友好、无需额外工具 | Dockerfile复杂度提升 | 所有Java/Go/Node项目 |</p>
-<p>| <strong>DockerSlim</strong> | 自动化分析运行时依赖、无需修改Dockerfile | 需要额外安装工具、分析时间较长 | 已有镜像的快速瘦身 |</p>
-<p>| <strong>Distroless镜像</strong> | 极简、安全（无shell）、体积小 | 调试困难（无shell）、不兼容所有语言 | 追求极致安全的场景 |</p>
-<p>| <strong>GraalVM Native Image</strong> | 启动快（毫秒级）、内存占用低 | 构建时间长、反射兼容性问题 | 无状态服务、Serverless |</p>
-<p>| <strong>自定义基础镜像</strong> | 完全可控 | 维护成本高 | 大型团队、有安全合规要求 |</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>多阶段构建</strong></td>
+<td>构建过程可复现、层缓存友好、无需额外工具</td>
+<td>Dockerfile复杂度提升</td>
+<td>所有Java/Go/Node项目</td>
+</tr><tr>
+<td><strong>DockerSlim</strong></td>
+<td>自动化分析运行时依赖、无需修改Dockerfile</td>
+<td>需要额外安装工具、分析时间较长</td>
+<td>已有镜像的快速瘦身</td>
+</tr><tr>
+<td><strong>Distroless镜像</strong></td>
+<td>极简、安全（无shell）、体积小</td>
+<td>调试困难（无shell）、不兼容所有语言</td>
+<td>追求极致安全的场景</td>
+</tr><tr>
+<td><strong>GraalVM Native Image</strong></td>
+<td>启动快（毫秒级）、内存占用低</td>
+<td>构建时间长、反射兼容性问题</td>
+<td>无状态服务、Serverless</td>
+</tr><tr>
+<td><strong>自定义基础镜像</strong></td>
+<td>完全可控</td>
+<td>维护成本高</td>
+<td>大型团队、有安全合规要求</td>
+</tr></tbody></table>
 <h3 id="实践对比-Spring-Boot应用镜像大小"><a href="#实践对比-Spring-Boot应用镜像大小" class="headerlink" title="实践对比：Spring Boot应用镜像大小"></a>实践对比：Spring Boot应用镜像大小</h3>
 <figure class="highlight bash"><pre><code class="language-bash"># 传统单阶段构建
 openjdk:17-jdk + mvn package = 780MB

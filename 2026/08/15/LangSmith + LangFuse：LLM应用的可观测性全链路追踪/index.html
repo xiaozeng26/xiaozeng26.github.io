@@ -700,15 +700,51 @@ async def main():
 if __name__ == &quot;__main__&quot;:
     asyncio.run(main())</code></pre></figure>
 <h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
-<p>| 维度 | LangSmith | LangFuse | 自建Otel方案 |</p>
-<p>|------|-----------|----------|-------------|</p>
-<p>| <strong>接入成本</strong> | 低（装饰器/回调） | 中（需手动创建） | 高（需自行实现） |</p>
-<p>| <strong>LangChain集成</strong> | 原生支持 | 需适配器 | 手动埋点 |</p>
-<p>| <strong>评估功能</strong> | 内置评估器 | 支持自定义评估 | 无 |</p>
-<p>| <strong>实验管理</strong> | 弱 | 强（支持Prompt版本对比） | 无 |</p>
-<p>| <strong>数据所有权</strong> | 托管服务 | 支持自托管/私有化 | 完全自有 |</p>
-<p>| <strong>成本追踪</strong> | 按模型估算 | 精确到Token | 需自行实现 |</p>
-<p>| <strong>团队协作</strong> | 支持 | 支持 | 依赖基础设施 |</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>LangSmith</th>
+<th>LangFuse</th>
+<th>自建Otel方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>接入成本</strong></td>
+<td>低（装饰器/回调）</td>
+<td>中（需手动创建）</td>
+<td>高（需自行实现）</td>
+</tr><tr>
+<td><strong>LangChain集成</strong></td>
+<td>原生支持</td>
+<td>需适配器</td>
+<td>手动埋点</td>
+</tr><tr>
+<td><strong>评估功能</strong></td>
+<td>内置评估器</td>
+<td>支持自定义评估</td>
+<td>无</td>
+</tr><tr>
+<td><strong>实验管理</strong></td>
+<td>弱</td>
+<td>强（支持Prompt版本对比）</td>
+<td>无</td>
+</tr><tr>
+<td><strong>数据所有权</strong></td>
+<td>托管服务</td>
+<td>支持自托管/私有化</td>
+<td>完全自有</td>
+</tr><tr>
+<td><strong>成本追踪</strong></td>
+<td>按模型估算</td>
+<td>精确到Token</td>
+<td>需自行实现</td>
+</tr><tr>
+<td><strong>团队协作</strong></td>
+<td>支持</td>
+<td>支持</td>
+<td>依赖基础设施</td>
+</tr></tbody></table>
 <p><strong>适用场景建议：</strong></p>
 <ul>
 <li><strong>快速验证</strong>：选择LangSmith，5分钟接入，零代码侵入</li>
