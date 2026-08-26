@@ -230,6 +230,13 @@
       "subtopic": "微服务拆分策略：从单体到微服务的演进路径",
       "date": "2026-08-25",
       "url": "/2026/08/25/微服务拆分策略：从单体到微服务的演进路径/"
+    },
+    {
+      "title": "RocketMQ消息存储与高可用架构：从源码到生产实践的深度剖析",
+      "category": "java",
+      "subtopic": "RocketMQ消息存储与高可用架构",
+      "date": "2026-08-26",
+      "url": "/2026/08/26/RocketMQ消息存储与高可用架构：从源码到生产实践的深度剖析/"
     }
   ],
   "used_subtopics": {
@@ -238,7 +245,8 @@
       "HashMap并发问题与ConcurrentHashMap分段锁演进",
       "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
       "Netty线程模型与零拷贝原理",
-      "Java Agent字节码增强技术实战"
+      "Java Agent字节码增强技术实战",
+      "RocketMQ消息存储与高可用架构"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -311,6 +319,7 @@
     "Java Agent字节码增强技术实战": "a82e19eb02a038cd94f6bc40b92baaf64d716de02e0a9bc6b5db28cd1c07f9f3",
     "Docker存储驱动：overlay2、aufs、devicemapper原理": "bd4b0a8842ef4cc5bc72d741a0c01ee34c058cf44a0b11dc16db4d621e433c18",
     "LangGraph Checkpointing：持久化与Human-in-the-Loop模式": "6b0c065d81d83977183d5df20953db2483bb93e49ab4222d52172d292c74a07c",
-    "微服务拆分策略：从单体到微服务的演进路径": "630286ed0489c0dd8d99e2f2d1b2a11e31d40f433cc2e17eeb80c9fe81f10215"
+    "微服务拆分策略：从单体到微服务的演进路径": "630286ed0489c0dd8d99e2f2d1b2a11e31d40f433cc2e17eeb80c9fe81f10215",
+    "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87"
   }
 }
