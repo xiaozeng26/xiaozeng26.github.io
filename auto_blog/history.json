@@ -237,6 +237,13 @@
       "subtopic": "RocketMQ消息存储与高可用架构",
       "date": "2026-08-26",
       "url": "/2026/08/26/RocketMQ消息存储与高可用架构：从源码到生产实践的深度剖析/"
+    },
+    {
+      "title": "SQLAlchemy Session管理与事务隔离：从入门到源码级精通",
+      "category": "python",
+      "subtopic": "SQLAlchemy Session管理与事务隔离",
+      "date": "2026-08-27",
+      "url": "/2026/08/28/SQLAlchemy Session管理与事务隔离：从入门到源码级精通/"
     }
   ],
   "used_subtopics": {
@@ -251,7 +258,8 @@
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
       "微服务框架Nameko的设计与使用",
-      "Python内存管理与对象池机制"
+      "Python内存管理与对象池机制",
+      "SQLAlchemy Session管理与事务隔离"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -320,6 +328,7 @@
     "Docker存储驱动：overlay2、aufs、devicemapper原理": "bd4b0a8842ef4cc5bc72d741a0c01ee34c058cf44a0b11dc16db4d621e433c18",
     "LangGraph Checkpointing：持久化与Human-in-the-Loop模式": "6b0c065d81d83977183d5df20953db2483bb93e49ab4222d52172d292c74a07c",
     "微服务拆分策略：从单体到微服务的演进路径": "630286ed0489c0dd8d99e2f2d1b2a11e31d40f433cc2e17eeb80c9fe81f10215",
-    "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87"
+    "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87",
+    "SQLAlchemy Session管理与事务隔离": "6c774ed30b196eb12e43451876ce29530b86046c46f491f45b7e39b8a1b3cc9d"
   }
 }
