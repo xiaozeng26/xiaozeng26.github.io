@@ -244,6 +244,13 @@
       "subtopic": "SQLAlchemy Session管理与事务隔离",
       "date": "2026-08-27",
       "url": "/2026/08/28/SQLAlchemy Session管理与事务隔离：从入门到源码级精通/"
+    },
+    {
+      "title": "sync.Mutex源码解读与锁优化",
+      "category": "golang",
+      "subtopic": "sync.Mutex源码解读与锁优化",
+      "date": "2026-08-28",
+      "url": "/2026/08/29/sync.Mutex源码解读与锁优化/"
     }
   ],
   "used_subtopics": {
@@ -292,7 +299,8 @@
       "Go内存管理：栈与堆、逃逸分析",
       "Go调度器GMP模型深度剖析",
       "Go Context的设计与链路追踪实践",
-      "Go错误处理范式与errors包源码"
+      "Go错误处理范式与errors包源码",
+      "sync.Mutex源码解读与锁优化"
     ]
   },
   "content_hashes": {
@@ -329,6 +337,7 @@
     "LangGraph Checkpointing：持久化与Human-in-the-Loop模式": "6b0c065d81d83977183d5df20953db2483bb93e49ab4222d52172d292c74a07c",
     "微服务拆分策略：从单体到微服务的演进路径": "630286ed0489c0dd8d99e2f2d1b2a11e31d40f433cc2e17eeb80c9fe81f10215",
     "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87",
-    "SQLAlchemy Session管理与事务隔离": "6c774ed30b196eb12e43451876ce29530b86046c46f491f45b7e39b8a1b3cc9d"
+    "SQLAlchemy Session管理与事务隔离": "6c774ed30b196eb12e43451876ce29530b86046c46f491f45b7e39b8a1b3cc9d",
+    "sync.Mutex源码解读与锁优化": "2c8f0ab3f66e9edcc232f79746077e3110beeae6747f5f9266acff3c03dc9294"
   }
 }
