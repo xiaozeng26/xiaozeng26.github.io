@@ -14,3 +14,7 @@ auto_blog/logs/
 .idea/
 *.swp
 *.swo
+
+# 本地截图，不提交
+Snipaste_*.png
+Snipaste_*.jpg

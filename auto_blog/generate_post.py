@@ -1091,14 +1091,20 @@ def main():
     plain_text = re.sub(r'<[^>]+>', '', content_html)
     plain_text = re.sub(r'\s+', ' ', plain_text).strip()
 
-    # 12. 更新首页
-    update_index_html(
-        post_title=post_title,
-        post_url_path=url_path,
-        date_str=date_str,
-        content_preview=plain_text,
-        category=category
-    )
+    # 12. 重建静态索引（首页/归档/分类/标签/详情页/侧边栏由 rebuild_site.py 生成）
+    try:
+        import rebuild_site
+        rebuild_site.rebuild_after_new_post()
+    except Exception as e:
+        print(f"[WARN] 静态重建失败: {e}")
+        # 回退：仍按旧逻辑往首页静态列表插入
+        update_index_html(
+            post_title=post_title,
+            post_url_path=url_path,
+            date_str=date_str,
+            content_preview=plain_text,
+            category=category
+        )
 
     # 13. 保存历史
     history["generated"].append({
