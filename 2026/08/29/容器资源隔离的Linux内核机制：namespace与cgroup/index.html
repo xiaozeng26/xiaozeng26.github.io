@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>容器资源隔离的Linux内核机制：namespace与cgroup | 小曾博客</title>
+  <meta name="description" content="容器资源隔离的Linux内核机制：namespace与cgroup 引言 假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 top 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整个平台上的所">
+  <meta name="keywords" content="docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="容器资源隔离的Linux内核机制：namespace与cgroup">
+  <meta name="twitter:description" content="容器资源隔离的Linux内核机制：namespace与cgroup 引言 假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 top 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整个平台上的所">
+  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/13/800/400">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="容器资源隔离的Linux内核机制：namespace与cgroup">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="容器资源隔离的Linux内核机制：namespace与cgroup 引言 假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 top 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整个平台上的所">
+  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/13/800/400">
+  <meta property="article:published_time" content="2026-08-29T23:55:58.000Z">
+  <meta property="article:modified_time" content="2026-08-29T23:55:58.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#容器资源隔离的Linux内核机制-namespace与cgroup"><span class="toc-text">容器资源隔离的Linux内核机制：namespace与cgroup</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-酒店客房-vs-集体宿舍"><span class="toc-text">生活类比：酒店客房 vs 集体宿舍</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#namespace-的创建与生命周期"><span class="toc-text">namespace 的创建与生命周期</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#cgroup-的层级结构与控制器"><span class="toc-text">cgroup 的层级结构与控制器</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-用-Go-手写一个-迷你-Docker-namespace-隔离"><span class="toc-text">示例一：用 Go 手写一个“迷你 Docker”（namespace 隔离）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-cgroup-v2-手动限流-CPU-内存"><span class="toc-text">示例二：cgroup v2 手动限流（CPU + 内存）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-通过-Go-调用-cgroup-接口实现动态扩容"><span class="toc-text">示例三：通过 Go 调用 cgroup 接口实现动态扩容</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/13/800/400)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">容器资源隔离的Linux内核机制：namespace与cgroup</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-08-29"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-08-29</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-08-29"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-08-29</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="容器资源隔离的Linux内核机制-namespace与cgroup"><a href="#容器资源隔离的Linux内核机制-namespace与cgroup" class="headerlink" title="容器资源隔离的Linux内核机制：namespace与cgroup"></a>容器资源隔离的Linux内核机制：namespace与cgroup</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 <code>top</code> 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整个平台上的所有租户响应时间集体飙红，你被电话轰炸到怀疑人生。</p>
+<p>这个场景的核心矛盾在于：<strong>容器本质上是共享宿主机内核的进程，但业务上又需要彼此“假装”独占一台机器</strong>。而实现这种“假装”的底层魔法，正是 Linux 内核提供的两大机制——<code>namespace</code>（命名空间）和 <code>cgroup</code>（控制组）。</p>
+<p>如果说虚拟机是通过硬件虚拟化（Hypervisor）给每个租户盖了一栋独立别墅，那么容器就是在同一栋大楼里用“隔音墙 + 中央空调分户计费”来隔离。<code>namespace</code> 是那堵隔音墙（隔离可见性），<code>cgroup</code> 是那个分户电表（限制资源用量）。本文将从源码和实战两个维度，把这堵墙和这块电表彻底拆开揉碎。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-酒店客房-vs-集体宿舍"><a href="#生活类比-酒店客房-vs-集体宿舍" class="headerlink" title="生活类比：酒店客房 vs 集体宿舍"></a>生活类比：酒店客房 vs 集体宿舍</h3>
+<p>想象你住进一家高端酒店（宿主机）。每个房间（容器）都有独立的房卡（PID namespace），你看不见隔壁房间住了谁（进程隔离）；房间里的电视遥控器（Network namespace）只能控制自己房间的电视，不会串台到隔壁；酒店前台（UTS namespace）告诉你“本酒店叫希尔顿”，但每个房间里的闹钟（Mount namespace）显示的时间却可以各不相同。</p>
+<p>而这家酒店的中央空调系统（cgroup）则负责“分户计费”：<strong>每个房间的制冷功率上限是多少（cpu.cfs_quota_us）、温度最低能调到几度（memory.limit_in_bytes）、卫生间水压最大能到多少（blkio.throttle.read_bps_device）</strong>。空调压缩机（宿主机 CPU）只有一个，但每个房间能用的冷气量被精确量化。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<ul>
+<li><strong>namespace</strong>：内核为进程提供的一种“视图隔离”机制。它让一组进程只能看到全局资源的一个子集。Linux 目前支持 8 种 namespace（Mount、PID、Net、IPC、UTS、User、Cgroup、Time）。</li>
+</ul>
+<ul>
+<li><strong>cgroup</strong>：内核提供的资源限制、优先级控制、审计和隔离机制。它通过层级化的任务组（task group）将进程分组，并对组内进程进行统一的资源配额管理。</li>
+</ul>
+<p>两者是“一体两面”：<code>namespace</code> 解决“<strong>看得到什么</strong>”的问题，<code>cgroup</code> 解决“<strong>能用多少</strong>”的问题。Docker 的 <code>docker run --cpus=2 --memory=1g -it ubuntu bash</code> 命令，本质上就是同时调用了 <code>clone()</code> 和 <code>cgroupfs</code> 的写操作。</p>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="namespace-的创建与生命周期"><a href="#namespace-的创建与生命周期" class="headerlink" title="namespace 的创建与生命周期"></a>namespace 的创建与生命周期</h3>
+<p><code>namespace</code> 的创建并非独立系统调用，而是通过 <code>clone()</code> 系统调用的 <code>flags</code> 参数实现。当 Docker 启动一个容器时，<code>runc</code> 会调用 <code>runc/libcontainer</code> 中的 <code>factory.Create()</code> 方法，最终触发 <code>clone()</code>。</p>
+<figure class="highlight c"><pre><code class="language-c">// kernel/fork.c (简化版)
+static __latent_entropy struct task_struct *copy_process(...)
+{
+    ...
+    retval = copy_namespaces(clone_flags, p); // 根据 flags 创建新的 namespace
+    ...
+}
+
+// kernel/nsproxy.c
+int copy_namespaces(unsigned long flags, struct task_struct *tsk)
+{
+    struct nsproxy *old_ns = tsk-&gt;nsproxy;
+    struct nsproxy *new_ns;
+    ...
+    new_ns = create_new_namespaces(flags, tsk, user_ns, tsk-&gt;fs);
+    ...
+}</code></pre></figure>
+<p>当 <code>clone()</code> 传入 <code>CLONE_NEWPID</code> 时，内核会创建新的 PID namespace。<strong>注意：新命名空间中的第一个进程 PID 永远是 1</strong>，它的作用是充当该命名空间内的“僵尸进程收割者”。如果 PID 1 进程退出，内核会向该 namespace 内的所有进程发送 <code>SIGKILL</code>，这解释了为什么 Docker 容器如果没有 <code>--init</code> 进程，孤儿进程会变成僵尸。</p>
+<h3 id="cgroup-的层级结构与控制器"><a href="#cgroup-的层级结构与控制器" class="headerlink" title="cgroup 的层级结构与控制器"></a>cgroup 的层级结构与控制器</h3>
+<p>cgroup v2 是当前主流（Kubernetes 1.25+ 默认使用）。它的核心设计是 <strong>统一层级（Unified Hierarchy）</strong>，所有控制器（CPU、Memory、IO）挂在同一个树形结构下，解决了 v1 中多层级混乱导致的死锁问题。</p>
+<figure class="highlight "><pre><code>/sys/fs/cgroup/
+├── cgroup.controllers          # 可用控制器列表
+├── cgroup.subtree_control      # 可下放给子组的控制器
+├── cpu.max                     # &quot;quota period&quot; 格式
+├── memory.max                  # 字节数
+└── my-container/
+    ├── cgroup.procs            # 属于该组的进程 PID
+    ├── cpu.max                 # &quot;200000 100000&quot; -&gt; 2 核
+    └── memory.max              # &quot;1073741824&quot; -&gt; 1GB</code></pre></figure>
+<p>当你执行 <code>echo 200000 > /sys/fs/cgroup/my-container/cpu.max</code> 时，内核的 <code>cpu_cfs_quota</code> 机制会确保该 cgroup 内的所有进程在每个调度周期（默认 100ms）内，最多只能获得 200ms 的 CPU 时间。这个计算是由 <code>kernel/sched/fair.c</code> 中的 <code>__refill_cfs_bandwidth_runtime()</code> 函数完成的。</p>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例一-用-Go-手写一个-迷你-Docker-namespace-隔离"><a href="#示例一-用-Go-手写一个-迷你-Docker-namespace-隔离" class="headerlink" title="示例一：用 Go 手写一个“迷你 Docker”（namespace 隔离）"></a>示例一：用 Go 手写一个“迷你 Docker”（namespace 隔离）</h3>
+<figure class="highlight go"><pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+    &quot;os&quot;
+    &quot;os/exec&quot;
+    &quot;syscall&quot;
+)
+
+func main() {
+    switch os.Args[1] {
+    case &quot;run&quot;:
+        run()
+    case &quot;child&quot;:
+        child()
+    default:
+        panic(&quot;unknown command&quot;)
+    }
+}
+
+func run() {
+    cmd := exec.Command(&quot;/proc/self/exe&quot;, append([]string{&quot;child&quot;}, os.Args[2:]...)...)
+    cmd.Stdin = os.Stdin
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+
+    // 关键：clone 时指定 namespace 隔离标志
+    cmd.SysProcAttr = &amp;syscall.SysProcAttr{
+        Cloneflags: syscall.CLONE_NEWUTS | // 独立主机名
+            syscall.CLONE_NEWPID | // 独立进程树
+            syscall.CLONE_NEWNS |  // 独立挂载点
+            syscall.CLONE_NEWNET, // 独立网络栈
+    }
+
+    must(cmd.Run())
+}
+
+func child() {
+    // 设置新主机名
+    must(syscall.Sethostname([]byte(&quot;tiny-container&quot;)))
+    // 挂载 proc 文件系统，否则 ps 命令看到的是宿主机的进程
+    must(syscall.Mount(&quot;proc&quot;, &quot;/proc&quot;, &quot;proc&quot;, 0, &quot;&quot;))
+
+    cmd := exec.Command(os.Args[2], os.Args[3:]...)
+    cmd.Stdin = os.Stdin
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    must(cmd.Run())
+}
+
+func must(err error) {
+    if err != nil {
+        fmt.Println(&quot;Error:&quot;, err)
+        os.Exit(1)
+    }
+}</code></pre></figure>
+<p><strong>运行效果</strong>：<code>go run minidocker.go run /bin/bash</code> 后，执行 <code>ps -ef</code>，只能看到 <code>bash</code> 和 <code>ps</code> 两个进程，仿佛自己独占了一台机器。</p>
+<h3 id="示例二-cgroup-v2-手动限流-CPU-内存"><a href="#示例二-cgroup-v2-手动限流-CPU-内存" class="headerlink" title="示例二：cgroup v2 手动限流（CPU + 内存）"></a>示例二：cgroup v2 手动限流（CPU + 内存）</h3>
+<figure class="highlight bash"><pre><code class="language-bash">#!/bin/bash
+# 演示如何通过 cgroupfs 直接控制资源
+
+# 1. 创建控制组
+mkdir -p /sys/fs/cgroup/demo-container
+
+# 2. 限制 CPU：在 100ms 周期内最多使用 20ms（即 0.2 核）
+echo &quot;20000 100000&quot; &gt; /sys/fs/cgroup/demo-container/cpu.max
+
+# 3. 限制内存：最多 256MB
+echo &quot;268435456&quot; &gt; /sys/fs/cgroup/demo-container/memory.max
+
+# 4. 将当前 shell 及其子进程加入该组
+echo $$ &gt; /sys/fs/cgroup/demo-container/cgroup.procs
+
+# 5. 测试：启动一个死循环，观察 CPU 使用率
+while true; do
+    :
+done</code></pre></figure>
+<p><strong>验证方法</strong>：另开终端执行 <code>top -p <pid></code>，你会看到 CPU 使用率稳定在 20% 左右，而不是 100%。内存超限时，进程会收到 OOM Killer 的 <code>SIGKILL</code>。</p>
+<h3 id="示例三-通过-Go-调用-cgroup-接口实现动态扩容"><a href="#示例三-通过-Go-调用-cgroup-接口实现动态扩容" class="headerlink" title="示例三：通过 Go 调用 cgroup 接口实现动态扩容"></a>示例三：通过 Go 调用 cgroup 接口实现动态扩容</h3>
+<figure class="highlight go"><pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+    &quot;os&quot;
+    &quot;path/filepath&quot;
+    &quot;strconv&quot;
+    &quot;time&quot;
+)
+
+const cgroupRoot = &quot;/sys/fs/cgroup&quot;
+
+func writeFile(path, content string) error {
+    return os.WriteFile(filepath.Join(cgroupRoot, path), []byte(content), 0644)
+}
+
+func main() {
+    group := &quot;app-tier&quot;
+    os.MkdirAll(filepath.Join(cgroupRoot, group), 0755)
+
+    // 将当前进程加入控制组
+    pid := os.Getpid()
+    writeFile(group+&quot;/cgroup.procs&quot;, strconv.Itoa(pid))
+
+    // 初始限制：1 核
+    writeFile(group+&quot;/cpu.max&quot;, &quot;100000 100000&quot;)
+    fmt.Println(&quot;CPU limit: 1 core&quot;)
+
+    time.Sleep(5 * time.Second)
+
+    // 动态扩容到 4 核（模拟业务流量高峰）
+    writeFile(group+&quot;/cpu.max&quot;, &quot;400000 100000&quot;)
+    fmt.Println(&quot;CPU limit: 4 cores (expanded)&quot;)
+
+    // 阻塞，让进程保持运行
+    select {}
+}</code></pre></figure>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>namespace + cgroup（容器）</th>
+<th>KVM（虚拟机）</th>
+<th>裸机进程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>隔离级别</strong></td>
+<td>内核级视图隔离</td>
+<td>硬件级虚拟化</td>
+<td>无隔离</td>
+</tr><tr>
+<td><strong>启动速度</strong></td>
+<td>毫秒级</td>
+<td>秒级（需引导内核）</td>
+<td>微秒级</td>
+</tr><tr>
+<td><strong>资源密度</strong></td>
+<td>高（可超卖）</td>
+<td>低（内存页表开销大）</td>
+<td>高</td>
+</tr><tr>
+<td><strong>安全边界</strong></td>
+<td>弱（共享内核，有逃逸风险）</td>
+<td>强（Guest OS 独立）</td>
+<td>无</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>微服务、无状态应用</td>
+<td>多租户强隔离、Windows 应用</td>
+<td>高性能计算</td>
+</tr></tbody></table>
+<p><strong>关键结论</strong>：容器不是“轻量级虚拟机”，而是“加了约束的进程”。Kubernetes 选择容器而非 KVM，核心原因是<strong>密度和弹性</strong>——在同等硬件上可以运行 10 倍的实例数，且扩容时间从秒级降到毫秒级。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>永远使用 <code>--init</code> 或 <code>tini</code></strong>：否则 PID 1 不是 <code>init</code> 进程，无法正确收割僵尸进程，容器退出时可能残留孤儿进程。</li>
+<li><strong>Kubernetes 中显式声明 <code>resources.limits</code></strong>：只设置 <code>requests</code> 而不设 <code>limits</code> 会导致 cgroup 不生效，宿主机 OOM 时可能误杀其他 Pod。</li>
+<li><strong>监控 cgroup 而不是 <code>/proc</code></strong>：在容器内看 <code>/proc/meminfo</code> 看到的是宿主机数据，必须通过 <code>cgroup</code> 的 <code>memory.current</code> 获取真实用量。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<ul>
+<li><strong><code>/proc</code> 信息泄露</strong>：默认情况下，容器内的 <code>cat /proc/cpuinfo</code> 会看到宿主机全部 CPU 型号。需要挂载 <code>lxcfs</code> 或使用 <code>hidepid</code> 选项来“伪造”数据。</li>
+</ul>
+<ul>
+<li><strong>cgroup v1 vs v2 混用</strong>：Docker 19.03 之前默认 v1，K8s 1.25 之后要求 v2。混用会导致 <code>/sys/fs/cgroup</code> 路径不兼容。</li>
+</ul>
+<ul>
+<li><strong>PID namespace 与 <code>docker top</code> 的偏差</strong>：<code>docker top</code> 显示的 PID 是宿主机视角的，而容器内 <code>ps</code> 显示的是 namespace 视角的，两者需要映射。</li>
+</ul>
+<div class="mermaid">
+graph TD
+    A[用户执行 docker run] --> B[Docker CLI]
+    B --> C[Docker Daemon]
+    C --> D[containerd]
+    D --> E[runc]
+    E --> F[clone with CLONE_NEW*]
+    F --> G[新进程 PID=1]
+    G --> H[写入 cgroupfs]
+    H --> I[进程受限运行]
+    I --> J{资源超限?}
+    J -->|是| K[OOM Killer 或 CPU Throttle]
+    J -->|否| L[正常服务]
+</div>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p><code>namespace</code> 和 <code>cgroup</code> 是容器的“任督二脉”：前者打通了“看”的边界，后者打通了“用”的边界。理解它们不仅能帮你解决“容器里看不到磁盘”这类玄学问题，更能帮你设计出高密度的多租户架构。</p>
+<p>延伸思考：<strong>当你把视角从单机容器移到 Kubernetes 集群时，<code>namespace</code> 和 <code>cgroup</code> 的隔离粒度是否足够？</strong> Service Mesh 的 sidecar 注入、eBPF 的可观测性增强，都在试图弥补内核隔离机制在“网络安全”和“细粒度审计”上的不足。下一次，当你的微服务被一个失控的 goroutine 打爆时，希望你能想起今天拆解的这堵隔音墙和那块分户电表。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

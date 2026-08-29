@@ -251,6 +251,13 @@
       "subtopic": "sync.Mutex源码解读与锁优化",
       "date": "2026-08-28",
       "url": "/2026/08/29/sync.Mutex源码解读与锁优化/"
+    },
+    {
+      "title": "容器资源隔离的Linux内核机制：namespace与cgroup",
+      "category": "cloud-native",
+      "subtopic": "容器资源隔离的Linux内核机制：namespace与cgroup",
+      "date": "2026-08-29",
+      "url": "/2026/08/29/容器资源隔离的Linux内核机制：namespace与cgroup/"
     }
   ],
   "used_subtopics": {
@@ -290,7 +297,8 @@
       "Kubernetes调度器源码分析与自定义调度",
       "容器化应用的12-Factor原则实践",
       "Docker多阶段构建与镜像瘦身最佳实践",
-      "Docker存储驱动：overlay2、aufs、devicemapper原理"
+      "Docker存储驱动：overlay2、aufs、devicemapper原理",
+      "容器资源隔离的Linux内核机制：namespace与cgroup"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -338,6 +346,7 @@
     "微服务拆分策略：从单体到微服务的演进路径": "630286ed0489c0dd8d99e2f2d1b2a11e31d40f433cc2e17eeb80c9fe81f10215",
     "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87",
     "SQLAlchemy Session管理与事务隔离": "6c774ed30b196eb12e43451876ce29530b86046c46f491f45b7e39b8a1b3cc9d",
-    "sync.Mutex源码解读与锁优化": "2c8f0ab3f66e9edcc232f79746077e3110beeae6747f5f9266acff3c03dc9294"
+    "sync.Mutex源码解读与锁优化": "2c8f0ab3f66e9edcc232f79746077e3110beeae6747f5f9266acff3c03dc9294",
+    "容器资源隔离的Linux内核机制：namespace与cgroup": "03dd19cbec69d929d45b31638db77b61b44a69f07612ea66402bd86a5d1fda84"
   }
 }

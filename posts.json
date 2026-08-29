@@ -1,5 +1,23 @@
 [
  {
+  "title": "容器资源隔离的Linux内核机制：namespace与cgroup",
+  "url": "/2026/08/29/%E5%AE%B9%E5%99%A8%E8%B5%84%E6%BA%90%E9%9A%94%E7%A6%BB%E7%9A%84Linux%E5%86%85%E6%A0%B8%E6%9C%BA%E5%88%B6%EF%BC%9Anamespace%E4%B8%8Ecgroup/",
+  "date": "2026-08-29",
+  "year": 2026,
+  "month": 8,
+  "day": 29,
+  "category": "cloud-native",
+  "tags": [
+   "docker",
+   "kubernetes",
+   "cloud-native",
+   "devops",
+   "container"
+  ],
+  "cover": "https://picsum.photos/seed/13/800/400",
+  "excerpt": "引言 假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 top 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整"
+ },
+ {
   "title": "sync.Mutex源码解读与锁优化",
   "url": "/2026/08/29/sync.Mutex%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E4%B8%8E%E9%94%81%E4%BC%98%E5%8C%96/",
   "date": "2026-08-29",
