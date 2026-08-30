@@ -258,6 +258,13 @@
       "subtopic": "容器资源隔离的Linux内核机制：namespace与cgroup",
       "date": "2026-08-29",
       "url": "/2026/08/29/容器资源隔离的Linux内核机制：namespace与cgroup/"
+    },
+    {
+      "title": "服务网格Service Mesh架构演进：从Sidecar到无边界的下一代",
+      "category": "architecture",
+      "subtopic": "服务网格Service Mesh架构演进",
+      "date": "2026-08-30",
+      "url": "/2026/08/30/服务网格Service Mesh架构演进：从Sidecar到无边界的下一代/"
     }
   ],
   "used_subtopics": {
@@ -289,7 +296,8 @@
       "多活数据中心架构设计",
       "全链路压测方案设计与流量染色",
       "最终一致性方案：本地消息表、事务消息、Saga模式",
-      "微服务拆分策略：从单体到微服务的演进路径"
+      "微服务拆分策略：从单体到微服务的演进路径",
+      "服务网格Service Mesh架构演进"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -347,6 +355,7 @@
     "RocketMQ消息存储与高可用架构": "6353d9667968b4308519aa49f3552bdd24f362fd7a4efe93ed716a6b65f91e87",
     "SQLAlchemy Session管理与事务隔离": "6c774ed30b196eb12e43451876ce29530b86046c46f491f45b7e39b8a1b3cc9d",
     "sync.Mutex源码解读与锁优化": "2c8f0ab3f66e9edcc232f79746077e3110beeae6747f5f9266acff3c03dc9294",
-    "容器资源隔离的Linux内核机制：namespace与cgroup": "03dd19cbec69d929d45b31638db77b61b44a69f07612ea66402bd86a5d1fda84"
+    "容器资源隔离的Linux内核机制：namespace与cgroup": "03dd19cbec69d929d45b31638db77b61b44a69f07612ea66402bd86a5d1fda84",
+    "服务网格Service Mesh架构演进": "ae05c8bcda0c5b64d6286e536756e062fab5b9231e47afeceb0b3b320f9d4701"
   }
 }
