@@ -18,7 +18,7 @@
   "topics": {
     "java": {
       "category": "java",
-      "tags": ["java", "jvm", "spring", "concurrency", "source-code"],
+      "tags": ["java", "jvm", "Spring", "concurrency", "source-code"],
       "subtopics": [
         "JVM内存模型与垃圾回收器深度解析",
         "ThreadPoolExecutor源码拆解与最佳实践",
@@ -81,7 +81,7 @@
     },
     "docker_kubernetes": {
       "category": "cloud-native",
-      "tags": ["docker", "kubernetes", "cloud-native", "devops", "container"],
+      "tags": ["Docker", "kubernetes", "cloud-native", "devops", "container"],
       "subtopics": [
         "Docker网络模式：bridge、host、overlay深入对比",
         "Docker存储驱动：overlay2、aufs、devicemapper原理",

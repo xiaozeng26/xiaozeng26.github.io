@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Docker多阶段构建与镜像瘦身最佳实践 | 小曾博客</title>
   <meta name="description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
-  <meta name="keywords" content="docker,kubernetes,cloud-native,devops,container">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
   <meta name="author" content="小曾">
   <meta name="copyright" content="小曾">
   <meta name="format-detection" content="telephone=no">
@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Docker多阶段构建与镜像瘦身最佳实践">
   <meta name="twitter:description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
-  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9255/800/400">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=9255">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Docker多阶段构建与镜像瘦身最佳实践">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="Docker多阶段构建与镜像瘦身最佳实践 引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至还包括.git目录和测试报告。 这不是">
-  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/9255/800/400">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=9255">
   <meta property="article:published_time" content="2026-08-18T20:23:27.000Z">
   <meta property="article:modified_time" content="2026-08-18T20:23:27.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -172,7 +172,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/9255/800/400)">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=9255)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">

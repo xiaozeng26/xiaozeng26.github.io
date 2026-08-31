@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="sync.Mutex源码解读与锁优化">
   <meta name="twitter:description" content="sync.Mutex源码解读与锁优化 引言 想象一下，你是一家餐厅的老板，后厨只有一把菜刀。当两位厨师同时需要使用这把刀时，一位必须等待另一位用完。在Go语言的世界里，sync.Mutex 就是这把菜刀，而等待的厨师们则构成了一个阻塞队列。 在实际的高并发微服务架构中，我们经常遇到这样的场景：多个goroutine同时读写共享资源（如数据库连接池、配置缓存、计数器等），导致数据竞争（data ra">
-  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2887/800/400">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=2887">
   <meta property="og:type" content="article">
   <meta property="og:title" content="sync.Mutex源码解读与锁优化">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="sync.Mutex源码解读与锁优化 引言 想象一下，你是一家餐厅的老板，后厨只有一把菜刀。当两位厨师同时需要使用这把刀时，一位必须等待另一位用完。在Go语言的世界里，sync.Mutex 就是这把菜刀，而等待的厨师们则构成了一个阻塞队列。 在实际的高并发微服务架构中，我们经常遇到这样的场景：多个goroutine同时读写共享资源（如数据库连接池、配置缓存、计数器等），导致数据竞争（data ra">
-  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2887/800/400">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=2887">
   <meta property="article:published_time" content="2026-08-29T05:35:31.000Z">
   <meta property="article:modified_time" content="2026-08-29T05:35:31.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -173,7 +173,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/2887/800/400)">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=2887)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">

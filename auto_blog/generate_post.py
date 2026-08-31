@@ -415,13 +415,13 @@ def build_post_html(title, category, tags, date_str, content_html, cover_img=Non
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="{title}">
   <meta name="twitter:description" content="{description}">
-  <meta name="twitter:image" content="{blog_url}{cover_img}">
+  <meta name="twitter:image" content="{cover_img}">
   <meta property="og:type" content="article">
   <meta property="og:title" content="{title}">
   <meta property="og:url" content="{blog_url}/">
   <meta property="og:site_name" content="{blog_title}">
   <meta property="og:description" content="{description}">
-  <meta property="og:image" content="{blog_url}{cover_img}">
+  <meta property="og:image" content="{cover_img}">
   <meta property="article:published_time" content="{date_iso}">
   <meta property="article:modified_time" content="{date_iso}">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -633,12 +633,12 @@ def generate_toc(content_html):
     return toc_html
 
 # ============================================================
-# 封面图片（picsum.photos 免费图库，按标题种子生成，每篇不同）
+# 封面图片（LoremFlickr 免费图库，按标题种子生成，每篇不同；国内可直连）
 # ============================================================
 def get_cover_image(title):
     """根据文章标题生成唯一的封面图 URL，同一标题始终返回同一张图"""
-    seed = abs(hash(title)) % 10000
-    return f"https://picsum.photos/seed/{seed}/800/400"
+    seed = int(hashlib.md5(title.encode("utf-8")).hexdigest(), 16) % 10000
+    return f"https://loremflickr.com/800/400?lock={seed}"
 
 # ============================================================
 # Markdown → HTML 转换（改进版：正确处理列表组、引用块、段落）

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Kubernetes调度器源码分析与自定义调度 | 小曾博客</title>
   <meta name="description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
-  <meta name="keywords" content="docker,kubernetes,cloud-native,devops,container">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
   <meta name="author" content="小曾">
   <meta name="copyright" content="小曾">
   <meta name="format-detection" content="telephone=no">
@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Kubernetes调度器源码分析与自定义调度">
   <meta name="twitter:description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
-  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2718/800/400">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=2718">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Kubernetes调度器源码分析与自定义调度">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="Kubernetes调度器源码分析与自定义调度 引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedulable: NoSchedul">
-  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2718/800/400">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=2718">
   <meta property="article:published_time" content="2026-08-08T20:26:52.000Z">
   <meta property="article:modified_time" content="2026-08-08T20:26:52.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -174,7 +174,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/2718/800/400)">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=2718)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">

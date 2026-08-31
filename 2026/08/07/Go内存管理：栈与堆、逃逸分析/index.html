@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Go内存管理：栈与堆、逃逸分析">
   <meta name="twitter:description" content="Go内存管理：栈与堆、逃逸分析 引言 凌晨两点，我被一通紧急电话叫醒——线上服务突然出现大量 GC pause，P99 延迟从 80ms 飙升到 2.3s。打开火焰图，发现罪魁祸首是一个滥用 fmt.Sprintf 拼接字符串的日志函数，它在每次请求中产生了数十个逃逸到堆上的临时对象。 这不是我第一次被 Go 的内存管理坑到。事实上，很多 Go 开发者都遇到过类似的问题：明明代码逻辑没问题，但性能">
-  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3678/800/400">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=3678">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Go内存管理：栈与堆、逃逸分析">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="Go内存管理：栈与堆、逃逸分析 引言 凌晨两点，我被一通紧急电话叫醒——线上服务突然出现大量 GC pause，P99 延迟从 80ms 飙升到 2.3s。打开火焰图，发现罪魁祸首是一个滥用 fmt.Sprintf 拼接字符串的日志函数，它在每次请求中产生了数十个逃逸到堆上的临时对象。 这不是我第一次被 Go 的内存管理坑到。事实上，很多 Go 开发者都遇到过类似的问题：明明代码逻辑没问题，但性能">
-  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/3678/800/400">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=3678">
   <meta property="article:published_time" content="2026-08-07T20:40:00.000Z">
   <meta property="article:modified_time" content="2026-08-07T20:40:00.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -164,7 +164,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/3678/800/400)">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=3678)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">

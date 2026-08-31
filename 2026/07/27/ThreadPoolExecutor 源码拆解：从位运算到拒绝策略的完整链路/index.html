@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 | 小曾博客</title>
   <meta name="description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
-  <meta name="keywords" content="java,jvm,spring,concurrency,source-code">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
   <meta name="author" content="小曾">
   <meta name="copyright" content="小曾">
   <meta name="format-detection" content="telephone=no">
@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路">
   <meta name="twitter:description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
-  <meta name="twitter:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2717/800/400">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=2717">
   <meta property="og:type" content="article">
   <meta property="og:title" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="ThreadPoolExecutor 源码拆解：从位运算到拒绝策略的完整链路 引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\"餐厅\"，核心线程是\"正式员工\"，阻塞队列是\"等位区\"，最大线程是\"临时工上限\"，而拒绝策略决定了\"客满之后该怎么办\"。 然而，阿里 Java 开发规约明确要求：必须">
-  <meta property="og:image" content="https://xiaozeng26.github.iohttps://picsum.photos/seed/2717/800/400">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=2717">
   <meta property="article:published_time" content="2026-07-27T16:42:22.000Z">
   <meta property="article:modified_time" content="2026-07-27T16:42:22.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -167,7 +167,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://picsum.photos/seed/2717/800/400)">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=2717)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">
