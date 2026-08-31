@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Redis分布式锁的演进：从setnx到Redisson | 小曾博客</title>
+  <meta name="description" content="Redis分布式锁的演进：从setnx到Redisson 引言 在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。 事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于分布式环境下多个节点同时操作共享资源">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Redis分布式锁的演进：从setnx到Redisson">
+  <meta name="twitter:description" content="Redis分布式锁的演进：从setnx到Redisson 引言 在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。 事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于分布式环境下多个节点同时操作共享资源">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=3473">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Redis分布式锁的演进：从setnx到Redisson">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Redis分布式锁的演进：从setnx到Redisson 引言 在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。 事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于分布式环境下多个节点同时操作共享资源">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=3473">
+  <meta property="article:published_time" content="2026-09-01T02:25:50.000Z">
+  <meta property="article:modified_time" content="2026-09-01T02:25:50.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Redis分布式锁的演进-从setnx到Redisson"><span class="toc-text">Redis分布式锁的演进：从setnx到Redisson</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-厕所里的-有人-标识"><span class="toc-text">生活类比：厕所里的"有人"标识</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#第一阶段-SETNX-的诞生与局限"><span class="toc-text">第一阶段：SETNX 的诞生与局限</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#第二阶段-SET-命令的原子进化"><span class="toc-text">第二阶段：SET 命令的原子进化</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#第三阶段-Redisson-的封装与进化"><span class="toc-text">第三阶段：Redisson 的封装与进化</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#第四阶段-RedLock-算法的争议"><span class="toc-text">第四阶段：RedLock 算法的争议</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-基于-SET-命令的手写分布式锁"><span class="toc-text">示例一：基于 SET 命令的手写分布式锁</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-使用-Redisson-实现可重入分布式锁"><span class="toc-text">示例二：使用 Redisson 实现可重入分布式锁</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-Redisson-锁的-Watchdog-源码级剖析"><span class="toc-text">示例三：Redisson 锁的 Watchdog 源码级剖析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#业界主流分布式锁方案对比"><span class="toc-text">业界主流分布式锁方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#为什么说Redis分布式锁是-AP-方案"><span class="toc-text">为什么说Redis分布式锁是"AP"方案？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑位"><span class="toc-text">常见坑位</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#延伸思考"><span class="toc-text">延伸思考</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=3473)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Redis分布式锁的演进：从setnx到Redisson</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-01"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-01</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-01"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-01</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Redis分布式锁的演进-从setnx到Redisson"><a href="#Redis分布式锁的演进-从setnx到Redisson" class="headerlink" title="Redis分布式锁的演进：从setnx到Redisson"></a>Redis分布式锁的演进：从setnx到Redisson</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。</p>
+<p>事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于<strong>分布式环境下多个节点同时操作共享资源</strong>时缺乏有效的互斥机制。传统的<code>synchronized</code>或<code>ReentrantLock</code>只能保证单个JVM进程内的线程安全，无法跨进程、跨节点生效。</p>
+<p>这正是分布式锁要解决的问题。而在众多实现方案中，基于Redis的分布式锁因其高性能、易用性，成为了业界最主流的选择。但Redis分布式锁的实现并非一蹴而就，从最初的<code>SETNX</code>命令，到<code>SET</code>加过期时间的原子操作，再到Redisson框架的完整实现，每一步演进都解决了特定的痛点。</p>
+<p>本文将带你深入理解这一演进过程，从源码层面剖析各种方案的优缺点，并给出生产环境的实践建议。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-厕所里的-有人-标识"><a href="#生活类比-厕所里的-有人-标识" class="headerlink" title="生活类比：厕所里的"有人"标识"></a>生活类比：厕所里的"有人"标识</h3>
+<p>想象一下商场里的公共厕所，每个隔间的门锁就是一把分布式锁。当有人进入隔间后，会挂上"有人"的标识（相当于Redis中的锁标识），其他人看到后就会选择其他隔间或等待。</p>
+<ul>
+<li><strong><code>SETNX</code></strong>：相当于"如果有人就返回失败"的挂牌操作</li>
+</ul>
+<ul>
+<li><strong>过期时间</strong>：相当于厕所的"最长使用时限"，防止有人进去后不出来</li>
+</ul>
+<ul>
+<li><strong>锁续期（Watchdog）</strong>：相当于保洁员每隔一段时间检查一下，如果发现还在使用就延长时限</li>
+</ul>
+<ul>
+<li><strong>RedLock</strong>：相当于商场要求所有楼层的厕所都采用相同的规则，避免单点故障导致规则失效</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>分布式锁需要满足三个核心性质：</p>
+<ol>
+<li><strong>互斥性</strong>：任意时刻，只有一个客户端能持有锁</li>
+<li><strong>安全性</strong>：锁只能被持有者释放，不能误删他人的锁</li>
+<li><strong>可用性</strong>：锁服务不能因单点故障而不可用</li>
+</ol>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="第一阶段-SETNX-的诞生与局限"><a href="#第一阶段-SETNX-的诞生与局限" class="headerlink" title="第一阶段：SETNX 的诞生与局限"></a>第一阶段：SETNX 的诞生与局限</h3>
+<p>Redis 2.6.12版本之前，获取分布式锁最简单的方式是使用<code>SETNX</code>命令：</p>
+<figure class="highlight java"><pre><code class="language-java">// 伪代码
+if (redis.setnx(&quot;lock:order:123&quot;, &quot;1&quot;)) {
+    // 获取锁成功，执行业务
+    try {
+        doSomething();
+    } finally {
+        redis.del(&quot;lock:order:123&quot;); // 释放锁
+    }
+}</code></pre></figure>
+<p>这个方案看似简单，却有个致命缺陷：<strong>如果获取锁的客户端在执行业务时崩溃，锁永远不会被释放</strong>，形成死锁。于是开发者们想到了一个补救方案——给锁加上过期时间：</p>
+<figure class="highlight java"><pre><code class="language-java">if (redis.setnx(&quot;lock:order:123&quot;, &quot;1&quot;)) {
+    redis.expire(&quot;lock:order:123&quot;, 30); // 30秒后自动过期
+    // 执行业务...
+}</code></pre></figure>
+<p>但这里又引入了新的问题：<code>SETNX</code>和<code>EXPIRE</code>是两个独立的操作，不具备原子性。如果<code>SETNX</code>成功但<code>EXPIRE</code>执行前客户端崩溃，锁依然会永久存在。</p>
+<h3 id="第二阶段-SET-命令的原子进化"><a href="#第二阶段-SET-命令的原子进化" class="headerlink" title="第二阶段：SET 命令的原子进化"></a>第二阶段：SET 命令的原子进化</h3>
+<p>Redis 2.6.12版本引入了<code>SET</code>命令的扩展参数，将加锁和过期时间合并为原子操作：</p>
+<figure class="highlight java"><pre><code class="language-java">SET lock:order:123 uniqueId NX PX 30000</code></pre></figure>
+<ul>
+<li><code>NX</code>：只有键不存在时才设置（等价于SETNX）</li>
+</ul>
+<ul>
+<li><code>PX</code>：设置过期时间为毫秒</li>
+</ul>
+<ul>
+<li><code>uniqueId</code>：客户端唯一标识，用于安全释放锁</li>
+</ul>
+<p>这里有个关键设计：<strong>为什么释放锁时要校验唯一标识？</strong></p>
+<p>考虑这样一个场景：客户端A获取锁后因GC暂停超过锁的过期时间，锁自动过期。此时客户端B获取了同一把锁。A恢复后如果直接执行<code>DEL</code>操作，就会误删B的锁，导致B的业务逻辑在没有锁保护的情况下执行。</p>
+<p>解决方式是使用Lua脚本保证"先校验再删除"的原子性：</p>
+<figure class="highlight lua"><pre><code class="language-lua">if redis.call(&quot;get&quot;, KEYS[1]) == ARGV[1] then
+    return redis.call(&quot;del&quot;, KEYS[1])
+else
+    return 0
+end</code></pre></figure>
+<h3 id="第三阶段-Redisson-的封装与进化"><a href="#第三阶段-Redisson-的封装与进化" class="headerlink" title="第三阶段：Redisson 的封装与进化"></a>第三阶段：Redisson 的封装与进化</h3>
+<p>Redisson是一个基于Redis的Java客户端框架，它封装了分布式锁的完整实现。其核心类<code>RedissonLock</code>在<code>SET</code>命令的基础上，增加了以下关键机制：</p>
+<p>#### Watchdog 自动续期机制</p>
+<figure class="highlight java"><pre><code class="language-java">// RedissonLock.java 核心续期逻辑（简化版）
+private void renewExpiration() {
+    Timeout task = commandExecutor.getConnectionManager().newTimeout(new TimerTask() {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            // 异步续期：将锁的过期时间重置为30秒
+            RFuture&lt;Boolean&gt; future = renewExpirationAsync(lockName, internalLockLeaseTime);
+            future.whenComplete((res, e) -&gt; {
+                if (res) {
+                    // 续期成功，重新调度
+                    renewExpiration();
+                }
+            });
+        }
+    }, internalLockLeaseTime / 3, TimeUnit.MILLISECONDS);
+}</code></pre></figure>
+<p>Watchdog的工作机制是：默认锁的超时时间为30秒，但Redisson会每10秒（30秒/3）检查一次，如果锁还被持有，就自动续期到30秒。这解决了业务执行时间超过锁过期时间的问题。</p>
+<p>但这里有个值得注意的细节：<strong>为什么续期间隔是锁超时时间的1/3？</strong> 这是为了留出足够的缓冲时间。即使网络抖动导致一次续期失败，锁也不会立即过期，给客户端二次续期的机会。</p>
+<p>#### 可重入锁支持</p>
+<p>Redisson的锁支持可重入特性，内部通过一个<code>ThreadLocal</code>维护重入次数：</p>
+<figure class="highlight java"><pre><code class="language-java">// RedissonLock.java 简化版
+public boolean tryLock(long waitTime, long leaseTime, TimeUnit unit) {
+    // 获取当前线程ID
+    long threadId = Thread.currentThread().getId();
+    // 尝试获取锁
+    Long ttl = tryAcquire(lockName, leaseTime, unit, threadId);
+    if (ttl == null) {
+        // 获取成功，记录重入次数为1
+        return true;
+    }
+    // 等待获取锁...
+}
+
+// 重入加锁的Lua脚本
+// KEYS[1] = lockName, ARGV[1] = leaseTime, ARGV[2] = threadId
+// 如果锁存在且持有者是当前线程，则重入次数+1
+if (redis.call(&#x27;hexists&#x27;, KEYS[1], ARGV[2]) == 1) then
+    redis.call(&#x27;hincrby&#x27;, KEYS[1], ARGV[2], 1);
+    redis.call(&#x27;pexpire&#x27;, KEYS[1], ARGV[1]);
+    return nil;
+end;</code></pre></figure>
+<p>这里使用Hash结构而非简单的String，就是为了支持重入计数。每次重入时<code>hincrby</code>加1，释放时减1，直到减为0才真正删除锁。</p>
+<h3 id="第四阶段-RedLock-算法的争议"><a href="#第四阶段-RedLock-算法的争议" class="headerlink" title="第四阶段：RedLock 算法的争议"></a>第四阶段：RedLock 算法的争议</h3>
+<p>即使有了Redisson的完整实现，分布式锁仍然面临一个根本性问题：<strong>如果Redis主节点宕机，锁的安全性如何保证？</strong></p>
+<p>考虑以下场景：</p>
+<ol>
+<li>客户端A在主节点上获取了锁</li>
+<li>主节点在将写操作同步到从节点之前宕机</li>
+<li>从节点被提升为新的主节点，但锁数据丢失</li>
+<li>客户端B在新的主节点上成功获取了同一把锁</li>
+</ol>
+<p>为了解决这个问题，Redis作者antirez提出了RedLock算法，核心思想是<strong>同时向多个独立的Redis节点申请锁</strong>：</p>
+<div class="mermaid">
+graph TD
+    A[客户端] --> B[Redis节点1]
+    A --> C[Redis节点2]
+    A --> D[Redis节点3]
+    A --> E[Redis节点4]
+    A --> F[Redis节点5]
+    
+    B --> G{获取锁成功}
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+    
+    G --> H[加锁成功<br/>节点数 >= N/2 + 1]
+    G --> I[加锁失败<br/>释放所有节点锁]
+</div>
+<p>但RedLock算法也遭到了业界大牛的质疑。Martin Kleppmann在《How to do distributed locking》一文中指出，RedLock本质上仍然依赖时钟假设，在GC暂停或网络分区时可能失效。他认为：</p>
+<ol>
+<li><strong>GC暂停</strong>：客户端A获得锁后发生Full GC，超过锁过期时间，锁被其他客户端获取</li>
+<li><strong>网络分区</strong>：客户端A与Redis集群的网络被隔离，无法续期，锁过期</li>
+</ol>
+<p>这些场景下，RedLock并不能比单节点方案提供更好的保障。因此，<strong>如果你的业务场景对锁的安全性要求极高（如金融交易），建议使用ZooKeeper或etcd等强一致性方案</strong>。</p>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例一-基于-SET-命令的手写分布式锁"><a href="#示例一-基于-SET-命令的手写分布式锁" class="headerlink" title="示例一：基于 SET 命令的手写分布式锁"></a>示例一：基于 SET 命令的手写分布式锁</h3>
+<figure class="highlight java"><pre><code class="language-java">import redis.clients.jedis.Jedis;
+import java.util.Collections;
+import java.util.UUID;
+
+/**
+ * 基于SET命令的手写分布式锁
+ * 适用于简单场景，生产环境建议使用Redisson
+ */
+public class SimpleRedisLock {
+    
+    private final Jedis jedis;
+    private final String lockKey;
+    private final String lockValue; // 唯一标识，用于安全释放锁
+    private static final int DEFAULT_EXPIRE_TIME = 30000; // 默认过期时间30秒
+    
+    // Lua脚本：原子性校验并删除锁
+    private static final String UNLOCK_SCRIPT = 
+        &quot;if redis.call(&#x27;get&#x27;, KEYS[1]) == ARGV[1] then &quot; +
+        &quot;    return redis.call(&#x27;del&#x27;, KEYS[1]) &quot; +
+        &quot;else &quot; +
+        &quot;    return 0 &quot; +
+        &quot;end&quot;;
+    
+    public SimpleRedisLock(Jedis jedis, String lockKey) {
+        this.jedis = jedis;
+        this.lockKey = lockKey;
+        this.lockValue = UUID.randomUUID().toString();
+    }
+    
+    /**
+     * 尝试获取锁
+     * @param timeoutMillis 获取锁的超时时间（毫秒）
+     * @return 是否获取成功
+     */
+    public boolean tryLock(long timeoutMillis) {
+        long startTime = System.currentTimeMillis();
+        try {
+            // 使用SET命令的NX和PX参数，保证原子性
+            String result = jedis.set(lockKey, lockValue, &quot;NX&quot;, &quot;PX&quot;, DEFAULT_EXPIRE_TIME);
+            
+            // 如果获取失败且在超时时间内，自旋重试
+            while (result == null &amp;&amp; 
+                   (System.currentTimeMillis() - startTime) &lt; timeoutMillis) {
+                Thread.sleep(100); // 避免空转，休眠100ms
+                result = jedis.set(lockKey, lockValue, &quot;NX&quot;, &quot;PX&quot;, DEFAULT_EXPIRE_TIME);
+            }
+            
+            return result != null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+    
+    /**
+     * 释放锁
+     * 使用Lua脚本保证&quot;校验-删除&quot;的原子性
+     */
+    public void unlock() {
+        jedis.eval(UNLOCK_SCRIPT, 
+                   Collections.singletonList(lockKey), 
+                   Collections.singletonList(lockValue));
+    }
+    
+    // 使用示例
+    public static void main(String[] args) {
+        Jedis jedis = new Jedis(&quot;localhost&quot;, 6379);
+        SimpleRedisLock lock = new SimpleRedisLock(jedis, &quot;lock:order:123&quot;);
+        
+        if (lock.tryLock(5000)) { // 最多等待5秒
+            try {
+                // 执行业务逻辑
+                System.out.println(&quot;获取锁成功，执行业务...&quot;);
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                lock.unlock();
+                System.out.println(&quot;锁已释放&quot;);
+            }
+        } else {
+            System.out.println(&quot;获取锁失败，请稍后重试&quot;);
+        }
+        jedis.close();
+    }
+}</code></pre></figure>
+<p><strong>使用场景</strong>：适合简单的互斥场景，不要求可重入，业务执行时间可控且不会超过锁的过期时间。</p>
+<h3 id="示例二-使用-Redisson-实现可重入分布式锁"><a href="#示例二-使用-Redisson-实现可重入分布式锁" class="headerlink" title="示例二：使用 Redisson 实现可重入分布式锁"></a>示例二：使用 Redisson 实现可重入分布式锁</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.redisson.Redisson;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Redisson分布式锁示例
+ * 自动续期 + 可重入 + 公平锁
+ */
+public class RedissonLockDemo {
+    
+    private final RedissonClient redissonClient;
+    
+    public RedissonLockDemo() {
+        // 初始化Redisson配置
+        Config config = new Config();
+        config.useSingleServer()
+              .setAddress(&quot;redis://localhost:6379&quot;)
+              .setConnectionPoolSize(10)
+              .setConnectionMinimumIdleSize(5);
+        this.redissonClient = Redisson.create(config);
+    }
+    
+    /**
+     * 演示可重入锁
+     */
+    public void demoReentrantLock() {
+        RLock lock = redissonClient.getLock(&quot;lock:inventory:1001&quot;);
+        
+        try {
+            // 尝试获取锁，最多等待3秒，锁自动过期时间默认30秒
+            if (lock.tryLock(3, TimeUnit.SECONDS)) {
+                System.out.println(&quot;第一次获取锁成功&quot;);
+                
+                // 模拟嵌套调用：同一个线程可以重入
+                if (lock.tryLock(3, TimeUnit.SECONDS)) {
+                    System.out.println(&quot;第二次获取锁成功（可重入）&quot;);
+                    lock.unlock(); // 释放重入的锁
+                    System.out.println(&quot;第二次释放锁&quot;);
+                }
+                
+                // 执行业务逻辑
+                Thread.sleep(10000); // 模拟耗时业务，超过默认30秒会自动续期
+                System.out.println(&quot;业务执行完成&quot;);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            // 注意：只有在持有锁的情况下才释放
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                System.out.println(&quot;第一次释放锁&quot;);
+            }
+        }
+    }
+    
+    /**
+     * 演示公平锁
+     */
+    public void demoFairLock() {
+        // 公平锁保证线程按照请求顺序获取锁
+        RLock fairLock = redissonClient.getFairLock(&quot;lock:fair:order&quot;);
+        
+        try {
+            // 等待10秒获取公平锁
+            if (fairLock.tryLock(10, TimeUnit.SECONDS)) {
+                System.out.println(&quot;获取公平锁成功&quot;);
+                // 业务逻辑...
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            if (fairLock.isHeldByCurrentThread()) {
+                fairLock.unlock();
+            }
+        }
+    }
+    
+    /**
+     * 演示读写锁
+     */
+    public void demoReadWriteLock() {
+        RLock readLock = redissonClient.getReadWriteLock(&quot;lock:config&quot;).readLock();
+        RLock writeLock = redissonClient.getReadWriteLock(&quot;lock:config&quot;).writeLock();
+        
+        // 读锁：多个线程可以同时持有
+        readLock.lock(10, TimeUnit.SECONDS);
+        try {
+            System.out.println(&quot;读取配置...&quot;);
+        } finally {
+            readLock.unlock();
+        }
+        
+        // 写锁：独占
+        writeLock.lock(10, TimeUnit.SECONDS);
+        try {
+            System.out.println(&quot;更新配置...&quot;);
+        } finally {
+            writeLock.unlock();
+        }
+    }
+    
+    public static void main(String[] args) {
+        RedissonLockDemo demo = new RedissonLockDemo();
+        demo.demoReentrantLock();
+    }
+}</code></pre></figure>
+<p><strong>使用场景</strong>：生产环境首选，支持可重入、自动续期、公平锁、读写锁等多种特性，适合大多数业务场景。</p>
+<h3 id="示例三-Redisson-锁的-Watchdog-源码级剖析"><a href="#示例三-Redisson-锁的-Watchdog-源码级剖析" class="headerlink" title="示例三：Redisson 锁的 Watchdog 源码级剖析"></a>示例三：Redisson 锁的 Watchdog 源码级剖析</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.redisson.RedissonLock;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * 深入剖析Redisson的Watchdog机制
+ */
+public class WatchdogAnalysis {
+    
+    /**
+     * 演示Watchdog自动续期
+     * 
+     * 核心流程：
+     * 1. 默认lockLeaseTime为30秒
+     * 2. 获取锁成功后，启动一个定时任务，每10秒执行一次续期
+     * 3. 续期时调用renewExpirationAsync，将过期时间重置为30秒
+     * 4. 如果业务执行完成（unlock），取消续期任务
+     * 5. 如果JVM崩溃，续期任务随之消失，锁在30秒后自动过期
+     */
+    public void demoWatchdog() {
+        Config config = new Config();
+        config.useSingleServer().setAddress(&quot;redis://localhost:6379&quot;);
+        RedissonClient client = Redisson.create(config);
+        
+        // 获取锁时，未指定leaseTime，则使用默认的30秒+Watchdog
+        RLock lock = client.getLock(&quot;lock:watchdog:demo&quot;);
+        
+        try {
+            // 注意：这里不传leaseTime参数，才会触发Watchdog机制
+            lock.lock(10, TimeUnit.SECONDS);
+            System.out.println(&quot;获取锁成功，Watchdog已启动&quot;);
+            
+            // 模拟长时间业务，比如执行60秒
+            long startTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - startTime &lt; 60000) {
+                // 执行业务...
+                Thread.sleep(5000);
+                System.out.println(&quot;业务执行中... 锁剩余过期时间: &quot; + 
+                                 ((RedissonLock) lock).remainTimeToLive() + &quot;ms&quot;);
+            }
+            
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                System.out.println(&quot;锁已释放，Watchdog已停止&quot;);
+            }
+            client.shutdown();
+        }
+    }
+    
+    /**
+     * 自定义锁过期时间（不使用Watchdog）
+     * 
+     * 注意：如果传入leaseTime参数，Watchdog不会生效
+     */
+    public void demoCustomLeaseTime() {
+        Config config = new Config();
+        config.useSingleServer().setAddress(&quot;redis://localhost:6379&quot;);
+        RedissonClient client = Redisson.create(config);
+        
+        RLock lock = client.getLock(&quot;lock:custom-lease:demo&quot;);
+        
+        try {
+            // 传入leaseTime=10秒，此时Watchdog不生效
+            // 锁在10秒后自动过期，即使业务还没执行完
+            lock.lock(10, TimeUnit.SECONDS);
+            System.out.println(&quot;获取锁成功（自定义过期时间），Watchdog未启动&quot;);
+            
+            // 模拟业务执行15秒 &gt; 锁过期时间10秒
+            Thread.sleep(15000);
+            // 此时锁可能已被自动释放，其他线程可以获取到锁
+            System.out.println(&quot;业务执行完成，但锁可能已过期&quot;);
+            
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            // 注意：这里释放锁时会校验持有者，如果锁已过期，unlock会抛出异常
+            try {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            } catch (Exception e) {
+                System.err.println(&quot;锁已被自动释放，无需手动解锁&quot;);
+            }
+            client.shutdown();
+        }
+    }
+    
+    public static void main(String[] args) {
+        WatchdogAnalysis analysis = new WatchdogAnalysis();
+        // analysis.demoWatchdog();
+        analysis.demoCustomLeaseTime();
+    }
+}</code></pre></figure>
+<p><strong>关键提示</strong>：使用Watchdog时，务必确保业务代码不会无限期执行。如果业务确实需要长时间运行，应该显式指定合适的<code>leaseTime</code>，并做好锁续期的监控。</p>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="业界主流分布式锁方案对比"><a href="#业界主流分布式锁方案对比" class="headerlink" title="业界主流分布式锁方案对比"></a>业界主流分布式锁方案对比</h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>一致性</th>
+<th>性能</th>
+<th>可用性</th>
+<th>复杂度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Redis SETNX</strong></td>
+<td>弱（AP）</td>
+<td>极高</td>
+<td>高（依赖主从架构）</td>
+<td>低</td>
+<td>允许短时间数据不一致的业务</td>
+</tr><tr>
+<td><strong>Redisson</strong></td>
+<td>弱（AP）</td>
+<td>高</td>
+<td>高</td>
+<td>中</td>
+<td>大多数业务场景，需要可重入/续期</td>
+</tr><tr>
+<td><strong>RedLock</strong></td>
+<td>弱（AP）</td>
+<td>低（需要多次网络请求）</td>
+<td>低（依赖节点数量）</td>
+<td>高</td>
+<td>对安全性要求极高的场景（仍有争议）</td>
+</tr><tr>
+<td><strong>ZooKeeper</strong></td>
+<td>强（CP）</td>
+<td>中</td>
+<td>高</td>
+<td>高</td>
+<td>金融、订单等强一致场景</td>
+</tr><tr>
+<td><strong>etcd</strong></td>
+<td>强（CP）</td>
+<td>中</td>
+<td>高</td>
+<td>高</td>
+<td>云原生环境下的分布式协调</td>
+</tr></tbody></table>
+<h3 id="为什么说Redis分布式锁是-AP-方案"><a href="#为什么说Redis分布式锁是-AP-方案" class="headerlink" title="为什么说Redis分布式锁是"AP"方案？"></a>为什么说Redis分布式锁是"AP"方案？</h3>
+<p>Redis默认采用异步主从复制，主节点写入成功后立即返回，从节点异步同步数据。这意味着：</p>
+<ol>
+<li>主节点宕机前，锁数据可能还没同步到从节点</li>
+<li>从节点晋升为主节点后，锁数据丢失</li>
+<li>其他客户端可以获取到同一把锁</li>
+</ol>
+<p><strong>如果业务允许短暂的不一致（如秒杀场景），Redis方案完全够用。如果要求严格的互斥性（如转账），建议使用ZooKeeper或etcd。</strong></p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="常见坑位"><a href="#常见坑位" class="headerlink" title="常见坑位"></a>常见坑位</h3>
+<ol>
+<li><strong>锁过期时间设置不合理</strong></li>
+</ol>
+<ul>
+<li>过短：业务未执行完锁就过期，导致并发问题</li>
+</ul>
+<ul>
+<li>过长：客户端崩溃后，锁长时间不释放，影响系统可用性</li>
+</ul>
+<ul>
+<li><strong>建议</strong>：默认30秒+Watchdog，或根据业务P99耗时设置2-3倍余量</li>
+</ul>
+<ol>
+<li><strong>忘记释放锁</strong></li>
+</ol>
+<ul>
+<li>在<code>finally</code>块中释放锁，确保异常时也能释放</li>
+</ul>
+<ul>
+<li>使用<code>try-with-resources</code>或切面编程自动管理</li>
+</ul>
+<ol>
+<li><strong>锁粒度过大</strong></li>
+</ol>
+<ul>
+<li>不要对整个业务流程加锁，应该只锁临界区</li>
+</ul>
+<ul>
+<li>使用分段锁或细粒度锁提升并发能力</li>
+</ul>
+<ol>
+<li><strong>忽略锁续期问题</strong></li>
+</ol>
+<ul>
+<li>如果使用手写SETNX方案，需要自己实现续期逻辑</li>
+</ul>
+<ul>
+<li>Redisson的Watchdog虽好，但不要无脑依赖，要评估业务最坏执行时间</li>
+</ul>
+<ol>
+<li><strong>Redis集群的脑裂问题</strong></li>
+</ol>
+<ul>
+<li>主节点与从节点之间网络分区，导致锁数据不一致</li>
+</ul>
+<ul>
+<li>可以考虑使用RedLock或强一致性方案</li>
+</ul>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<figure class="highlight java"><pre><code class="language-java">// 最佳实践模板
+public void businessMethod() {
+    RLock lock = redissonClient.getLock(&quot;lock:business:&quot; + bizId);
+    boolean locked = false;
+    try {
+        // 设置合理的等待时间和锁过期时间
+        locked = lock.tryLock(3, 30, TimeUnit.SECONDS);
+        if (!locked) {
+            // 获取锁失败，可以重试或返回错误
+            throw new BizException(&quot;系统繁忙，请稍后重试&quot;);
+        }
+        // 执行业务逻辑（控制在锁过期时间以内）
+        doBusiness();
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new BizException(&quot;获取锁被中断&quot;, e);
+    } finally {
+        if (locked &amp;&amp; lock.isHeldByCurrentThread()) {
+            lock.unlock();
+        }
+    }
+}</code></pre></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回顾Redis分布式锁的演进历程，我们可以清晰地看到技术迭代的脉络：</p>
+<ol>
+<li><strong>SETNX</strong>：最原始的尝试，解决了分布式环境下的互斥问题，但缺乏过期机制</li>
+<li><strong>SET NX PX</strong>：通过原子操作解决了锁过期问题，但缺少可重入和续期支持</li>
+<li><strong>Redisson</strong>：通过Watchdog、可重入、公平锁等特性，将分布式锁推向成熟</li>
+<li><strong>RedLock</strong>：尝试解决Redis主从架构的固有缺陷，但引入了新的复杂性</li>
+</ol>
+<p>从架构设计的角度来看，<strong>没有完美的方案，只有最合适的方案</strong>。在选择分布式锁时，你需要权衡：</p>
+<ul>
+<li><strong>业务对一致性的要求</strong>：是否允许短暂的不一致？</li>
+</ul>
+<ul>
+<li><strong>系统的可用性要求</strong>：Redis集群的可用性是否足够？</li>
+</ul>
+<ul>
+<li><strong>团队的技术栈</strong>：是否已经引入了Redis等中间件？</li>
+</ul>
+<p>最后，无论选择哪种方案，都要做好<strong>监控和告警</strong>。锁的获取失败率、持有时间分布、续期次数等指标，都能帮助你提前发现潜在问题。</p>
+<h3 id="延伸思考"><a href="#延伸思考" class="headerlink" title="延伸思考"></a>延伸思考</h3>
+<p>如果你对分布式锁的极致性能有追求，可以考虑：</p>
+<ol>
+<li><strong>本地锁+分布式锁的二级缓存</strong>：热点数据优先使用本地锁，减少Redis网络开销</li>
+<li><strong>基于Redis Streams的消息队列替代锁</strong>：在某些场景下，用消息队列天然避免并发</li>
+<li><strong>数据库悲观锁/乐观锁</strong>：对于低频操作，数据库锁可能更简单可靠</li>
+</ol>
+<p>分布式锁的世界远不止Redis，ZooKeeper的顺序节点、etcd的Lease机制都有其独特优势。希望本文能帮你建立起完整的知识框架，在实际项目中做出更明智的技术选型。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

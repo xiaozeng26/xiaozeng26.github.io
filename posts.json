@@ -1,5 +1,23 @@
 [
  {
+  "title": "Redis分布式锁的演进：从setnx到Redisson",
+  "url": "/2026/09/01/Redis%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E7%9A%84%E6%BC%94%E8%BF%9B%EF%BC%9A%E4%BB%8Esetnx%E5%88%B0Redisson/",
+  "date": "2026-09-01",
+  "year": 2026,
+  "month": 9,
+  "day": 1,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3473",
+  "excerpt": "引言 在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。 事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于分布式环境下多"
+ },
+ {
   "title": "服务网格Service Mesh架构演进：从Sidecar到无边界的下一代",
   "url": "/2026/08/30/%E6%9C%8D%E5%8A%A1%E7%BD%91%E6%A0%BCService%20Mesh%E6%9E%B6%E6%9E%84%E6%BC%94%E8%BF%9B%EF%BC%9A%E4%BB%8ESidecar%E5%88%B0%E6%97%A0%E8%BE%B9%E7%95%8C%E7%9A%84%E4%B8%8B%E4%B8%80%E4%BB%A3/",
   "date": "2026-08-30",
