@@ -272,6 +272,13 @@
       "subtopic": "Redis分布式锁的演进：从setnx到Redisson",
       "date": "2026-08-31",
       "url": "/2026/09/01/Redis分布式锁的演进：从setnx到Redisson/"
+    },
+    {
+      "title": "pytest插件体系与Fixture机制：从源码揭秘到实战进阶",
+      "category": "python",
+      "subtopic": "pytest插件体系与Fixture机制",
+      "date": "2026-09-01",
+      "url": "/2026/09/01/pytest插件体系与Fixture机制：从源码揭秘到实战进阶/"
     }
   ],
   "used_subtopics": {
@@ -288,7 +295,8 @@
       "Python性能调优：cProfile、memory_profiler实战",
       "微服务框架Nameko的设计与使用",
       "Python内存管理与对象池机制",
-      "SQLAlchemy Session管理与事务隔离"
+      "SQLAlchemy Session管理与事务隔离",
+      "pytest插件体系与Fixture机制"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -365,6 +373,7 @@
     "sync.Mutex源码解读与锁优化": "2c8f0ab3f66e9edcc232f79746077e3110beeae6747f5f9266acff3c03dc9294",
     "容器资源隔离的Linux内核机制：namespace与cgroup": "03dd19cbec69d929d45b31638db77b61b44a69f07612ea66402bd86a5d1fda84",
     "服务网格Service Mesh架构演进": "ae05c8bcda0c5b64d6286e536756e062fab5b9231e47afeceb0b3b320f9d4701",
-    "Redis分布式锁的演进：从setnx到Redisson": "e57b1efcbe442787eb32a3e596c585d455a0489a808974e779f287ae8808b9a1"
+    "Redis分布式锁的演进：从setnx到Redisson": "e57b1efcbe442787eb32a3e596c585d455a0489a808974e779f287ae8808b9a1",
+    "pytest插件体系与Fixture机制": "4a04b4b42c5537573099981c44d61c0eb2ecf2f62b1ca8cad55b5d0159d05a88"
   }
 }

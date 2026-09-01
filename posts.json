@@ -1,5 +1,23 @@
 [
  {
+  "title": "pytest插件体系与Fixture机制：从源码揭秘到实战进阶",
+  "url": "/2026/09/01/pytest%E6%8F%92%E4%BB%B6%E4%BD%93%E7%B3%BB%E4%B8%8EFixture%E6%9C%BA%E5%88%B6%EF%BC%9A%E4%BB%8E%E6%BA%90%E7%A0%81%E6%8F%AD%E7%A7%98%E5%88%B0%E5%AE%9E%E6%88%98%E8%BF%9B%E9%98%B6/",
+  "date": "2026-09-01",
+  "year": 2026,
+  "month": 9,
+  "day": 1,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=673",
+  "excerpt": "引言 你是否曾在测试代码中看到过这样的场景：一个测试函数被十几个 @pytest.fixture 装饰器包裹，每个 fixture 都隐藏着复杂的依赖关系；或者为了复用一套测试环境，在 conftest.py 里写了上千行配置代码，却因 fixture 的作用域理解偏差导致测试数据互相污染，排查到深夜？ 作为 Pyth"
+ },
+ {
   "title": "Redis分布式锁的演进：从setnx到Redisson",
   "url": "/2026/09/01/Redis%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E7%9A%84%E6%BC%94%E8%BF%9B%EF%BC%9A%E4%BB%8Esetnx%E5%88%B0Redisson/",
   "date": "2026-09-01",
