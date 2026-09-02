@@ -1,5 +1,23 @@
 [
  {
+  "title": "net/http包架构与中间件链实现",
+  "url": "/2026/09/02/net-http%E5%8C%85%E6%9E%B6%E6%9E%84%E4%B8%8E%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%93%BE%E5%AE%9E%E7%8E%B0/",
+  "date": "2026-09-02",
+  "year": 2026,
+  "month": 9,
+  "day": 2,
+  "category": "golang",
+  "tags": [
+   "go",
+   "golang",
+   "concurrency",
+   "microservices",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=2788",
+  "excerpt": "引言 想象一下，你正在开发一个日活百万的API服务。某天，你发现所有请求的响应时间突然飙升，排除了数据库和下游服务的问题后，你开始怀疑自己的HTTP层处理逻辑。你打开了pprof，发现大量goroutine阻塞在某个中间件的channel上。这时你才意识到，虽然你每天都用net/http写接口，但你对它的内部工作机制—"
+ },
+ {
   "title": "pytest插件体系与Fixture机制：从源码揭秘到实战进阶",
   "url": "/2026/09/01/pytest%E6%8F%92%E4%BB%B6%E4%BD%93%E7%B3%BB%E4%B8%8EFixture%E6%9C%BA%E5%88%B6%EF%BC%9A%E4%BB%8E%E6%BA%90%E7%A0%81%E6%8F%AD%E7%A7%98%E5%88%B0%E5%AE%9E%E6%88%98%E8%BF%9B%E9%98%B6/",
   "date": "2026-09-01",
