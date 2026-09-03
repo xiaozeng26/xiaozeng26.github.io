@@ -1,5 +1,23 @@
 [
  {
+  "title": "数据库分库分表中间件ShardingSphere源码分析",
+  "url": "/2026/09/03/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%88%86%E5%BA%93%E5%88%86%E8%A1%A8%E4%B8%AD%E9%97%B4%E4%BB%B6ShardingSphere%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/",
+  "date": "2026-09-03",
+  "year": 2026,
+  "month": 9,
+  "day": 3,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3081",
+  "excerpt": "引言 先讲一个我上周刚经历的真实场景。 凌晨两点，我被电话吵醒。监控系统显示订单库的CPU使用率持续100%，慢查询堆积如山。登录服务器一看，单表数据量已经突破1.2亿行，索引深度达到5层，即使走索引也需要多次随机IO。更麻烦的是，报表部门要拉全量数据做分析，一条SELECT COUNT(*)直接把主库拖垮，从库复制延"
+ },
+ {
   "title": "net/http包架构与中间件链实现",
   "url": "/2026/09/02/net-http%E5%8C%85%E6%9E%B6%E6%9E%84%E4%B8%8E%E4%B8%AD%E9%97%B4%E4%BB%B6%E9%93%BE%E5%AE%9E%E7%8E%B0/",
   "date": "2026-09-02",

@@ -286,6 +286,13 @@
       "subtopic": "net/http包架构与中间件链实现",
       "date": "2026-09-02",
       "url": "/2026/09/02/net-http包架构与中间件链实现/"
+    },
+    {
+      "title": "数据库分库分表中间件ShardingSphere源码分析",
+      "category": "architecture",
+      "subtopic": "数据库分库分表中间件ShardingSphere源码分析",
+      "date": "2026-09-03",
+      "url": "/2026/09/03/数据库分库分表中间件ShardingSphere源码分析/"
     }
   ],
   "used_subtopics": {
@@ -320,7 +327,8 @@
       "全链路压测方案设计与流量染色",
       "最终一致性方案：本地消息表、事务消息、Saga模式",
       "微服务拆分策略：从单体到微服务的演进路径",
-      "服务网格Service Mesh架构演进"
+      "服务网格Service Mesh架构演进",
+      "数据库分库分表中间件ShardingSphere源码分析"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -383,6 +391,7 @@
     "服务网格Service Mesh架构演进": "ae05c8bcda0c5b64d6286e536756e062fab5b9231e47afeceb0b3b320f9d4701",
     "Redis分布式锁的演进：从setnx到Redisson": "e57b1efcbe442787eb32a3e596c585d455a0489a808974e779f287ae8808b9a1",
     "pytest插件体系与Fixture机制": "4a04b4b42c5537573099981c44d61c0eb2ecf2f62b1ca8cad55b5d0159d05a88",
-    "net/http包架构与中间件链实现": "bcd81fffd4651d9bb1194289c79045c4e93906956fccbde80ff1d04e0711d1fc"
+    "net/http包架构与中间件链实现": "bcd81fffd4651d9bb1194289c79045c4e93906956fccbde80ff1d04e0711d1fc",
+    "数据库分库分表中间件ShardingSphere源码分析": "ec90f3364d5d426e28820349d0e7c81f551e6cfda7071a0b94eddafe71697729"
   }
 }
