@@ -293,6 +293,13 @@
       "subtopic": "数据库分库分表中间件ShardingSphere源码分析",
       "date": "2026-09-03",
       "url": "/2026/09/03/数据库分库分表中间件ShardingSphere源码分析/"
+    },
+    {
+      "title": "K8s Operator模式与自定义资源CRD开发：从\"脚本运维\"到\"声明式自动驾驶\"",
+      "category": "cloud-native",
+      "subtopic": "K8s Operator模式与自定义资源CRD开发",
+      "date": "2026-09-04",
+      "url": "/2026/09/04/K8s Operator模式与自定义资源CRD开发：从-脚本运维-到-声明式自动驾驶-/"
     }
   ],
   "used_subtopics": {
@@ -337,7 +344,8 @@
       "容器化应用的12-Factor原则实践",
       "Docker多阶段构建与镜像瘦身最佳实践",
       "Docker存储驱动：overlay2、aufs、devicemapper原理",
-      "容器资源隔离的Linux内核机制：namespace与cgroup"
+      "容器资源隔离的Linux内核机制：namespace与cgroup",
+      "K8s Operator模式与自定义资源CRD开发"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -392,6 +400,7 @@
     "Redis分布式锁的演进：从setnx到Redisson": "e57b1efcbe442787eb32a3e596c585d455a0489a808974e779f287ae8808b9a1",
     "pytest插件体系与Fixture机制": "4a04b4b42c5537573099981c44d61c0eb2ecf2f62b1ca8cad55b5d0159d05a88",
     "net/http包架构与中间件链实现": "bcd81fffd4651d9bb1194289c79045c4e93906956fccbde80ff1d04e0711d1fc",
-    "数据库分库分表中间件ShardingSphere源码分析": "ec90f3364d5d426e28820349d0e7c81f551e6cfda7071a0b94eddafe71697729"
+    "数据库分库分表中间件ShardingSphere源码分析": "ec90f3364d5d426e28820349d0e7c81f551e6cfda7071a0b94eddafe71697729",
+    "K8s Operator模式与自定义资源CRD开发": "937f266dc6add4dd7647fde0a5bedbff0ce4b7ded7389b76723880be9f5ef24a"
   }
 }
