@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Spring事务传播行为与失效场景分析：从源码到实战的全面解密 | 小曾博客</title>
+  <meta name="description" content="Spring事务传播行为与失效场景分析：从源码到实战的全面解密 引言 在微服务架构盛行的今天，分布式事务框架（如Seata、TCC）层出不穷，但绝大多数业务场景下的数据一致性保障，依然要回归到本地事务这个最基础的单元。而Spring事务管理，作为Java后端开发者绕不开的核心技能，其传播行为和失效场景的掌握程度，往往直接决定了一个系统的数据可靠性。 想象这样一个场景：你的系统收到一笔订单请求，需要">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Spring事务传播行为与失效场景分析：从源码到实战的全面解密">
+  <meta name="twitter:description" content="Spring事务传播行为与失效场景分析：从源码到实战的全面解密 引言 在微服务架构盛行的今天，分布式事务框架（如Seata、TCC）层出不穷，但绝大多数业务场景下的数据一致性保障，依然要回归到本地事务这个最基础的单元。而Spring事务管理，作为Java后端开发者绕不开的核心技能，其传播行为和失效场景的掌握程度，往往直接决定了一个系统的数据可靠性。 想象这样一个场景：你的系统收到一笔订单请求，需要">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=9766">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Spring事务传播行为与失效场景分析：从源码到实战的全面解密">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Spring事务传播行为与失效场景分析：从源码到实战的全面解密 引言 在微服务架构盛行的今天，分布式事务框架（如Seata、TCC）层出不穷，但绝大多数业务场景下的数据一致性保障，依然要回归到本地事务这个最基础的单元。而Spring事务管理，作为Java后端开发者绕不开的核心技能，其传播行为和失效场景的掌握程度，往往直接决定了一个系统的数据可靠性。 想象这样一个场景：你的系统收到一笔订单请求，需要">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=9766">
+  <meta property="article:published_time" content="2026-09-05T22:13:09.000Z">
+  <meta property="article:modified_time" content="2026-09-05T22:13:09.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Spring事务传播行为与失效场景分析-从源码到实战的全面解密"><span class="toc-text">Spring事务传播行为与失效场景分析：从源码到实战的全面解密</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-事务传播行为的生活化理解"><span class="toc-text">核心概念：事务传播行为的生活化理解</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析-Spring事务拦截的核心机制"><span class="toc-text">源码深度分析：Spring事务拦截的核心机制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#传播行为在AbstractPlatformTransactionManager中的落地"><span class="toc-text">传播行为在AbstractPlatformTransactionManager中的落地</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#事务传播的核心时序"><span class="toc-text">事务传播的核心时序</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#事务同步管理器-ThreadLocal的巧妙运用"><span class="toc-text">事务同步管理器：ThreadLocal的巧妙运用</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#事务失效场景的根源剖析"><span class="toc-text">事务失效场景的根源剖析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#场景一-自调用-内部方法调用"><span class="toc-text">场景一：自调用（内部方法调用）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#场景二-异常被吞掉"><span class="toc-text">场景二：异常被吞掉</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#场景三-非RuntimeException默认不回滚"><span class="toc-text">场景三：非RuntimeException默认不回滚</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#场景四-传播行为与ORPHAN事务"><span class="toc-text">场景四：传播行为与ORPHAN事务</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#场景五-数据库引擎不支持事务"><span class="toc-text">场景五：数据库引擎不支持事务</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码示例"><span class="toc-text">实战代码示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-传播行为REQUIRED与REQUIRES-NEW的协作"><span class="toc-text">示例一：传播行为REQUIRED与REQUIRES_NEW的协作</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-NESTED传播与保存点回滚"><span class="toc-text">示例二：NESTED传播与保存点回滚</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-事务失效的完整修复方案"><span class="toc-text">示例三：事务失效的完整修复方案</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例四-编程式事务的兜底方案"><span class="toc-text">示例四：编程式事务的兜底方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-声明式事务-vs-编程式事务-vs-分布式事务"><span class="toc-text">方案对比：声明式事务 vs 编程式事务 vs 分布式事务</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#黄金准则"><span class="toc-text">黄金准则</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑清单"><span class="toc-text">避坑清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=9766)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Spring事务传播行为与失效场景分析：从源码到实战的全面解密</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-05"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-05</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-05"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-05</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Spring事务传播行为与失效场景分析-从源码到实战的全面解密"><a href="#Spring事务传播行为与失效场景分析-从源码到实战的全面解密" class="headerlink" title="Spring事务传播行为与失效场景分析：从源码到实战的全面解密"></a>Spring事务传播行为与失效场景分析：从源码到实战的全面解密</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>在微服务架构盛行的今天，分布式事务框架（如Seata、TCC）层出不穷，但绝大多数业务场景下的数据一致性保障，依然要回归到本地事务这个最基础的单元。而Spring事务管理，作为Java后端开发者绕不开的核心技能，其传播行为和失效场景的掌握程度，往往直接决定了一个系统的数据可靠性。</p>
+<p>想象这样一个场景：你的系统收到一笔订单请求，需要同时扣减库存、增加积分、记录日志。这三个操作分属三个不同的Service方法，每个方法都标注了<code>@Transactional</code>。当库存扣减成功但积分增加失败时，整个操作应该回滚到哪个状态？日志记录应该独立提交还是随主流程回滚？这些问题的答案，全部隐藏在Spring事务传播行为的细节之中。</p>
+<p>更令人头疼的是，很多开发者在生产环境遇到过“@Transactional竟然没生效”的诡异问题——方法明明标注了事务注解，数据却依然出现了部分成功部分失败的情况。这些失效场景背后的原理是什么？如何从根本上避免？</p>
+<p>本文将深入Spring事务的源码实现，结合生活化类比与完整代码示例，为你彻底解开这两个核心谜题。</p>
+<h2 id="核心概念-事务传播行为的生活化理解"><a href="#核心概念-事务传播行为的生活化理解" class="headerlink" title="核心概念：事务传播行为的生活化理解"></a>核心概念：事务传播行为的生活化理解</h2>
+<p>在深入源码之前，让我们先建立一个直观认知。假设事务是一个“工作小组”，每个事务注解方法就像一个需要小组协作完成的工作任务：</p>
+<ul>
+<li><strong>REQUIRED（默认）</strong>：如果当前已有小组在工作，新任务加入现有小组；否则新建一个小组。这就像公司里遇到项目，有项目组就加入，没有就成立新组。</li>
+</ul>
+<ul>
+<li><strong>REQUIRES_NEW</strong>：无论是否存在小组，一律挂起当前小组，新建独立小组。就像紧急事故处理队，不干扰正常生产，独立行动。</li>
+</ul>
+<ul>
+<li><strong>NESTED</strong>：如果存在小组，则在当前小组内设置一个“保存点”，后续操作可以单独回滚到保存点，不影响外层已完成的进度。类似代码版本管理中的分支提交。</li>
+</ul>
+<ul>
+<li><strong>MANDATORY</strong>：必须存在小组，否则抛异常。就像必须加入既有项目组，否则拒绝工作。</li>
+</ul>
+<ul>
+<li><strong>SUPPORTS</strong>：有小组就加入，没有就以非事务方式运行。如同“锦上添花”，有资源就利用，没有也不强求。</li>
+</ul>
+<ul>
+<li><strong>NOT_SUPPORTED</strong>：挂起当前事务，以非事务方式运行。就像让事务小组暂停，自己去处理非事务性工作。</li>
+</ul>
+<ul>
+<li><strong>NEVER</strong>：如果存在事务则抛异常。明确拒绝在事务环境中运行。</li>
+</ul>
+<p>这些传播行为定义了方法之间事务边界的融合或隔离策略，其底层实现依赖于Spring的<code>TransactionInterceptor</code>与<code>AbstractPlatformTransactionManager</code>的协作。</p>
+<h2 id="源码深度分析-Spring事务拦截的核心机制"><a href="#源码深度分析-Spring事务拦截的核心机制" class="headerlink" title="源码深度分析：Spring事务拦截的核心机制"></a>源码深度分析：Spring事务拦截的核心机制</h2>
+<p>Spring声明式事务的基础是AOP代理。当我们调用一个标注了<code>@Transactional</code>的方法时，实际是通过代理对象调用的。核心拦截器<code>TransactionInterceptor</code>的<code>invoke</code>方法内部会调用<code>TransactionAspectSupport.invokeWithinTransaction</code>。</p>
+<figure class="highlight java"><pre><code class="language-java">// TransactionAspectSupport.java (简化版)
+private Object invokeWithinTransaction(Method method, @Nullable Class&lt;?&gt; targetClass, 
+        final InvocationCallback invocation) throws Throwable {
+    
+    // 1. 解析事务属性
+    TransactionAttributeSource tas = getTransactionAttributeSource();
+    TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+    
+    // 2. 确定事务管理器
+    TransactionManager tm = determineTransactionManager(txAttr);
+    
+    // 3. 关键：获取事务对象（此处决定传播行为）
+    if (txAttr != null &amp;&amp; tm instanceof PlatformTransactionManager) {
+        PlatformTransactionManager ptm = (PlatformTransactionManager) tm;
+        // 如果调用点在事务中，则获取当前线程绑定的TransactionInfo
+        TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
+        Object retVal = null;
+        try {
+            // 4. 执行目标方法
+            retVal = invocation.proceedWithInvocation();
+        } catch (Throwable ex) {
+            // 5. 异常时回滚
+            completeTransactionAfterThrowing(txInfo, ex);
+            throw ex;
+        } finally {
+            // 6. 清理TransactionInfo
+            cleanupTransactionInfo(txInfo);
+        }
+        // 7. 正常提交
+        commitTransactionAfterReturning(txInfo);
+        return retVal;
+    }
+}</code></pre></figure>
+<h3 id="传播行为在AbstractPlatformTransactionManager中的落地"><a href="#传播行为在AbstractPlatformTransactionManager中的落地" class="headerlink" title="传播行为在AbstractPlatformTransactionManager中的落地"></a>传播行为在AbstractPlatformTransactionManager中的落地</h3>
+<p>真正决定传播行为逻辑的是<code>AbstractPlatformTransactionManager.getTransaction()</code>方法。以最常用的<code>REQUIRED</code>为例：</p>
+<figure class="highlight java"><pre><code class="language-java">// AbstractPlatformTransactionManager.java (关键逻辑)
+public final TransactionStatus getTransaction(@Nullable TransactionDefinition definition) throws TransactionException {
+    
+    // 查找当前线程是否存在事务
+    Object transaction = doGetTransaction();
+    
+    if (definition == null) {
+        definition = new DefaultTransactionDefinition();
+    }
+    
+    // 关键：判断当前是否存在事务
+    if (isExistingTransaction(transaction)) {
+        // 存在事务时，根据传播行为决定策略
+        return handleExistingTransaction(definition, transaction, debugEnabled);
+    }
+    
+    // 不存在事务时，判断传播行为是否允许新建
+    if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRED ||
+        definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRES_NEW ||
+        definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NESTED) {
+        // 挂起当前事务（如果有）
+        SuspendedResourcesHolder suspendedResources = suspend(transaction);
+        // 开启新事务
+        return startTransaction(definition, transaction, debugEnabled, suspendedResources);
+    } else {
+        // 其他传播行为（如SUPPORTS、NOT_SUPPORTED）走非事务路径
+        // ...
+    }
+}
+
+private TransactionStatus handleExistingTransaction(...) {
+    switch (definition.getPropagationBehavior()) {
+        case TransactionDefinition.PROPAGATION_REQUIRES_NEW:
+            // 挂起当前事务，创建新事务
+            SuspendedResourcesHolder suspendedResources = suspend(transaction);
+            return startTransaction(definition, transaction, debugEnabled, suspendedResources);
+        case TransactionDefinition.PROPAGATION_NESTED:
+            // 关键：NESTED使用Savepoint机制
+            if (useSavepointForNestedTransaction()) {
+                // 创建保存点，后续可回滚到此
+                DefaultTransactionStatus status = newTransactionStatus(...);
+                status.createAndHoldSavepoint();
+                return status;
+            }
+        // REQUIRED 直接复用当前事务
+    }
+}</code></pre></figure>
+<h3 id="事务传播的核心时序"><a href="#事务传播的核心时序" class="headerlink" title="事务传播的核心时序"></a>事务传播的核心时序</h3>
+<p>下面用mermaid图展示REQUIRES_NEW传播行为的完整时序：</p>
+<div class="mermaid">
+sequenceDiagram
+    participant A as ServiceA.methodA()
+    participant P as TransactionInterceptor
+    participant TM as PlatformTransactionManager
+    participant C as Connection
+    participant B as ServiceB.methodB()
+    
+    A->>P: 调用methodA
+    P->>TM: getTransaction(REQUIRED)
+    TM->>C: 获取连接，开启事务
+    C-->>TM: 返回事务连接
+    TM-->>P: 返回TransactionStatus
+    P->>A: 执行方法体
+    A->>B: 调用methodB (REQUIRES_NEW)
+    B->>P: 进入新拦截器
+    P->>TM: getTransaction(REQUIRES_NEW)
+    TM->>C: 挂起当前连接
+    TM->>C: 获取新连接，开启新事务
+    C-->>TM: 返回新事务连接
+    TM-->>P: 返回新TransactionStatus
+    P->>B: 执行方法体
+    B-->>P: 返回结果
+    P->>TM: commit(新事务)
+    TM->>C: 提交并释放新连接
+    TM->>C: 恢复挂起的原连接
+    A-->>P: 方法返回
+    P->>TM: commit(原事务)
+    TM->>C: 提交原事务
+</div>
+<h3 id="事务同步管理器-ThreadLocal的巧妙运用"><a href="#事务同步管理器-ThreadLocal的巧妙运用" class="headerlink" title="事务同步管理器：ThreadLocal的巧妙运用"></a>事务同步管理器：ThreadLocal的巧妙运用</h3>
+<p>Spring通过<code>TransactionSynchronizationManager</code>将事务资源绑定到当前线程，这是事务传播实现的基石：</p>
+<figure class="highlight java"><pre><code class="language-java">public abstract class TransactionSynchronizationManager {
+    // 维护当前线程的事务资源（Connection、EntityManager等）
+    private static final ThreadLocal&lt;Map&lt;Object, Object&gt;&gt; resources = new NamedThreadLocal&lt;&gt;(&quot;Transactional resources&quot;);
+    // 维护当前线程的事务同步器列表
+    private static final ThreadLocal&lt;Set&lt;TransactionSynchronization&gt;&gt; synchronizations = new NamedThreadLocal&lt;&gt;(&quot;Transaction synchronizations&quot;);
+    // 维护当前线程的事务名称、只读状态、隔离级别等
+    private static final ThreadLocal&lt;TransactionInfo&gt; currentTransactionInfo = new NamedThreadLocal&lt;&gt;(&quot;Current transaction&quot;);
+    
+    // 绑定资源到当前线程
+    public static void bindResource(Object key, Object value) {
+        Map&lt;Object, Object&gt; map = resources.get();
+        if (map == null) {
+            map = new HashMap&lt;&gt;();
+            resources.set(map);
+        }
+        map.put(key, value);
+    }
+}</code></pre></figure>
+<p>正是这种ThreadLocal机制，使得同一线程内的多次方法调用可以共享同一个数据库连接，从而实现事务的传播。当传播行为要求<code>REQUIRES_NEW</code>时，Spring会挂起当前的资源绑定，建立新的绑定。</p>
+<h2 id="事务失效场景的根源剖析"><a href="#事务失效场景的根源剖析" class="headerlink" title="事务失效场景的根源剖析"></a>事务失效场景的根源剖析</h2>
+<p>理解了源码机制后，事务失效的场景就变得清晰可循了。以下是生产环境中最常见的5大类失效场景：</p>
+<h3 id="场景一-自调用-内部方法调用"><a href="#场景一-自调用-内部方法调用" class="headerlink" title="场景一：自调用（内部方法调用）"></a>场景一：自调用（内部方法调用）</h3>
+<p>这是最经典的失效场景。Spring的<code>@Transactional</code>基于代理实现，当类内部方法调用时，走的是<code>this.method()</code>，相当于绕过了代理对象，事务拦截器根本不会执行。</p>
+<figure class="highlight java"><pre><code class="language-java">@Service
+public class OrderService {
+    
+    public void createOrder(Order order) {
+        // 调用内部方法，事务失效！
+        this.updateStock(order.getProductId());
+        this.insertOrder(order);
+    }
+    
+    @Transactional
+    public void updateStock(Long productId) {
+        // 期望在事务中执行
+        productDao.decreaseStock(productId);
+    }
+    
+    @Transactional
+    public void insertOrder(Order order) {
+        orderDao.insert(order);
+    }
+}</code></pre></figure>
+<p><strong>解决方案</strong>：注入自身代理，或者将事务方法拆分到另一个Bean中。</p>
+<h3 id="场景二-异常被吞掉"><a href="#场景二-异常被吞掉" class="headerlink" title="场景二：异常被吞掉"></a>场景二：异常被吞掉</h3>
+<figure class="highlight java"><pre><code class="language-java">@Transactional
+public void processOrder(Order order) {
+    try {
+        updateStock(order);
+        insertOrder(order);
+    } catch (Exception e) {
+        // 异常被捕获，事务不会回滚！
+        log.error(&quot;处理订单失败，但事务不会回滚&quot;, e);
+    }
+}</code></pre></figure>
+<p>Spring默认只对<code>RuntimeException</code>和<code>Error</code>回滚。如果异常被捕获且未重新抛出，事务自然无法感知失败。</p>
+<h3 id="场景三-非RuntimeException默认不回滚"><a href="#场景三-非RuntimeException默认不回滚" class="headerlink" title="场景三：非RuntimeException默认不回滚"></a>场景三：非RuntimeException默认不回滚</h3>
+<figure class="highlight java"><pre><code class="language-java">@Transactional
+public void processOrder(Order order) throws Exception {
+    updateStock(order);  // 执行成功
+    insertOrder(order);  // 抛出SQLException（受检异常）
+    // 默认情况下，受检异常不会触发回滚！
+}</code></pre></figure>
+<h3 id="场景四-传播行为与ORPHAN事务"><a href="#场景四-传播行为与ORPHAN事务" class="headerlink" title="场景四：传播行为与ORPHAN事务"></a>场景四：传播行为与ORPHAN事务</h3>
+<figure class="highlight java"><pre><code class="language-java">@Transactional(propagation = Propagation.REQUIRES_NEW)
+public void updatePoint(Long userId, int points) {
+    // 这个方法的调用方如果自己也在事务中，其事务会被挂起
+    // 若这里出现异常，只会回滚这个新事务，外层事务不受影响
+}</code></pre></figure>
+<h3 id="场景五-数据库引擎不支持事务"><a href="#场景五-数据库引擎不支持事务" class="headerlink" title="场景五：数据库引擎不支持事务"></a>场景五：数据库引擎不支持事务</h3>
+<figure class="highlight java"><pre><code class="language-java">// MySQL的MyISAM引擎不支持事务，即使标注了@Transactional也无济于事</code></pre></figure>
+<h2 id="实战代码示例"><a href="#实战代码示例" class="headerlink" title="实战代码示例"></a>实战代码示例</h2>
+<h3 id="示例一-传播行为REQUIRED与REQUIRES-NEW的协作"><a href="#示例一-传播行为REQUIRED与REQUIRES-NEW的协作" class="headerlink" title="示例一：传播行为REQUIRED与REQUIRES_NEW的协作"></a>示例一：传播行为REQUIRED与REQUIRES_NEW的协作</h3>
+<figure class="highlight java"><pre><code class="language-java">/**
+ * 场景：用户下单后，扣减库存（主事务），赠送积分（独立子事务）
+ * 需求：如果赠送积分失败，不应该影响库存扣减的提交
+ * 反之，如果库存扣减失败，积分赠送也需要回滚
+ */
+@Service
+public class OrderService {
+    
+    private final InventoryService inventoryService;
+    private final PointService pointService;
+    private final OrderRepository orderRepository;
+    
+    @Transactional(rollbackFor = Exception.class)
+    public void createOrder(Order order) {
+        // 1. 保存订单（主事务）
+        orderRepository.save(order);
+        
+        try {
+            // 2. 扣减库存（REQUIRED，加入主事务）
+            inventoryService.decreaseStock(order.getProductId(), order.getQuantity());
+            
+            // 3. 赠送积分（REQUIRES_NEW，独立新事务）
+            // 即使积分赠送失败回滚，也不会影响主事务
+            pointService.addPoints(order.getUserId(), order.calculatePoints());
+        } catch (Exception e) {
+            // 此处捕获异常，如果库存或订单有问题，仍会回滚主事务
+            // 但积分赠送的REQUIRES_NEW事务已经独立提交
+            log.error(&quot;处理订单失败，尝试补偿积分&quot;, e);
+            // 可以使用消息队列做最终一致性补偿
+        }
+    }
+}
+
+@Service
+public class PointService {
+    
+    /**
+     * 使用REQUIRES_NEW开启独立事务
+     * 注意：此处如果抛出异常，不会影响调用方的事务
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+    public void addPoints(Long userId, int points) {
+        // 模拟积分操作
+        pointRepository.increment(userId, points);
+        // 模拟可能失败的情况
+        if (points &gt; 1000) {
+            throw new IllegalArgumentException(&quot;积分超出限制&quot;);
+        }
+    }
+}</code></pre></figure>
+<h3 id="示例二-NESTED传播与保存点回滚"><a href="#示例二-NESTED传播与保存点回滚" class="headerlink" title="示例二：NESTED传播与保存点回滚"></a>示例二：NESTED传播与保存点回滚</h3>
+<figure class="highlight java"><pre><code class="language-java">/**
+ * 场景：批量处理订单，希望单个订单失败不影响整体，但能记录失败状态
+ */
+@Service
+public class BatchOrderService {
+    
+    private final OrderRepository orderRepository;
+    
+    /**
+     * 外层事务：REQUIRED
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void batchProcess(List&lt;Order&gt; orders) {
+        for (Order order : orders) {
+            try {
+                // 使用REQUIRES_NEW会让每个订单独立提交，性能较慢
+                // 使用NESTED则可以通过保存点回滚单个订单
+                processSingleOrder(order);
+            } catch (Exception e) {
+                // 捕获异常，继续处理下一个订单
+                // 由于NESTED使用保存点，此处的回滚不会影响外层其他订单
+                order.setStatus(OrderStatus.FAILED);
+                order.setErrorMsg(e.getMessage());
+                orderRepository.save(order);  // 保存失败状态
+            }
+        }
+        // 如果外层事务提交，所有成功处理的订单一起提交
+    }
+    
+    /**
+     * NESTED：在调用点创建保存点，失败时回滚到保存点
+     * 而非回滚整个外层事务
+     */
+    @Transactional(propagation = Propagation.NESTED)
+    public void processSingleOrder(Order order) {
+        // 处理订单逻辑，如状态流转、库存操作等
+        order.setStatus(OrderStatus.PROCESSING);
+        orderRepository.save(order);
+        
+        // 模拟可能出现的部分失败
+        if (order.getAmount() &lt; 0) {
+            throw new IllegalArgumentException(&quot;订单金额异常&quot;);
+        }
+        order.setStatus(OrderStatus.SUCCESS);
+        orderRepository.save(order);
+    }
+}</code></pre></figure>
+<p><strong>性能提示</strong>：NESTED依赖数据库的Savepoint特性，在MySQL中使用<code>SAVEPOINT</code>语句，性能开销比REQUIRES_NEW小，但比纯REQUIRED大。适用于批量处理且需要部分回滚的场景。</p>
+<h3 id="示例三-事务失效的完整修复方案"><a href="#示例三-事务失效的完整修复方案" class="headerlink" title="示例三：事务失效的完整修复方案"></a>示例三：事务失效的完整修复方案</h3>
+<figure class="highlight java"><pre><code class="language-java">/**
+ * 修复示例：展示如何正确使用事务，避免自调用和内部方法问题
+ */
+@Service
+public class TransactionFixDemo {
+    
+    // 方法一：注入自身代理（循环依赖解决方式之一）
+    @Autowired
+    private TransactionFixDemo selfProxy;  // Spring Boot 2.6+ 默认禁止循环依赖
+    
+    // 方法二（推荐）：拆分为两个Bean，通过AOP代理调用
+    private final ExternalPointService externalPointService;
+    
+    public TransactionFixDemo(ExternalPointService externalPointService) {
+        this.externalPointService = externalPointService;
+    }
+    
+    /**
+     * 正确示例：确保事务方法通过代理调用
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void correctTransactionFlow(Order order) {
+        // 1. 先执行主业务逻辑
+        orderRepository.save(order);
+        
+        // 2. 调用外部Bean的事务方法（通过代理，事务生效）
+        externalPointService.addPointsWithTransaction(order.getUserId(), 100);
+        
+        // 3. 如果在同一个类中，使用selfProxy调用
+        // selfProxy.internalStockOperation(order);
+    }
+    
+    /**
+     * 正确示例：指定rollbackFor处理受检异常
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void processWithCheckedException() throws Exception {
+        // 业务逻辑
+        try {
+            // 可能会抛出受检异常
+            externalApi.call();
+        } catch (Exception e) {
+            // 记录日志后重新抛出，触发回滚
+            log.error(&quot;调用外部API失败&quot;, e);
+            throw new RuntimeException(&quot;业务处理失败&quot;, e); // 包装为RuntimeException
+        }
+    }
+    
+    /**
+     * 正确示例：事务边界与异步任务
+     */
+    @Transactional
+    public void transactionWithAsync() {
+        // 事务内同步操作
+        orderRepository.updateStatus(1L, OrderStatus.PROCESSING);
+        
+        // 注意：异步方法无法参与当前事务！
+        // 如果需要异步且事务，必须在异步方法内自行开启事务
+        asyncNotificationService.sendNotification(1L);
+    }
+}
+
+@Service
+public class ExternalPointService {
+    
+    @Transactional(propagation = Propagation.REQUIRED, rollbackFor = Exception.class)
+    public void addPointsWithTransaction(Long userId, int points) {
+        pointRepository.increment(userId, points);
+    }
+}</code></pre></figure>
+<h3 id="示例四-编程式事务的兜底方案"><a href="#示例四-编程式事务的兜底方案" class="headerlink" title="示例四：编程式事务的兜底方案"></a>示例四：编程式事务的兜底方案</h3>
+<p>当声明式事务遇到自调用、动态代理失效等棘手问题时，编程式事务是最后的兜底方案：</p>
+<figure class="highlight java"><pre><code class="language-java">/**
+ * 编程式事务示例：在极端情况下确保事务控制
+ */
+@Service
+public class ProgrammaticTransactionDemo {
+    
+    private final TransactionTemplate transactionTemplate;
+    
+    public ProgrammaticTransactionDemo(PlatformTransactionManager transactionManager) {
+        // 可以基于DataSourceTransactionManager构造
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        // 设置传播行为
+        this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
+        // 设置隔离级别
+        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+    }
+    
+    public void executeWithTransaction() {
+        // 使用编程式事务，可以完全控制事务边界
+        transactionTemplate.execute(status -&gt; {
+            try {
+                // 业务逻辑
+                orderRepository.save(order);
+                pointRepository.increment(userId, points);
+                return null;
+            } catch (Exception e) {
+                // 设置回滚标记
+                status.setRollbackOnly();
+                throw e;
+            }
+        });
+    }
+}</code></pre></figure>
+<h2 id="方案对比-声明式事务-vs-编程式事务-vs-分布式事务"><a href="#方案对比-声明式事务-vs-编程式事务-vs-分布式事务" class="headerlink" title="方案对比：声明式事务 vs 编程式事务 vs 分布式事务"></a>方案对比：声明式事务 vs 编程式事务 vs 分布式事务</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>声明式事务</th>
+<th>编程式事务</th>
+<th>分布式事务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>使用方式</strong></td>
+<td><code>@Transactional</code>注解</td>
+<td><code>TransactionTemplate</code></td>
+<td>Seata、TCC等中间件</td>
+</tr><tr>
+<td><strong>代码侵入性</strong></td>
+<td>低，注解声明即可</td>
+<td>中等，需编写模板代码</td>
+<td>高，需引入额外依赖</td>
+</tr><tr>
+<td><strong>事务粒度</strong></td>
+<td>方法级别</td>
+<td>代码块级别</td>
+<td>跨服务级别</td>
+</tr><tr>
+<td><strong>性能开销</strong></td>
+<td>低</td>
+<td>低</td>
+<td>高（需协调者参与）</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>单体应用，大部分业务</td>
+<td>需要细粒度控制，或解决失效问题</td>
+<td>微服务跨库一致性</td>
+</tr><tr>
+<td><strong>失效风险</strong></td>
+<td>存在自调用、异常捕获等失效源</td>
+<td>无失效可能</td>
+<td>依赖中间件稳定性</td>
+</tr><tr>
+<td><strong>回滚粒度</strong></td>
+<td>整个方法</td>
+<td>代码块</td>
+<td>整个全局事务</td>
+</tr></tbody></table>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="黄金准则"><a href="#黄金准则" class="headerlink" title="黄金准则"></a>黄金准则</h3>
+<ol>
+<li><strong>事务方法必须是public</strong>：Spring AOP只对public方法生效</li>
+<li><strong>统一配置rollbackFor = Exception.class</strong>：避免受检异常不回滚的坑</li>
+<li><strong>事务方法尽量通过代理调用</strong>：避免自调用导致失效</li>
+<li><strong>事务方法内避免长时间外部RPC调用</strong>：长事务会持有数据库连接，可能导致连接池耗尽</li>
+<li><strong>合理设置事务超时时间</strong>：<code>@Transactional(timeout = 5)</code>防止慢SQL拖垮系统</li>
+</ol>
+<h3 id="避坑清单"><a href="#避坑清单" class="headerlink" title="避坑清单"></a>避坑清单</h3>
+<ul>
+<li><strong>坑1：事务方法内部使用this调用</strong> → 拆分类或注入自身代理</li>
+</ul>
+<ul>
+<li><strong>坑2：catch住异常不抛出</strong> → 要么重新抛出，要么手动<code>TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()</code></li>
+</ul>
+<ul>
+<li><strong>坑3：方法内部开启新线程执行事务方法</strong> → 新线程没有事务上下文，需手动传播</li>
+</ul>
+<ul>
+<li><strong>坑4：使用<code>@Transactional</code>在接口上</strong> → 可能被JDK动态代理忽略，放在实现类上保险</li>
+</ul>
+<ul>
+<li><strong>坑5：事务方法内进行集合操作后修改对象</strong> → 确保在事务提交前完成所有写操作</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>Spring事务传播行为是构建可靠数据一致性的基石。通过深入源码，我们理解了传播行为本质上是<code>TransactionInterceptor</code>与<code>TransactionSynchronizationManager</code>基于ThreadLocal的协作结果。REQUIRED复用当前事务，REQUIRES_NEW挂起旧事务，NESTED利用Savepoint实现部分回滚——这些机制共同构成了Spring事务的灵活性。</p>
+<p>同时，事务失效的根源大多在于Spring的AOP代理特性：自调用绕过代理、异常被吞、受检异常默认不回滚等。理解这些失效场景后，开发者可以从容应对，通过拆分类、注入代理、编程式事务等方案进行修复。</p>
+<p>延伸思考：在如今的微服务时代，本地事务已经无法解决跨服务的数据一致性。你是否思考过，如何将Spring的传播行为思想应用到分布式事务的设计中？Saga模式中的“子事务”与REQUIRES_NEW是否有异曲同工之妙？这些问题的探索，将帮助你在架构设计的道路上走得更远。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
