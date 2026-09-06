@@ -307,6 +307,13 @@
       "subtopic": "Spring事务传播行为与失效场景分析",
       "date": "2026-09-05",
       "url": "/2026/09/05/Spring事务传播行为与失效场景分析：从源码到实战的全面解密/"
+    },
+    {
+      "title": "Go GC的演进与调优策略：从STW到百微秒的实战之路",
+      "category": "golang",
+      "subtopic": "Go GC的演进与调优策略",
+      "date": "2026-09-06",
+      "url": "/2026/09/06/Go GC的演进与调优策略：从STW到百微秒的实战之路/"
     }
   ],
   "used_subtopics": {
@@ -364,7 +371,8 @@
       "Go Context的设计与链路追踪实践",
       "Go错误处理范式与errors包源码",
       "sync.Mutex源码解读与锁优化",
-      "net/http包架构与中间件链实现"
+      "net/http包架构与中间件链实现",
+      "Go GC的演进与调优策略"
     ]
   },
   "content_hashes": {
@@ -410,6 +418,7 @@
     "net/http包架构与中间件链实现": "bcd81fffd4651d9bb1194289c79045c4e93906956fccbde80ff1d04e0711d1fc",
     "数据库分库分表中间件ShardingSphere源码分析": "ec90f3364d5d426e28820349d0e7c81f551e6cfda7071a0b94eddafe71697729",
     "K8s Operator模式与自定义资源CRD开发": "937f266dc6add4dd7647fde0a5bedbff0ce4b7ded7389b76723880be9f5ef24a",
-    "Spring事务传播行为与失效场景分析": "3316c1e6bcfde97dd492f468d0499a4b235b5acb5eb0a807cb0948ec37768bad"
+    "Spring事务传播行为与失效场景分析": "3316c1e6bcfde97dd492f468d0499a4b235b5acb5eb0a807cb0948ec37768bad",
+    "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf"
   }
 }
