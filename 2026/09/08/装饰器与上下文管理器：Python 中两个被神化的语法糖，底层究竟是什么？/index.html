@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？ | 小曾博客</title>
+  <meta name="description" content="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？ 引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3. ">
+  <meta name="keywords" content="python,fastapi,async,django,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？">
+  <meta name="twitter:description" content="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？ 引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3. ">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=5153">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？ 引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3. ">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=5153">
+  <meta property="article:published_time" content="2026-09-08T00:51:18.000Z">
+  <meta property="article:modified_time" content="2026-09-08T00:51:18.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#装饰器与上下文管理器-Python-中两个被神化的语法糖-底层究竟是什么"><span class="toc-text">装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-包装-和-进入-说起"><span class="toc-text">核心概念：从“包装”和“进入”说起</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级解密-从字节码到对象协议"><span class="toc-text">源码级解密：从字节码到对象协议</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-装饰器的本质-语法糖与函数替换"><span class="toc-text">1. 装饰器的本质：语法糖与函数替换</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-上下文管理器的协议-with-到底做了什么"><span class="toc-text">with 到底做了什么？">2. 上下文管理器的协议：with 到底做了什么？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-深入-FastAPI-与-Django-的源码视角"><span class="toc-text">3. 深入 FastAPI 与 Django 的源码视角</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-进阶-contextlib-与-async-with-的秘密"><span class="toc-text">contextlib 与 async with 的秘密">4. 进阶：contextlib 与 async with 的秘密</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个必须掌握的深度示例"><span class="toc-text">实战代码：三个必须掌握的深度示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-带超时控制的事务装饰器-Decorator-Context-Manager-混用"><span class="toc-text">示例 1：带超时控制的事务装饰器（Decorator + Context Manager 混用）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-异步上下文管理器-实现一个数据库连接池的会话控制"><span class="toc-text">示例 2：异步上下文管理器——实现一个数据库连接池的会话控制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-通过装饰器实现参数校验与依赖注入-模仿-FastAPI-核心思想"><span class="toc-text">示例 3：通过装饰器实现参数校验与依赖注入（模仿 FastAPI 核心思想）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#Mermaid-架构图-装饰器与上下文管理器的协同工作流"><span class="toc-text">Mermaid 架构图：装饰器与上下文管理器的协同工作流</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Python-中的不同实现手段"><span class="toc-text">方案对比：Python 中的不同实现手段</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑-1-functools-wraps-不是可选项-是必须项"><span class="toc-text">functools.wraps 不是可选项，是必须项">避坑 1：functools.wraps 不是可选项，是必须项</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑-2-千万不要在-exit-中随意返回-True"><span class="toc-text">__exit__ 中随意返回 True">避坑 2：千万不要在 __exit__ 中随意返回 True</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑-3-异步装饰器的坑"><span class="toc-text">避坑 3：异步装饰器的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#避坑-4-装饰器叠加的顺序"><span class="toc-text">避坑 4：装饰器叠加的顺序</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=5153)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-08"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-08</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-08"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-08</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">python</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="装饰器与上下文管理器-Python-中两个被神化的语法糖-底层究竟是什么"><a href="#装饰器与上下文管理器-Python-中两个被神化的语法糖-底层究竟是什么" class="headerlink" title="装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？"></a>装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑：</p>
+<figure class="highlight python"><pre><code class="language-python">@app.post(&quot;/api/v1/pay&quot;)
+async def create_payment(request: Request):
+    # 1. 检查用户是否登录
+    # 2. 检查用户是否有权限
+    # 3. 开启数据库事务
+    # 4. 记录操作日志
+    # 5. 捕获异常并回滚
+    # ... 真正的业务逻辑只占 20 行</code></pre></figure>
+<p>你自然地想到了用装饰器来抽离鉴权逻辑，用上下文管理器来管理事务。但当你真正深入时，是否想过：</p>
+<ul>
+<li>被 <code>@app.post()</code> 包裹的函数，在装饰器执行的那一刻，到底发生了什么？</li>
+</ul>
+<ul>
+<li>为什么 <code>with</code> 语句能在 <code>__enter__</code> 抛异常时，依然能正确调用 <code>__exit__</code>？</li>
+</ul>
+<ul>
+<li>当你用 <code>async with</code> 时，事件循环是如何介入这些钩子函数的？</li>
+</ul>
+<p>今天，我们不谈“怎么用”，而是直接撕开这两层语法糖的外衣，看看 CPython 解释器到底是怎么处理它们的。</p>
+<h2 id="核心概念-从-包装-和-进入-说起"><a href="#核心概念-从-包装-和-进入-说起" class="headerlink" title="核心概念：从“包装”和“进入”说起"></a>核心概念：从“包装”和“进入”说起</h2>
+<p>在深入源码之前，我们先建立一个直观的心智模型。</p>
+<p><strong>装饰器（Decorator）</strong>：想象你开了一家奶茶店。你的“招牌奶茶”是一个基础函数。现在你需要在卖出每一杯奶茶前，都要“检查健康证”（鉴权）、“记录销量”（日志）。装饰器不是修改了“做奶茶”这个动作本身，而是在这个动作外面套了一个“门店管理流程”。从 Python 的角度看，它接收一个“动作”（函数），然后返回一个“包含了新流程的动作”（新函数）。</p>
+<p><strong>上下文管理器（Context Manager）</strong>：这更像是一个“保险箱”或者“资源租赁协议”。你用 <code>with</code> 语句“租用”一个资源（比如打开一个文件、获取一把锁）。协议规定：进入时（<code>__enter__</code>）必须完成初始化，无论你在“保险箱”里干了什么（哪怕是砸了箱子），离开时（<code>__exit__</code>）都必须执行清理（关闭文件、释放锁）。</p>
+<p><strong>技术定义</strong>：</p>
+<ul>
+<li><strong>装饰器</strong>：一个可调用对象，接收一个函数或类作为参数，返回一个新的函数或类（或修改原对象后返回）。</li>
+</ul>
+<ul>
+<li><strong>上下文管理器</strong>：一个实现了 <code>__enter__</code> 和 <code>__exit__</code> 方法的对象，用于定义执行 <code>with</code> 语句时建立的运行时上下文。</li>
+</ul>
+<h2 id="源码级解密-从字节码到对象协议"><a href="#源码级解密-从字节码到对象协议" class="headerlink" title="源码级解密：从字节码到对象协议"></a>源码级解密：从字节码到对象协议</h2>
+<h3 id="1-装饰器的本质-语法糖与函数替换"><a href="#1-装饰器的本质-语法糖与函数替换" class="headerlink" title="1. 装饰器的本质：语法糖与函数替换"></a>1. 装饰器的本质：语法糖与函数替换</h3>
+<p>我们先看一段最朴素的装饰器代码：</p>
+<figure class="highlight python"><pre><code class="language-python">def my_decorator(func):
+    def wrapper(*args, **kwargs):
+        print(&quot;Before call&quot;)
+        result = func(*args, **kwargs)
+        print(&quot;After call&quot;)
+        return result
+    return wrapper
+
+@my_decorator
+def hello():
+    print(&quot;Hello World&quot;)</code></pre></figure>
+<p>在 CPython 中，<code>@</code> 语法本质上只是语法糖。当我们使用 <code>dis</code> 模块（反汇编）来看这段代码的字节码时，会发现 <code>@my_decorator</code> 在编译时被翻译成了：</p>
+<figure class="highlight python"><pre><code class="language-python">def hello():
+    ...
+hello = my_decorator(hello)</code></pre></figure>
+<p>这意味着，<strong>在模块导入（import）时，装饰器函数就已经被执行了</strong>。这是一个极其重要的特性——它发生在运行时，但早于被装饰函数的任何调用。</p>
+<p>让我们看一个更高级的常见误区：带参数的装饰器。为何它需要三层嵌套？</p>
+<figure class="highlight python"><pre><code class="language-python">def repeat(times):
+    # 第一层：接收装饰器的参数
+    def decorator(func):
+        # 第二层：接收被装饰的函数
+        def wrapper(*args, **kwargs):
+            # 第三层：接收调用参数
+            for _ in range(times):
+                result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator</code></pre></figure>
+<p>如果你试图用 <code>@repeat(3)</code> 去装饰，实际上执行的是 <code>repeat(3)</code>，它返回了 <code>decorator</code> 函数。这个 <code>decorator</code> 才是真正接收 <code>hello</code> 函数的“装饰器”。所以，带参装饰器本质上是 <strong>“用参数生成装饰器”的工厂函数</strong>。</p>
+<h3 id="2-上下文管理器的协议-with-到底做了什么"><a href="#2-上下文管理器的协议-with-到底做了什么" class="headerlink" title="2. 上下文管理器的协议：<code>with</code> 到底做了什么？"></a>2. 上下文管理器的协议：<code>with</code> 到底做了什么？</h3>
+<p><code>with</code> 语句是 Python 中少数几个直接操作“协议”的语句。它要求对象实现 <code>__enter__</code> 和 <code>__exit__</code>。我们来看 CPython 在 <code>ceval.c</code>（C 解释器核心）中是如何执行 <code>with</code> 的（简化逻辑）：</p>
+<figure class="highlight c"><pre><code class="language-c">// 伪代码，模拟 WITH_STMT 字节码的执行流程
+static int
+with_setup_try( ... )
+{
+    // 1. 获取 with 后面的对象: obj
+    // 2. 调用 obj.__enter__() 方法，将返回值赋给 as 变量
+    // 3. 设置一个异常处理块（try block），并记录 __exit__ 方法
+}
+
+static int
+with_cleanup( ... )
+{
+    // 当 with 代码块执行完毕（无论正常或异常）后执行：
+    // 1. 如果代码块无异常，调用 __exit__(None, None, None)
+    // 2. 如果代码块有异常，调用 __exit__(exc_type, exc_value, traceback)
+    // 3. 检查 __exit__ 的返回值：
+    //    - 如果为 True，则吞咽异常（不向外部抛出）
+    //    - 如果为 False，则重新抛出异常
+}</code></pre></figure>
+<p>所以，<strong><code>__exit__</code> 返回 <code>True</code> 是极其危险的</strong>，它会让你程序中的异常“凭空消失”。</p>
+<h3 id="3-深入-FastAPI-与-Django-的源码视角"><a href="#3-深入-FastAPI-与-Django-的源码视角" class="headerlink" title="3. 深入 FastAPI 与 Django 的源码视角"></a>3. 深入 FastAPI 与 Django 的源码视角</h3>
+<p>现在我们把这两者结合起来看。为什么 FastAPI 的依赖注入和 Django 的 <code>transaction.atomic()</code> 能无缝结合？</p>
+<p><strong>Django 的 <code>atomic</code> 装饰器</strong>：它实际上是一个同时实现了装饰器和上下文管理器功能的类。</p>
+<figure class="highlight python"><pre><code class="language-python">class Atomic(AtomicBase):
+    def __enter__(self):
+        # 开启事务，或创建保存点（savepoint）
+        connection.set_autocommit(False, force_begin_transaction_with_broken_autocommit=True)
+        ...
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is None:
+            # 无异常，提交事务
+            connection.commit()
+        else:
+            # 有异常，回滚到保存点
+            connection.rollback()</code></pre></figure>
+<p><strong>FastAPI 的 <code>Depends</code></strong>：它利用了 Python 的 <code>inspect</code> 模块进行依赖分析，但真正实现“清理”逻辑时，FastAPI 在内部大量使用了上下文管理器（如 <code>run_in_threadpool</code> 或处理数据库会话时）。</p>
+<h3 id="4-进阶-contextlib-与-async-with-的秘密"><a href="#4-进阶-contextlib-与-async-with-的秘密" class="headerlink" title="4. 进阶：<code>contextlib</code> 与 <code>async with</code> 的秘密"></a>4. 进阶：<code>contextlib</code> 与 <code>async with</code> 的秘密</h3>
+<p><code>contextlib.contextmanager</code> 是一个终极语法糖。它如何将一个生成器函数变成上下文管理器？</p>
+<figure class="highlight python"><pre><code class="language-python">from contextlib import contextmanager
+
+@contextmanager
+def managed_resource(*args, **kwds):
+    # 这里的代码相当于 __enter__
+    resource = acquire_resource(*args, **kwds)
+    try:
+        yield resource
+    finally:
+        # 这里的代码相当于 __exit__
+        release_resource(resource)</code></pre></figure>
+<p><code>contextlib</code> 内部实现了一个 <code>_GeneratorContextManager</code> 类。它的 <code>__enter__</code> 方法会启动生成器（即执行到 <code>yield</code> 处），而 <code>__exit__</code> 方法会向生成器内部抛入一个异常（如果是异常退出）或者 <code>None</code>（如果是正常退出），以驱动生成器执行 <code>finally</code> 块。</p>
+<p><strong>这就是为什么 <code>yield</code> 周围的 <code>try/finally</code> 如此重要</strong>。</p>
+<p><strong>异步版</strong>：当你使用 <code>async with</code> 时，Python 调用的是 <code>__aenter__</code> 和 <code>__aexit__</code>。而 <code>contextlib.asynccontextmanager</code> 则要求你的生成器函数必须是异步的（<code>async def</code>），并且内部 <code>yield</code> 的值必须是一个可等待对象（awaitable）。</p>
+<h2 id="实战代码-三个必须掌握的深度示例"><a href="#实战代码-三个必须掌握的深度示例" class="headerlink" title="实战代码：三个必须掌握的深度示例"></a>实战代码：三个必须掌握的深度示例</h2>
+<h3 id="示例-1-带超时控制的事务装饰器-Decorator-Context-Manager-混用"><a href="#示例-1-带超时控制的事务装饰器-Decorator-Context-Manager-混用" class="headerlink" title="示例 1：带超时控制的事务装饰器（Decorator + Context Manager 混用）"></a>示例 1：带超时控制的事务装饰器（Decorator + Context Manager 混用）</h3>
+<p>这个例子展示了如何用上下文管理器封装资源生命周期，再用装饰器封装业务逻辑。</p>
+<figure class="highlight python"><pre><code class="language-python">import time
+import functools
+from contextlib import contextmanager
+
+class TimeoutError(Exception):
+    pass
+
+@contextmanager
+def time_limit(seconds):
+    &quot;&quot;&quot;一个简单的超时上下文管理器，用于模拟资源获取超时&quot;&quot;&quot;
+    start = time.monotonic()
+    # 假设这里获取一个网络连接
+    connection = {&quot;connected&quot;: True, &quot;id&quot;: id(start)}
+    print(f&quot;[CONN] 获取连接: {connection[&#x27;id&#x27;]}&quot;)
+    try:
+        yield connection  # 把连接传递给 with 代码块
+    finally:
+        elapsed = time.monotonic() - start
+        print(f&quot;[CONN] 释放连接: {connection[&#x27;id&#x27;]}, 耗时: {elapsed:.2f}s&quot;)
+        # 模拟关闭连接
+        connection[&quot;connected&quot;] = False
+
+def retry_on_timeout(max_retries=3):
+    &quot;&quot;&quot;装饰器：在超时的情况下进行重试&quot;&quot;&quot;
+    def decorator(func):
+        @functools.wraps(func)  # 保留原函数的元信息（__name__, __doc__）
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    with time_limit(seconds=1) as conn:
+                        print(f&quot;  尝试 {attempt+1} 次，使用连接 {conn[&#x27;id&#x27;]}&quot;)
+                        return func(*args, **kwargs)
+                except TimeoutError as e:
+                    last_exception = e
+                    print(f&quot;  尝试 {attempt+1} 超时，准备重试...&quot;)
+            raise last_exception
+        return wrapper
+    return decorator
+
+@retry_on_timeout(max_retries=2)
+def fetch_data_from_service():
+    # 模拟一个可能会超时的网络请求（比如 50% 概率超时）
+    import random
+    if random.random() &lt; 0.5:
+        raise TimeoutError(&quot;模拟：服务响应超时&quot;)
+    return {&quot;data&quot;: &quot;success&quot;}
+
+# 执行测试
+if __name__ == &quot;__main__&quot;:
+    result = fetch_data_from_service()
+    print(f&quot;最终结果: {result}&quot;)</code></pre></figure>
+<h3 id="示例-2-异步上下文管理器-实现一个数据库连接池的会话控制"><a href="#示例-2-异步上下文管理器-实现一个数据库连接池的会话控制" class="headerlink" title="示例 2：异步上下文管理器——实现一个数据库连接池的会话控制"></a>示例 2：异步上下文管理器——实现一个数据库连接池的会话控制</h3>
+<p>这是 FastAPI 开发中的高频场景：异步数据库会话。</p>
+<figure class="highlight python"><pre><code class="language-python">import asyncio
+import asyncpg  # 假设安装了 asyncpg
+from typing import Optional
+
+class DatabaseSession:
+    &quot;&quot;&quot;模拟一个异步数据库连接池的上下文管理器&quot;&quot;&quot;
+    def __init__(self, pool, name: str):
+        self.pool = pool
+        self.name = name
+        self.connection: Optional[asyncpg.Connection] = None
+
+    async def __aenter__(self):
+        &quot;&quot;&quot;异步获取连接&quot;&quot;&quot;
+        print(f&quot;[{self.name}] 从池中借用连接...&quot;)
+        # 模拟异步获取连接（真实场景这里是 await self.pool.acquire()）
+        await asyncio.sleep(0.1)
+        # 模拟创建一个真实的连接对象
+        self.connection = {&quot;id&quot;: id(self), &quot;transaction&quot;: None}
+        return self.connection
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        &quot;&quot;&quot;异步释放连接，并自动处理事务提交/回滚&quot;&quot;&quot;
+        if self.connection:
+            if exc_type is not None:
+                # 有异常，回滚
+                print(f&quot;[{self.name}] 检测到异常 {exc_type.__name__}，执行回滚...&quot;)
+                await asyncio.sleep(0.05)  # 模拟 ROLLBACK
+                status = &quot;rolled back&quot;
+            else:
+                # 无异常，提交
+                print(f&quot;[{self.name}] 无异常，提交事务...&quot;)
+                await asyncio.sleep(0.05)  # 模拟 COMMIT
+                status = &quot;committed&quot;
+            # 释放连接回池
+            print(f&quot;[{self.name}] 事务 {status}，归还连接到池。&quot;)
+            self.connection = None
+        # 注意：这里没有 return True，所以异常会继续向上抛出
+        return False
+
+async def main():
+    # 模拟一个连接池对象
+    pool = {&quot;max_size&quot;: 10}
+
+    # 场景 1：正常操作
+    async with DatabaseSession(pool, &quot;Session-1&quot;) as conn:
+        # 模拟执行 SQL
+        await asyncio.sleep(0.2)
+        print(f&quot;执行 SQL 成功，连接 ID: {conn[&#x27;id&#x27;]}&quot;)
+
+    print(&quot;=&quot;*30)
+
+    # 场景 2：发生异常
+    try:
+        async with DatabaseSession(pool, &quot;Session-2&quot;) as conn:
+            await asyncio.sleep(0.1)
+            raise ValueError(&quot;数据校验失败！&quot;)
+    except ValueError as e:
+        print(f&quot;捕获到业务异常: {e}&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    asyncio.run(main())</code></pre></figure>
+<h3 id="示例-3-通过装饰器实现参数校验与依赖注入-模仿-FastAPI-核心思想"><a href="#示例-3-通过装饰器实现参数校验与依赖注入-模仿-FastAPI-核心思想" class="headerlink" title="示例 3：通过装饰器实现参数校验与依赖注入（模仿 FastAPI 核心思想）"></a>示例 3：通过装饰器实现参数校验与依赖注入（模仿 FastAPI 核心思想）</h3>
+<p>这个例子展示了如何用装饰器 + <code>inspect</code> 签名来实现轻量级的依赖注入，理解 FastAPI 的底层魔法。</p>
+<figure class="highlight python"><pre><code class="language-python">import inspect
+import functools
+from typing import Dict, Any
+
+# --- 模拟 FastAPI 的依赖注入容器 ---
+class SimpleContainer:
+    def __init__(self):
+        self._providers: Dict[str, Any] = {}
+    
+    def register(self, name, provider):
+        &quot;&quot;&quot;注册一个依赖提供者（可以是值或可调用对象）&quot;&quot;&quot;
+        self._providers[name] = provider
+    
+    def resolve(self, name):
+        provider = self._providers.get(name)
+        if provider is None:
+            raise KeyError(f&quot;未找到依赖: {name}&quot;)
+        # 如果 provider 是可调用的，则调用它（模拟工厂模式）
+        if callable(provider):
+            return provider()
+        return provider
+
+# 创建一个全局容器实例
+container = SimpleContainer()
+
+def inject_dependencies(func):
+    &quot;&quot;&quot;核心装饰器：分析函数签名，自动注入依赖&quot;&quot;&quot;
+    # 获取函数的原始签名
+    sig = inspect.signature(func)
+    
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # 绑定传入的参数
+        bound_args = sig.bind_partial(*args, **kwargs)
+        
+        # 遍历函数声明的所有参数
+        for name, param in sig.parameters.items():
+            # 如果参数有默认值，且默认值是 str 类型，且以 &#x27;$&#x27; 开头，则视为依赖注入点
+            if param.default is not inspect.Parameter.empty and isinstance(param.default, str) and param.default.startswith(&#x27;$&#x27;):
+                dependency_name = param.default[1:]  # 去掉 &#x27;$&#x27; 前缀
+                # 如果调用者没有显式传入该参数，则从容器中解析
+                if name not in bound_args.arguments:
+                    bound_args.arguments[name] = container.resolve(dependency_name)
+        
+        # 调用原始函数
+        return func(**bound_args.arguments)
+    
+    return wrapper
+
+# --- 业务代码 ---
+class UserService:
+    def get_user(self, user_id):
+        return {&quot;id&quot;: user_id, &quot;name&quot;: &quot;Alice&quot;, &quot;email&quot;: &quot;alice@example.com&quot;}
+
+# 注册依赖
+container.register(&#x27;user_service&#x27;, UserService)
+container.register(&#x27;config&#x27;, {&quot;debug&quot;: True})
+
+@inject_dependencies
+def fetch_user_profile(user_id: int, service: UserService = &#x27;$user_service&#x27;, config: dict = &#x27;$config&#x27;):
+    &quot;&quot;&quot;获取用户资料&quot;&quot;&quot;
+    user = service.get_user(user_id)
+    if config.get(&#x27;debug&#x27;):
+        user[&#x27;_debug&#x27;] = True
+    return user
+
+if __name__ == &quot;__main__&quot;:
+    # 调用时只需要传业务参数，依赖自动注入
+    result = fetch_user_profile(user_id=123)
+    print(f&quot;注入结果: {result}&quot;)
+    
+    # 也可以手动覆盖依赖（例如测试时）
+    mock_service = UserService()  # 实际项目中会用 Mock
+    result2 = fetch_user_profile(user_id=456, service=mock_service)
+    print(f&quot;覆盖结果: {result2}&quot;)</code></pre></figure>
+<h2 id="Mermaid-架构图-装饰器与上下文管理器的协同工作流"><a href="#Mermaid-架构图-装饰器与上下文管理器的协同工作流" class="headerlink" title="Mermaid 架构图：装饰器与上下文管理器的协同工作流"></a>Mermaid 架构图：装饰器与上下文管理器的协同工作流</h2>
+<p>下面这张图描述了在一个典型的 Web 框架（如 FastAPI/Django）中，装饰器和上下文管理器是如何协同处理一个请求的：</p>
+<div class="mermaid">
+graph TD
+    A[HTTP 请求进入] --> B[路由匹配]
+    B --> C{是否有装饰器?}
+    
+    C -- 是 --> D[执行装饰器外层逻辑<br>例如: 鉴权(Authentication)]
+    D --> E{是否有上下文管理器?}
+    
+    C -- 否 --> E
+    
+    E -- 是 --> F[执行 __enter__<br>例如: 开启数据库事务]
+    F --> G[执行业务视图函数<br>Handler]
+    G --> H{执行是否成功?}
+    
+    H -- 是 --> I[执行 __exit__<br>参数: None, None, None]
+    I --> J[提交事务/释放连接]
+    J --> K[返回 HTTP 响应]
+    
+    H -- 否 --> L[执行 __exit__<br>参数: Exception Info]
+    L --> M{__exit__ 返回 True?}
+    
+    M -- 是 --> N[吞掉异常]
+    N --> K
+    
+    M -- 否 --> O[异常向上抛出<br>进入全局异常处理器]
+    O --> P[返回 500 或自定义错误]
+    P --> K
+    
+    K --> Q[HTTP 响应返回客户端]
+    
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style I fill:#bbf,stroke:#333,stroke-width:2px
+    style L fill:#f96,stroke:#333,stroke-width:2px
+</div>
+<h2 id="方案对比-Python-中的不同实现手段"><a href="#方案对比-Python-中的不同实现手段" class="headerlink" title="方案对比：Python 中的不同实现手段"></a>方案对比：Python 中的不同实现手段</h2>
+<p>对于资源管理和横切关注点，Python 生态中有多种方案，我们对比一下：</p>
+<table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">装饰器 (Decorator)</th>
+<th align="left">上下文管理器 (with)</th>
+<th align="left">元类 (Metaclass)</th>
+<th align="left">中间件 (Middleware)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>执行时机</strong></td>
+<td align="left">函数<strong>调用前/后</strong></td>
+<td align="left">代码块<strong>进入前/退出后</strong></td>
+<td align="left"><strong>类创建时</strong></td>
+<td align="left">请求<strong>处理前/后</strong></td>
+</tr><tr>
+<td align="left"><strong>作用粒度</strong></td>
+<td align="left">函数级/类级</td>
+<td align="left">语句块级</td>
+<td align="left">类定义级</td>
+<td align="left">应用级/路由级</td>
+</tr><tr>
+<td align="left"><strong>适合场景</strong></td>
+<td align="left">鉴权、日志、缓存、重试</td>
+<td align="left">资源锁、事务、文件IO、连接管理</td>
+<td align="left">框架底层（如 ORM 模型定义）</td>
+<td align="left">Web 框架的跨切面逻辑（如 CORS）</td>
+</tr><tr>
+<td align="left"><strong>优点</strong></td>
+<td align="left">直观、灵活、可以组合</td>
+<td align="left">异常安全（保证清理）</td>
+<td align="left">强大，可以修改类结构</td>
+<td align="left">与业务代码解耦最彻底</td>
+</tr><tr>
+<td align="left"><strong>缺点</strong></td>
+<td align="left">容易导致函数签名混乱（如果不使用 <code>functools.wraps</code>）</td>
+<td align="left">只能用于 <code>with</code> 语句中</td>
+<td align="left">晦涩难懂，不适合业务逻辑</td>
+<td align="left">依赖框架规范，无法用于纯函数</td>
+</tr></tbody></table>
+<p><strong>核心区别</strong>：</p>
+<ol>
+<li> <strong>生命周期</strong>：装饰器包裹的是<strong>函数的生命周期</strong>；上下文管理器包裹的是<strong>代码块的执行期</strong>。如果你希望代码块中间可以提前 <code>return</code>，或者需要把资源跨越多个函数传递，上下文管理器更合适。</li>
+<li> <strong>异常处理</strong>：装饰器内的 <code>try/except</code> 可以捕获函数内部的异常，但无法捕获“函数调用结束后”的异常。而 <code>__exit__</code> 可以捕获 with 代码块内部所有异常（包括 <code>sys.exit()</code>）。</li>
+<li> <strong>代码复用</strong>：装饰器更适合“无状态”的包装（或者通过 <code>self</code> 保持状态），上下文管理器更适合“有状态”的资源管理。</li>
+</ol>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="避坑-1-functools-wraps-不是可选项-是必须项"><a href="#避坑-1-functools-wraps-不是可选项-是必须项" class="headerlink" title="避坑 1：<code>functools.wraps</code> 不是可选项，是必须项"></a>避坑 1：<code>functools.wraps</code> 不是可选项，是必须项</h3>
+<p>如果你不用 <code>@functools.wraps(func)</code>，你的函数元信息（<code>__name__</code>、<code>__doc__</code>）会被 <code>wrapper</code> 覆盖。这会导致：</p>
+<ul>
+<li>IDE 提示错误。</li>
+</ul>
+<ul>
+<li>Flask/Django 的 URL 路由反向解析失败（因为函数名变了）。</li>
+</ul>
+<ul>
+<li><code>inspect.signature</code> 拿到的是 <code>wrapper</code> 的签名，而不是原函数的签名（会让 FastAPI 的依赖注入崩溃）。</li>
+</ul>
+<p><strong>错误示例</strong>：</p>
+<figure class="highlight python"><pre><code class="language-python"># 这样写，debug 工具会误以为函数名是 &#x27;wrapper&#x27;
+def bad_decorator(func):
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper</code></pre></figure>
+<h3 id="避坑-2-千万不要在-exit-中随意返回-True"><a href="#避坑-2-千万不要在-exit-中随意返回-True" class="headerlink" title="避坑 2：千万不要在 <code>__exit__</code> 中随意返回 <code>True</code>"></a>避坑 2：千万不要在 <code>__exit__</code> 中随意返回 <code>True</code></h3>
+<p>除非你确确实实想吞掉异常（比如在关闭连接时遇到异常，你希望忽略并继续执行），否则请返回 <code>False</code> 或 <code>None</code>。一旦返回 <code>True</code>，异常就被解释器当成“已处理”，代码将继续执行 <code>with</code> 块之后的语句，这通常会导致数据不一致。</p>
+<h3 id="避坑-3-异步装饰器的坑"><a href="#避坑-3-异步装饰器的坑" class="headerlink" title="避坑 3：异步装饰器的坑"></a>避坑 3：异步装饰器的坑</h3>
+<p>当你需要装饰一个 <code>async def</code> 函数时，你的装饰器必须返回一个 <code>async def</code> 的 wrapper，并且在内部使用 <code>await</code> 调用原函数。一个常见的错误是试图用一个同步的 wrapper 去包异步函数，导致事件循环阻塞。</p>
+<figure class="highlight python"><pre><code class="language-python"># 错误的异步装饰器
+def async_decorator_bad(func):
+    def wrapper(*args, **kwargs):
+        # 这里没有 await，直接返回了一个 coroutine 对象，且丢失了异常处理
+        return func(*args, **kwargs) 
+    return wrapper
+
+# 正确的异步装饰器
+import asyncio
+import functools
+
+def async_decorator_good(func):
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        # 这里必须用 await
+        return await func(*args, **kwargs)
+    return wrapper</code></pre></figure>
+<h3 id="避坑-4-装饰器叠加的顺序"><a href="#避坑-4-装饰器叠加的顺序" class="headerlink" title="避坑 4：装饰器叠加的顺序"></a>避坑 4：装饰器叠加的顺序</h3>
+<p>装饰器的执行顺序是<strong>从下往上</strong>的（即离函数定义最近的先执行），但包装顺序是<strong>从上往下</strong>的。</p>
+<figure class="highlight python"><pre><code class="language-python">@decorator_a
+@decorator_b
+def func(): ...</code></pre></figure>
+<p>等价于 <code>func = decorator_a(decorator_b(func))</code>。所以 <code>decorator_b</code> 的 <code>__enter__</code>（如果有）会先执行，然后是 <code>decorator_a</code> 的。这很像洋葱模型。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li> <strong>用 <code>contextlib.suppress</code> 替代空的 <code>try/except</code></strong>：当你想忽略特定异常时。</li>
+<li> <strong>用 <code>contextlib.ExitStack</code> 管理多个动态上下文</strong>：当你不知道有多少资源需要清理时，<code>ExitStack</code> 可以动态地添加和弹出上下文管理器。</li>
+<li> <strong>对于数据库事务，优先使用上下文管理器而非装饰器</strong>：因为事务的边界通常是一个代码块（比如一个视图函数内部的一部分），而不是整个函数的生命周期。</li>
+<li> <strong>在 FastAPI 中，如果依赖需要在请求结束后清理（如关闭数据库连接），使用 <code>yield</code> 依赖</strong>，这会利用 FastAPI 内部的上下文管理器机制来保证清理。</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>装饰器与上下文管理器，看似是 Python 提供的两个独立的语法糖，但它们在底层的 CPython 虚拟机中是两种不同的控制流机制：</p>
+<ul>
+<li><strong>装饰器</strong> 是编译期/导入期的<strong>函数替换</strong>，它改变了“函数”这个名字绑定到的对象。</li>
+</ul>
+<ul>
+<li><strong>上下文管理器</strong> 是运行期的<strong>代码块包装</strong>，它通过 <code>__enter__</code> 和 <code>__exit__</code> 协议，在指令级别上插入了清理逻辑。</li>
+</ul>
+<p>理解它们的底层区别，能帮助你写出更加健壮的框架代码。当你下次看到 <code>with</code> 语句时，可以想一想它背后的 <code>try/finally</code> 字节码；当你看到 <code>@</code> 符号时，可以想一想它背后的 <code>func = decorator(func)</code> 赋值操作。</p>
+<p><strong>延伸思考</strong>：既然装饰器可以被叠加，上下文管理器可以嵌套，那么你能否利用 <code>contextlib.ExitStack</code> 结合装饰器，实现一个“自动组合”多个上下文管理器的装饰器工厂？这将是你在构建全栈框架时，整合数据库、缓存和消息队列的有力武器。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

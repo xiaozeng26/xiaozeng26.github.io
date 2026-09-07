@@ -314,6 +314,13 @@
       "subtopic": "Go GC的演进与调优策略",
       "date": "2026-09-06",
       "url": "/2026/09/06/Go GC的演进与调优策略：从STW到百微秒的实战之路/"
+    },
+    {
+      "title": "装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？",
+      "category": "python",
+      "subtopic": "装饰器与上下文管理器的实现原理",
+      "date": "2026-09-07",
+      "url": "/2026/09/08/装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？/"
     }
   ],
   "used_subtopics": {
@@ -332,7 +339,8 @@
       "微服务框架Nameko的设计与使用",
       "Python内存管理与对象池机制",
       "SQLAlchemy Session管理与事务隔离",
-      "pytest插件体系与Fixture机制"
+      "pytest插件体系与Fixture机制",
+      "装饰器与上下文管理器的实现原理"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -419,6 +427,7 @@
     "数据库分库分表中间件ShardingSphere源码分析": "ec90f3364d5d426e28820349d0e7c81f551e6cfda7071a0b94eddafe71697729",
     "K8s Operator模式与自定义资源CRD开发": "937f266dc6add4dd7647fde0a5bedbff0ce4b7ded7389b76723880be9f5ef24a",
     "Spring事务传播行为与失效场景分析": "3316c1e6bcfde97dd492f468d0499a4b235b5acb5eb0a807cb0948ec37768bad",
-    "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf"
+    "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf",
+    "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d"
   }
 }

@@ -1,5 +1,23 @@
 [
  {
+  "title": "装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？",
+  "url": "/2026/09/08/%E8%A3%85%E9%A5%B0%E5%99%A8%E4%B8%8E%E4%B8%8A%E4%B8%8B%E6%96%87%E7%AE%A1%E7%90%86%E5%99%A8%EF%BC%9APython%20%E4%B8%AD%E4%B8%A4%E4%B8%AA%E8%A2%AB%E7%A5%9E%E5%8C%96%E7%9A%84%E8%AF%AD%E6%B3%95%E7%B3%96%EF%BC%8C%E5%BA%95%E5%B1%82%E7%A9%B6%E7%AB%9F%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/",
+  "date": "2026-09-08",
+  "year": 2026,
+  "month": 9,
+  "day": 8,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=5153",
+  "excerpt": "引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3"
+ },
+ {
   "title": "Go GC的演进与调优策略：从STW到百微秒的实战之路",
   "url": "/2026/09/06/Go%20GC%E7%9A%84%E6%BC%94%E8%BF%9B%E4%B8%8E%E8%B0%83%E4%BC%98%E7%AD%96%E7%95%A5%EF%BC%9A%E4%BB%8ESTW%E5%88%B0%E7%99%BE%E5%BE%AE%E7%A7%92%E7%9A%84%E5%AE%9E%E6%88%98%E4%B9%8B%E8%B7%AF/",
   "date": "2026-09-06",
