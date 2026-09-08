@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Docker网络模式：bridge、host、overlay深入对比 | 小曾博客</title>
+  <meta name="description" content="Docker网络模式：bridge、host、overlay深入对比 引言 笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。 这次经历让我深刻意识到，Docker网络模式的选择并非简单的">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Docker网络模式：bridge、host、overlay深入对比">
+  <meta name="twitter:description" content="Docker网络模式：bridge、host、overlay深入对比 引言 笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。 这次经历让我深刻意识到，Docker网络模式的选择并非简单的">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=3759">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Docker网络模式：bridge、host、overlay深入对比">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Docker网络模式：bridge、host、overlay深入对比 引言 笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。 这次经历让我深刻意识到，Docker网络模式的选择并非简单的">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=3759">
+  <meta property="article:published_time" content="2026-09-08T23:39:10.000Z">
+  <meta property="article:modified_time" content="2026-09-08T23:39:10.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Docker网络模式-bridge-host-overlay深入对比"><span class="toc-text">Docker网络模式：bridge、host、overlay深入对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-公寓-独栋别墅与城市交通网"><span class="toc-text">生活类比：公寓、独栋别墅与城市交通网</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-Bridge模式-Linux网桥与VETH对"><span class="toc-text">1. Bridge模式：Linux网桥与VETH对</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-Host模式-共享网络命名空间"><span class="toc-text">2. Host模式：共享网络命名空间</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-Overlay模式-VXLAN与数据面"><span class="toc-text">3. Overlay模式：VXLAN与数据面</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-Bridge模式的服务发现与负载均衡"><span class="toc-text">示例1：Bridge模式的服务发现与负载均衡</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-Host模式的高性能场景-以Nginx为例"><span class="toc-text">示例2：Host模式的高性能场景（以Nginx为例）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-Overlay网络搭建跨主机通信"><span class="toc-text">示例3：Overlay网络搭建跨主机通信</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三大模式横向对比"><span class="toc-text">三大模式横向对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#与其他网络方案的比较"><span class="toc-text">与其他网络方案的比较</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑及解决方案"><span class="toc-text">常见坑及解决方案</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#排查工具集"><span class="toc-text">排查工具集</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=3759)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Docker网络模式：bridge、host、overlay深入对比</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-08"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-08</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-08"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-08</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Docker网络模式-bridge-host-overlay深入对比"><a href="#Docker网络模式-bridge-host-overlay深入对比" class="headerlink" title="Docker网络模式：bridge、host、overlay深入对比"></a>Docker网络模式：bridge、host、overlay深入对比</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。</p>
+<p>这次经历让我深刻意识到，Docker网络模式的选择并非简单的配置项，而是直接影响系统性能、安全性和可扩展性的架构决策。很多团队在容器化初期往往选择默认的bridge模式，当规模扩大后才发现网络成为瓶颈，被迫进行痛苦的架构迁移。</p>
+<p>本文将深入剖析Docker三大核心网络模式（bridge、host、overlay）的底层原理，通过源码级别的分析和实战示例，帮助你在不同场景下做出正确的选择。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-公寓-独栋别墅与城市交通网"><a href="#生活类比-公寓-独栋别墅与城市交通网" class="headerlink" title="生活类比：公寓、独栋别墅与城市交通网"></a>生活类比：公寓、独栋别墅与城市交通网</h3>
+<p>想象一下容器是住在不同住所的“居民”：</p>
+<ul>
+<li><strong>bridge模式</strong>：如同住在<strong>公寓楼</strong>。每户（容器）有自己的门牌号（IP地址），通过楼道（虚拟网桥）与外界联系。同楼的邻居可以直接串门（容器间通信），但外面的人不经过门禁（端口映射）无法直接找到你。</li>
+</ul>
+<ul>
+<li><strong>host模式</strong>：如同住在<strong>独栋别墅</strong>。你直接使用街道地址（宿主机IP），没有门牌转换，快递（网络请求）直接送到门口。性能最好但缺乏隔离，每栋别墅的地址不能重复（端口冲突）。</li>
+</ul>
+<ul>
+<li><strong>overlay模式</strong>：如同<strong>跨城市交通网</strong>。不同城市的公寓（不同宿主机上的容器）通过高速公路（VXLAN隧道）连接，形成一个虚拟的“同城社区”，彼此可以直接用门牌号（容器IP）访问，无需关心对方实际位于哪个城市。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>网络命名空间</th>
+<th>IP分配</th>
+<th>跨主机通信</th>
+<th>性能损耗</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>bridge</td>
+<td>独立</td>
+<td>Docker内建DHCP</td>
+<td>需端口映射或额外路由</td>
+<td>低</td>
+</tr><tr>
+<td>host</td>
+<td>共享宿主机</td>
+<td>宿主机IP</td>
+<td>直接使用宿主机网络</td>
+<td>无</td>
+</tr><tr>
+<td>overlay</td>
+<td>独立</td>
+<td>VXLAN隔离</td>
+<td>原生支持</td>
+<td>中</td>
+</tr></tbody></table>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-Bridge模式-Linux网桥与VETH对"><a href="#1-Bridge模式-Linux网桥与VETH对" class="headerlink" title="1. Bridge模式：Linux网桥与VETH对"></a>1. Bridge模式：Linux网桥与VETH对</h3>
+<p>Bridge模式的核心是Linux的虚拟网桥技术。当我们执行<code>docker run --network=bridge</code>时，Docker Daemon会创建一对VETH（Virtual Ethernet）设备，一端放入容器的网络命名空间（eth0），另一端挂载到docker0网桥上（vethxxx）。</p>
+<p>通过<code>ip link add veth0 type veth peer name eth0</code>创建VETH对，然后关键操作是：</p>
+<ul>
+<li>将veth0加入docker0网桥：<code>brctl addif docker0 veth0</code></li>
+</ul>
+<ul>
+<li>将eth0移入容器命名空间：<code>ip link set eth0 netns <container-ns></code></li>
+</ul>
+<figure class="highlight go"><pre><code class="language-go">// 来自 Docker源码 libnetwork/drivers/bridge/bridge.go (简化版)
+func (d *driver) CreateNetwork(ctx context.Context, n *network.CreateRequest) error {
+    // 创建linux bridge
+    bridgeSetup := &amp;bridgeSetup{
+        config: config,
+        bridge: &amp;bridgeInterface{},
+    }
+    // 设置docker0网桥IP段 (默认172.17.0.0/16)
+    if err := bridgeSetup.setupBridgeIPv4(config); err != nil {
+        return err
+    }
+    // 启用IP转发
+    if err := bridgeSetup.setupIPTables(); err != nil {
+        return err
+    }
+}</code></pre></figure>
+<p>容器创建时，Docker会调用<code>netlink.LinkAdd</code>创建VETH对，并通过<code>nsenter</code>进入容器的网络命名空间完成配置。</p>
+<p><strong>关键技术点</strong>：</p>
+<ul>
+<li><strong>NAT转换</strong>：容器访问外网时，通过iptables MASQUERADE规则，将源IP转换为宿主机IP。</li>
+</ul>
+<ul>
+<li><strong>端口映射</strong>：通过DNAT规则，将宿主机端口流量转发至容器IP:端口。</li>
+</ul>
+<h3 id="2-Host模式-共享网络命名空间"><a href="#2-Host模式-共享网络命名空间" class="headerlink" title="2. Host模式：共享网络命名空间"></a>2. Host模式：共享网络命名空间</h3>
+<p>Host模式是最简单的实现：创建容器时不创建新的网络命名空间，直接使用宿主机命名空间。在Docker源码中，这一判断发生在容器创建阶段：</p>
+<figure class="highlight go"><pre><code class="language-go">// 来自 runc/libcontainer/network_linux.go (高度简化)
+func (n *linuxNetworkNamespace) Setup() error {
+    if n.NetworkNamespace == &quot;&quot; {
+        // 没有指定网络命名空间，使用宿主机的
+        return nil
+    }
+    // 否则创建新的网络命名空间
+    return n.createNetworkNamespace()
+}</code></pre></figure>
+<h3 id="3-Overlay模式-VXLAN与数据面"><a href="#3-Overlay模式-VXLAN与数据面" class="headerlink" title="3. Overlay模式：VXLAN与数据面"></a>3. Overlay模式：VXLAN与数据面</h3>
+<p>Overlay模式是Swarm和Kubernetes中跨节点通信的基础。其核心是VXLAN（Virtual Extensible LAN）协议。</p>
+<div class="mermaid">
+graph TD
+    A[容器A on Node1] -->|"eth0 (10.0.0.2)"| B[veth pair]
+    B --> C[br0 网桥]
+    C --> D[vxlan0 隧道端点]
+    D -->|"UDP 4789封装"| E[宿主机物理网卡]
+    E -->|"物理网络传输"| F[宿主机物理网卡 Node2]
+    F --> G[vxlan0 隧道端点]
+    G --> H[br0 网桥]
+    H --> I[容器B on Node2]
+</div>
+<p>VXLAN将二层以太网帧封装在UDP数据包中，通过VTEP（VXLAN Tunnel Endpoint）进行解封装。Docker使用的libnetwork库中，overlay驱动会维护一个基于serf的分布式键值存储，用于同步各节点的网络状态。</p>
+<figure class="highlight go"><pre><code class="language-go">// 来自 libnetwork/drivers/overlay/ov_network.go (概念示例)
+type network struct {
+    id        string
+    vxlanID   int
+    endpointIP *net.IPNet
+    // 通过serf维护的节点列表
+    nodes     map[string]*node
+}
+
+func (n *network) createVxlan() error {
+    // 创建VXLAN接口
+    vxlan := &amp;netlink.Vxlan{
+        LinkAttrs: netlink.LinkAttrs{
+            Name: &quot;vxlan0&quot;,
+            MTU:  1450,  // VXLAN减少了50字节的MTU
+        },
+        VxlanId: n.vxlanID,
+        Group:   net.ParseIP(&quot;239.1.1.1&quot;), // 多播组地址
+        Port:    4789,
+    }
+    return netlink.LinkAdd(vxlan)
+}</code></pre></figure>
+<p><strong>关键点</strong>：VXLAN的MTU设置为1450字节，因为在原始1500字节基础上减去了VXLAN头部（8字节VXLAN头 + 20字节UDP头 + 20字节IP头 + 14字节以太网头），如果不调整MTU会导致分片问题。</p>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例1-Bridge模式的服务发现与负载均衡"><a href="#示例1-Bridge模式的服务发现与负载均衡" class="headerlink" title="示例1：Bridge模式的服务发现与负载均衡"></a>示例1：Bridge模式的服务发现与负载均衡</h3>
+<figure class="highlight bash"><pre><code class="language-bash">#!/bin/bash
+# 创建自定义bridge网络
+docker network create --driver bridge \
+  --subnet=172.20.0.0/16 \
+  --gateway=172.20.0.1 \
+  --ip-range=172.20.5.0/24 \
+  demo-network
+
+# 启动三个后端服务容器
+docker run -d --name backend-1 \
+  --network demo-network \
+  --ip 172.20.5.10 \
+  nginx:alpine
+
+docker run -d --name backend-2 \
+  --network demo-network \
+  --ip 172.20.5.11 \
+  nginx:alpine
+
+docker run -d --name backend-3 \
+  --network demo-network \
+  --ip 172.20.5.12 \
+  nginx:alpine
+
+# 启动前端容器，测试容器间通信
+docker run -it --rm \
+  --network demo-network \
+  alpine:latest \
+  sh -c &#x27;
+    echo &quot;=== 测试DNS解析 ===&quot;
+    nslookup backend-1
+    echo &quot;=== 测试连通性 ===&quot;
+    ping -c 2 backend-2
+    echo &quot;=== 测试HTTP访问 ===&quot;
+    wget -q -O- http://backend-1:80/ | head -5
+  &#x27;
+
+# 查看网桥配置
+docker network inspect demo-network | grep -A 10 &quot;Containers&quot;</code></pre></figure>
+<p>此示例展示了自定义bridge网络的关键优势：内建DNS服务发现（容器名即主机名），以及网络隔离。相比默认bridge，自定义bridge支持直接通过容器名通信，无需<code>--link</code>参数。</p>
+<h3 id="示例2-Host模式的高性能场景-以Nginx为例"><a href="#示例2-Host模式的高性能场景-以Nginx为例" class="headerlink" title="示例2：Host模式的高性能场景（以Nginx为例）"></a>示例2：Host模式的高性能场景（以Nginx为例）</h3>
+<figure class="highlight yaml"><pre><code class="language-yaml"># docker-compose.yml
+version: &#x27;3.8&#x27;
+
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    network_mode: &quot;host&quot;
+    restart: unless-stopped
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    # 注意：host模式下不能使用ports映射
+    # 直接监听宿主机端口
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    sysctls:
+      net.core.somaxconn: 65535
+      net.ipv4.tcp_tw_reuse: &quot;1&quot;</code></pre></figure>
+<p>配合的Nginx配置文件，利用host模式优化性能：</p>
+<figure class="highlight nginx"><pre><code class="language-nginx"># nginx.conf
+worker_processes auto;
+events {
+    worker_connections 65535;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    upstream backend_servers {
+        # 使用IP而非域名，减少DNS解析开销
+        server 127.0.0.1:8080 weight=3;
+        server 127.0.0.1:8081 weight=2;
+        keepalive 64;  # 连接池
+    }
+
+    server {
+        listen 80;
+        server_name _;
+        
+        location / {
+            proxy_pass http://backend_servers;
+            proxy_http_version 1.1;
+            proxy_set_header Connection &quot;&quot;;
+        }
+    }
+}</code></pre></figure>
+<p><strong>场景分析</strong>：host模式适合对网络延迟极度敏感的场景（如高频交易系统、实时消息推送）。因为省去了NAT和iptables层，网络延迟可降低30%-50%。但牺牲了端口隔离，不适合运行多个需要相同端口的服务。</p>
+<h3 id="示例3-Overlay网络搭建跨主机通信"><a href="#示例3-Overlay网络搭建跨主机通信" class="headerlink" title="示例3：Overlay网络搭建跨主机通信"></a>示例3：Overlay网络搭建跨主机通信</h3>
+<figure class="highlight bash"><pre><code class="language-bash">#!/bin/bash
+# 初始化Swarm集群（在manager节点）
+docker swarm init --advertise-addr 192.168.1.10
+
+# 在worker节点加入
+# docker swarm join --token &lt;WORKER_TOKEN&gt; 192.168.1.10:2377
+
+# 创建overlay网络（加密模式）
+docker network create \
+  --driver overlay \
+  --opt encrypted \
+  --subnet=10.10.0.0/16 \
+  --attachable \
+  ingress-network
+
+# 查看网络状态
+docker network ls | grep overlay
+docker network inspect ingress-network
+
+# 部署一个跨节点服务（在manager节点）
+cat &gt; stack.yml &lt;&lt;EOF
+version: &#x27;3.8&#x27;
+
+services:
+  app:
+    image: alpine:latest
+    command: sh -c &quot;echo &#x27;Container IP:&#x27; &amp;&amp; hostname -i &amp;&amp; sleep infinity&quot;
+    networks:
+      - ingress-network
+    deploy:
+      replicas: 4
+      placement:
+        max_replicas_per_node: 2
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: secret
+    networks:
+      - ingress-network
+    deploy:
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+
+networks:
+  ingress-network:
+    external: true
+EOF
+
+docker stack deploy -c stack.yml demo-app
+
+# 验证跨节点通信
+docker service ps demo-app_app --format &quot;table {{.Name}}\t{{.Node}}\t{{.CurrentState}}&quot;
+
+# 进入第一个容器测试连接数据库
+docker exec -it $(docker ps -q -f name=demo-app_app) sh
+# 在容器内执行:
+# wget -q -O- http://db:5432 2&gt;&amp;1 | head -3
+# ping -c 2 db</code></pre></figure>
+<p><strong>关键点</strong>：overlay网络自动处理跨节点路由，容器可以通过服务名直接访问其他节点上的容器。<code>--opt encrypted</code>启用IPSec加密，但会增加约10%的性能开销。</p>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="三大模式横向对比"><a href="#三大模式横向对比" class="headerlink" title="三大模式横向对比"></a>三大模式横向对比</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Bridge</th>
+<th>Host</th>
+<th>Overlay</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>性能</strong></td>
+<td>中（NAT损耗）</td>
+<td>高（无损耗）</td>
+<td>中低（VXLAN封装）</td>
+</tr><tr>
+<td><strong>隔离性</strong></td>
+<td>好</td>
+<td>无</td>
+<td>好</td>
+</tr><tr>
+<td><strong>端口管理</strong></td>
+<td>需映射</td>
+<td>直接使用</td>
+<td>自动管理</td>
+</tr><tr>
+<td><strong>跨主机</strong></td>
+<td>不支持</td>
+<td>支持但困难</td>
+<td>原生支持</td>
+</tr><tr>
+<td><strong>适用规模</strong></td>
+<td>单机数十容器</td>
+<td>单机少量容器</td>
+<td>跨机上百容器</td>
+</tr><tr>
+<td><strong>运维复杂度</strong></td>
+<td>低</td>
+<td>低</td>
+<td>中高</td>
+</tr><tr>
+<td><strong>故障排查</strong></td>
+<td>需进容器</td>
+<td>直连方便</td>
+<td>需tcpdump+wireshark</td>
+</tr></tbody></table>
+<h3 id="与其他网络方案的比较"><a href="#与其他网络方案的比较" class="headerlink" title="与其他网络方案的比较"></a>与其他网络方案的比较</h3>
+<p><strong>CNI插件（Container Network Interface）</strong>：Kubernetes使用的网络模型，与Docker网络不同：</p>
+<ul>
+<li><strong>Flannel</strong>：类似overlay，但使用VXLAN或host-gw模式，更轻量</li>
+</ul>
+<ul>
+<li><strong>Calico</strong>：基于BGP路由，无封装开销，性能优于VXLAN</li>
+</ul>
+<ul>
+<li><strong>Weave</strong>：类似overlay，支持加密和多播</li>
+</ul>
+<p>Docker的overlay与K8s的CNI插件相比：</p>
+<ul>
+<li>优势：内置于Docker，无需额外部署</li>
+</ul>
+<ul>
+<li>劣势：功能较简单，缺少网络策略控制</li>
+</ul>
+<p><strong>选择建议</strong>：</p>
+<ul>
+<li>单机开发环境：bridge模式足够</li>
+</ul>
+<ul>
+<li>性能敏感且单机：host模式（但需管理端口）</li>
+</ul>
+<ul>
+<li>Swarm集群：overlay模式</li>
+</ul>
+<ul>
+<li>K8s集群：使用CNI插件（通常不用Docker网络）</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>自定义bridge网络优于默认bridge</strong>：默认bridge不支持DNS服务发现，自定义bridge还支持在容器停止运行后重新启动时保持IP不变。</li>
+</ol>
+<ol>
+<li><strong>合理规划IP地址段</strong>：避免使用与公司内网重叠的网段，防止路由冲突。建议使用<code>172.20.0.0/16</code>到<code>172.31.0.0/16</code>之间的私有网段。</li>
+</ol>
+<ol>
+<li><strong>overlay网络开启加密</strong>：在不可信环境下必须开启<code>--opt encrypted</code>，虽然性能有损耗，但安全性至关重要。</li>
+</ol>
+<ol>
+<li><strong>调整MTU</strong>：</li>
+</ol>
+<figure class="highlight yaml"><pre><code class="language-yaml"># docker-compose.yml 中调整MTU
+services:
+  app:
+    networks:
+      default:
+        driver_opts:
+          com.docker.network.driver.mtu: 1450</code></pre></figure>
+<h3 id="常见坑及解决方案"><a href="#常见坑及解决方案" class="headerlink" title="常见坑及解决方案"></a>常见坑及解决方案</h3>
+<p><strong>坑1：容器内时区问题导致网络超时</strong></p>
+<figure class="highlight dockerfile"><pre><code class="language-dockerfile"># Dockerfile 中添加时区设置
+RUN apk add --no-cache tzdata &amp;&amp; \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &amp;&amp; \
+    echo &quot;Asia/Shanghai&quot; &gt; /etc/timezone</code></pre></figure>
+<p><strong>解决方案</strong>：时区不一致可能导致TLS证书验证失败，表现为间歇性网络错误。</p>
+<p><strong>坑2：iptables规则冲突</strong></p>
+<figure class="highlight bash"><pre><code class="language-bash"># 错误：手动修改iptables导致Docker网络异常
+# 正确：使用Docker的network命令管理
+docker network connect custom-net container1
+# 或修改/etc/docker/daemon.json中的iptables配置
+{
+  &quot;iptables&quot;: false  # 三思而后行！
+}</code></pre></figure>
+<p><strong>解决方案</strong>：在<code>daemon.json</code>中设置<code>"iptables": false</code>前，确保已手动配置好网络规则。</p>
+<p><strong>坑3：overlay网络下的连接数限制</strong></p>
+<figure class="highlight bash"><pre><code class="language-bash"># 查看当前连接数限制
+sysctl net.netfilter.nf_conntrack_max
+# 调整为更大的值
+sysctl -w net.netfilter.nf_conntrack_max=131072</code></pre></figure>
+<p><strong>解决方案</strong>：overlay网络使用conntrack跟踪连接，高并发时容易耗尽连接跟踪表。</p>
+<h3 id="排查工具集"><a href="#排查工具集" class="headerlink" title="排查工具集"></a>排查工具集</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 网络排查三板斧
+# 1. 查看容器网络的完整拓扑
+docker network inspect $(docker network ls -q)
+
+# 2. 容器内网络调试
+docker run -it --rm --network container:目标容器 nicolaka/netshoot
+
+# 3. 抓包分析（overlay网络）
+docker run -it --rm --net=host nicolaka/netshoot tcpdump -i eth0 -n port 4789</code></pre></figure>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回顾三大网络模式的本质：</p>
+<ul>
+<li><strong>bridge</strong>是虚拟化层级的网络隔离，通过NAT实现外部访问，适合单机多容器的场景</li>
+</ul>
+<ul>
+<li><strong>host</strong>是极简主义的共享网络，追求极致性能但牺牲隔离性</li>
+</ul>
+<ul>
+<li><strong>overlay</strong>是通过隧道协议构建的跨主机虚拟网络，是为容器编排而生</li>
+</ul>
+<p>技术选型没有银弹，需要结合业务场景、安全要求和性能指标做出权衡。<strong>延伸思考</strong>：随着eBPF技术的兴起，Cilium等方案开始利用内核可编程能力提供更高性能的网络方案，未来的容器网络是否会回归“共享内核网络栈”的模式？服务网格（如Istio）的sidecar代理模式，是否也会被eBPF替代？这些都是值得持续关注的技术趋势。</p>
+<p>最后送给大家一句话：<strong>网络模式的选择，本质上是对性能、隔离性和运维复杂度的三角权衡</strong>。理解底层原理，才能做出理性的架构决策。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

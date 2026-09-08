@@ -321,6 +321,13 @@
       "subtopic": "装饰器与上下文管理器的实现原理",
       "date": "2026-09-07",
       "url": "/2026/09/08/装饰器与上下文管理器：Python 中两个被神化的语法糖，底层究竟是什么？/"
+    },
+    {
+      "title": "Docker网络模式：bridge、host、overlay深入对比",
+      "category": "cloud-native",
+      "subtopic": "Docker网络模式：bridge、host、overlay深入对比",
+      "date": "2026-09-08",
+      "url": "/2026/09/08/Docker网络模式：bridge、host、overlay深入对比/"
     }
   ],
   "used_subtopics": {
@@ -368,7 +375,8 @@
       "Docker多阶段构建与镜像瘦身最佳实践",
       "Docker存储驱动：overlay2、aufs、devicemapper原理",
       "容器资源隔离的Linux内核机制：namespace与cgroup",
-      "K8s Operator模式与自定义资源CRD开发"
+      "K8s Operator模式与自定义资源CRD开发",
+      "Docker网络模式：bridge、host、overlay深入对比"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -428,6 +436,7 @@
     "K8s Operator模式与自定义资源CRD开发": "937f266dc6add4dd7647fde0a5bedbff0ce4b7ded7389b76723880be9f5ef24a",
     "Spring事务传播行为与失效场景分析": "3316c1e6bcfde97dd492f468d0499a4b235b5acb5eb0a807cb0948ec37768bad",
     "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf",
-    "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d"
+    "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d",
+    "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48"
   }
 }

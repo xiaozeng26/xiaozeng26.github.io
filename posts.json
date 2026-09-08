@@ -18,6 +18,24 @@
   "excerpt": "引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3"
  },
  {
+  "title": "Docker网络模式：bridge、host、overlay深入对比",
+  "url": "/2026/09/08/Docker%E7%BD%91%E7%BB%9C%E6%A8%A1%E5%BC%8F%EF%BC%9Abridge%E3%80%81host%E3%80%81overlay%E6%B7%B1%E5%85%A5%E5%AF%B9%E6%AF%94/",
+  "date": "2026-09-08",
+  "year": 2026,
+  "month": 9,
+  "day": 8,
+  "category": "cloud-native",
+  "tags": [
+   "Docker",
+   "kubernetes",
+   "cloud-native",
+   "devops",
+   "container"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3759",
+  "excerpt": "引言 笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。 这次经历让我深刻意识到，Docker网络模式的选择"
+ },
+ {
   "title": "Go GC的演进与调优策略：从STW到百微秒的实战之路",
   "url": "/2026/09/06/Go%20GC%E7%9A%84%E6%BC%94%E8%BF%9B%E4%B8%8E%E8%B0%83%E4%BC%98%E7%AD%96%E7%95%A5%EF%BC%9A%E4%BB%8ESTW%E5%88%B0%E7%99%BE%E5%BE%AE%E7%A7%92%E7%9A%84%E5%AE%9E%E6%88%98%E4%B9%8B%E8%B7%AF/",
   "date": "2026-09-06",
