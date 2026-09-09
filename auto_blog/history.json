@@ -328,6 +328,13 @@
       "subtopic": "Docker网络模式：bridge、host、overlay深入对比",
       "date": "2026-09-08",
       "url": "/2026/09/08/Docker网络模式：bridge、host、overlay深入对比/"
+    },
+    {
+      "title": "Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路",
+      "category": "java",
+      "subtopic": "Seata分布式事务AT模式源码分析",
+      "date": "2026-09-09",
+      "url": "/2026/09/09/Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路/"
     }
   ],
   "used_subtopics": {
@@ -339,7 +346,8 @@
       "Java Agent字节码增强技术实战",
       "RocketMQ消息存储与高可用架构",
       "Redis分布式锁的演进：从setnx到Redisson",
-      "Spring事务传播行为与失效场景分析"
+      "Spring事务传播行为与失效场景分析",
+      "Seata分布式事务AT模式源码分析"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -437,6 +445,7 @@
     "Spring事务传播行为与失效场景分析": "3316c1e6bcfde97dd492f468d0499a4b235b5acb5eb0a807cb0948ec37768bad",
     "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf",
     "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d",
-    "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48"
+    "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48",
+    "Seata分布式事务AT模式源码分析": "12e3336eec6bef808d3fe3dade2c992c12f2d179bc842497056e5c436d0eb93e"
   }
 }

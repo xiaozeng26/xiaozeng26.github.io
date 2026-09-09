@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 | 小曾博客</title>
+  <meta name="description" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（R">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路">
+  <meta name="twitter:description" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（R">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=8633">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（R">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=8633">
+  <meta property="article:published_time" content="2026-09-09T23:33:04.000Z">
+  <meta property="article:modified_time" content="2026-09-09T23:33:04.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Seata分布式事务AT模式源码分析-从全局事务到分支事务的完整链路"><span class="toc-text">Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-生活类比-技术定义"><span class="toc-text">核心概念：生活类比 + 技术定义</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-餐厅-记账本-模式"><span class="toc-text">生活类比：餐厅“记账本”模式</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析-核心链路拆解"><span class="toc-text">源码深度分析：核心链路拆解</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#整体架构"><span class="toc-text">整体架构</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心类关系"><span class="toc-text">核心类关系</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一阶段-SQL执行与镜像记录"><span class="toc-text">一阶段：SQL执行与镜像记录</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#镜像记录的生成-SQLVisitor"><span class="toc-text">镜像记录的生成：SQLVisitor</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#行锁与全局锁"><span class="toc-text">行锁与全局锁</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#二阶段-提交与回滚"><span class="toc-text">二阶段：提交与回滚</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个完整的可运行示例"><span class="toc-text">实战代码：三个完整的可运行示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-最小化AT模式集成-Spring-Boot-MyBatis"><span class="toc-text">示例一：最小化AT模式集成（Spring Boot + MyBatis）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-手动控制事务边界-不依赖Spring-AOP"><span class="toc-text">示例二：手动控制事务边界（不依赖Spring AOP）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-全局锁冲突处理"><span class="toc-text">示例三：全局锁冲突处理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-AT模式-vs-TCC-vs-Saga-vs-X-A"><span class="toc-text">方案对比：AT模式 vs TCC vs Saga vs X/A</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=8633)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-09"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-09</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-09"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-09</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Seata分布式事务AT模式源码分析-从全局事务到分支事务的完整链路"><a href="#Seata分布式事务AT模式源码分析-从全局事务到分支事务的完整链路" class="headerlink" title="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路"></a>Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。</p>
+<p>这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（RM），保证要么全部成功，要么全部回滚。</p>
+<p>业界方案众多：2PC（两阶段提交）、TCC（Try-Confirm-Cancel）、Saga、本地消息表……而Seata的AT模式（Automatic Transaction）是其中对业务侵入最小的一种——它通过代理数据源自动生成反向SQL，业务代码几乎无感知。本文将从源码层面剖析AT模式的核心机制，并配合可运行的实战代码，带你理解其设计精髓。</p>
+<h2 id="核心概念-生活类比-技术定义"><a href="#核心概念-生活类比-技术定义" class="headerlink" title="核心概念：生活类比 + 技术定义"></a>核心概念：生活类比 + 技术定义</h2>
+<h3 id="生活类比-餐厅-记账本-模式"><a href="#生活类比-餐厅-记账本-模式" class="headerlink" title="生活类比：餐厅“记账本”模式"></a>生活类比：餐厅“记账本”模式</h3>
+<p>想象一家餐厅，顾客点餐（业务操作），但厨房并不直接改菜单库存，而是先在“记账本”上记录：原库存是多少，改成多少，以及改之前的快照。如果顾客取消订单（回滚），后厨就照着记账本把库存改回去；如果确认下单成功（提交），记账本撕掉即可。</p>
+<p>AT模式就是这套逻辑：在业务SQL执行前记录数据快照（before image），执行后记录新快照（after image），如果后续某分支失败，就用反向SQL把数据恢复成before image。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>AT模式是Seata对2PC协议的优化实现，核心思想是：</p>
+<ol>
+<li><strong>一阶段</strong>：业务SQL在本地事务内执行，同时注册分支事务并记录undo_log。</li>
+<li><strong>二阶段提交</strong>：异步删除undo_log，释放行锁。</li>
+<li><strong>二阶段回滚</strong>：根据undo_log生成反向SQL，将数据恢复原状。</li>
+</ol>
+<p>它与传统2PC的区别在于：业务SQL在本地事务中直接提交（释放数据库锁），而不是像X/A协议那样持有锁直到全局事务结束。</p>
+<h2 id="源码深度分析-核心链路拆解"><a href="#源码深度分析-核心链路拆解" class="headerlink" title="源码深度分析：核心链路拆解"></a>源码深度分析：核心链路拆解</h2>
+<h3 id="整体架构"><a href="#整体架构" class="headerlink" title="整体架构"></a>整体架构</h3>
+<div class="mermaid">
+graph TD
+    A[GlobalTransactionScanner] --> B[代理业务DataSource]
+    B --> C[DataSourceProxy]
+    C --> D[ConnectionProxy]
+    D --> E[业务SQL执行]
+    E --> F[Before Image记录]
+    F --> G[执行SQL]
+    G --> H[After Image记录]
+    H --> I[生成undo_log]
+    I --> J[注册分支事务到TC]
+    J --> K[全局事务提交/回滚]
+    K --> L[异步删除undo_log 或 反向SQL回滚]
+</div>
+<h3 id="核心类关系"><a href="#核心类关系" class="headerlink" title="核心类关系"></a>核心类关系</h3>
+<p>Seata的AT模式源码集中在<code>seata-rm-datasource</code>模块。核心类包括：</p>
+<ul>
+<li><code>DataSourceProxy</code>：代理用户配置的数据源，返回<code>ConnectionProxy</code>。</li>
+</ul>
+<ul>
+<li><code>ConnectionProxy</code>：代理JDBC Connection，拦截<code>commit</code>/<code>rollback</code>。</li>
+</ul>
+<ul>
+<li><code>StatementProxy</code>：代理Statement，在SQL执行前后记录镜像。</li>
+</ul>
+<ul>
+<li><code>UndoLogManager</code>：负责undo_log的写入与删除。</li>
+</ul>
+<ul>
+<li><code>BranchTransactionalOperator</code>：负责分支事务的注册与上报。</li>
+</ul>
+<h3 id="一阶段-SQL执行与镜像记录"><a href="#一阶段-SQL执行与镜像记录" class="headerlink" title="一阶段：SQL执行与镜像记录"></a>一阶段：SQL执行与镜像记录</h3>
+<p>当业务代码调用<code>Connection.commit()</code>时，<code>ConnectionProxy</code>会介入。我们看关键代码（版本2.x，略作简化）：</p>
+<figure class="highlight java"><pre><code class="language-java">// ConnectionProxy.java
+public void commit() throws SQLException {
+    // 如果当前不在全局事务中，直接提交
+    if (context.isGlobalLockRequire() == false &amp;&amp; !context.hasUndoLog()) {
+        targetConnection.commit();
+        return;
+    }
+    
+    // 1. 生成undo_log并写入当前本地事务
+    processLocalCommitWithUndoLog();
+    
+    // 2. 注册分支事务到TC（Transaction Coordinator）
+    Long branchId = branchRegister();
+    
+    // 3. 上报分支事务状态
+    reportBranchStatus(branchId);
+    
+    // 4. 本地事务提交（此时数据已可见，但全局锁未释放）
+    targetConnection.commit();
+    
+    // 5. 移除本地线程中的事务上下文
+    context.reset();
+}</code></pre></figure>
+<p>关键在于<code>processLocalCommitWithUndoLog()</code>，它内部会遍历当前连接执行过的所有SQL，为每条SQL生成undo_log：</p>
+<figure class="highlight java"><pre><code class="language-java">private void processLocalCommitWithUndoLog() throws SQLException {
+    // 获取当前连接上执行过的SQL记录
+    List&lt;SQLUndoLog&gt; sqlUndoLogs = context.getUndoItems();
+    if (sqlUndoLogs.isEmpty()) {
+        return;
+    }
+    
+    // 生成undo_log并一起写入本地事务
+    UndoLogManager.flushUndoLogs(sqlUndoLogs);
+}</code></pre></figure>
+<h3 id="镜像记录的生成-SQLVisitor"><a href="#镜像记录的生成-SQLVisitor" class="headerlink" title="镜像记录的生成：SQLVisitor"></a>镜像记录的生成：SQLVisitor</h3>
+<p>镜像记录的生成依赖<code>SQLVisitor</code>对SQL的解析。以UPDATE语句为例，<code>MySQLUpdateRecognizer</code>会解析出表名、SET字段、WHERE条件，然后执行两条查询：</p>
+<ul>
+<li><strong>Before Image</strong>：<code>SELECT * FROM table WHERE [条件] FOR UPDATE</code>（加锁）</li>
+</ul>
+<ul>
+<li><strong>After Image</strong>：<code>SELECT * FROM table WHERE [主键]</code>（执行后）</li>
+</ul>
+<p>关键代码在<code>AbstractUndoLogGenerator</code>中：</p>
+<figure class="highlight java"><pre><code class="language-java">// UpdateExecutor.java（简化）
+public ExecuteResult&lt;UpdateExecutor&gt; execute() throws SQLException {
+    // 先查before image
+    TableRecords beforeImage = beforeImage();
+    
+    // 执行真正的更新SQL
+    statement.execute();
+    
+    // 再查after image
+    TableRecords afterImage = afterImage();
+    
+    // 构建undo_log
+    SQLUndoLog undoLog = buildUndoLog(beforeImage, afterImage);
+    return new ExecuteResult&lt;&gt;(undoLog);
+}</code></pre></figure>
+<h3 id="行锁与全局锁"><a href="#行锁与全局锁" class="headerlink" title="行锁与全局锁"></a>行锁与全局锁</h3>
+<p>这里有一个关键设计：<strong>Seata在before image阶段使用<code>SELECT ... FOR UPDATE</code>来锁定记录</strong>。但这只是本地事务锁，事务提交后锁就释放了。那怎么防止其他全局事务并发修改呢？</p>
+<p>答案是<strong>全局锁（Global Lock）</strong>。在注册分支事务时，TC会为每行数据记录一个全局锁（在<code>lock_table</code>中），锁的key是<code>resourceId + tableName + pkValue</code>。其他事务在修改同一行数据前，会尝试获取全局锁，如果锁被占用则等待。</p>
+<p>但这里有个性能权衡：AT模式在一阶段提交后就释放了数据库本地锁，全局锁由TC集中管理。这比X/A协议持有数据库锁到二阶段结束要高效得多，但代价是TC成为性能瓶颈。</p>
+<h3 id="二阶段-提交与回滚"><a href="#二阶段-提交与回滚" class="headerlink" title="二阶段：提交与回滚"></a>二阶段：提交与回滚</h3>
+<p>#### 提交（异步删除undo_log）</p>
+<p>全局事务成功，TC通知所有分支事务提交。此时RM端做的事非常简单：</p>
+<figure class="highlight java"><pre><code class="language-java">// AsyncWorker.java
+public void doBranchCommit() {
+    // 异步删除undo_log
+    UndoLogManager.deleteUndoLog(branchId);
+}</code></pre></figure>
+<p>因为本地事务已经提交，数据不需要改动，只需清理日志即可。异步处理避免阻塞二阶段提交线程。</p>
+<p>#### 回滚（反向SQL生成）</p>
+<p>全局事务失败，TC通知分支回滚。RM端根据undo_log中的before image生成反向SQL：</p>
+<figure class="highlight java"><pre><code class="language-java">// UndoLogManager.java
+public void undo(Connection conn, String xid, long branchId) {
+    // 解析undo_log内容
+    UndoLogContent content = parseUndoLog();
+    
+    // 根据before image生成反向SQL
+    String reverseSQL = buildReverseSQL(content);
+    
+    // 校验当前数据是否等于after image（防止脏写）
+    validateCurrentData(content);
+    
+    // 执行反向SQL
+    executeReverseSQL(conn, reverseSQL);
+}</code></pre></figure>
+<p><strong>脏写校验是关键</strong>：如果当前数据和after image不一致，说明有其他事务修改过数据，此时不能盲目回滚，需要人工介入。</p>
+<p>反向SQL的生成逻辑如下：</p>
+<ul>
+<li><strong>INSERT</strong> → <code>DELETE FROM table WHERE pk = ?</code></li>
+</ul>
+<ul>
+<li><strong>DELETE</strong> → <code>INSERT INTO table (cols) VALUES (values)</code></li>
+</ul>
+<ul>
+<li><strong>UPDATE</strong> → <code>UPDATE table SET col = before_value WHERE pk = ?</code></li>
+</ul>
+<h2 id="实战代码-三个完整的可运行示例"><a href="#实战代码-三个完整的可运行示例" class="headerlink" title="实战代码：三个完整的可运行示例"></a>实战代码：三个完整的可运行示例</h2>
+<h3 id="示例一-最小化AT模式集成-Spring-Boot-MyBatis"><a href="#示例一-最小化AT模式集成-Spring-Boot-MyBatis" class="headerlink" title="示例一：最小化AT模式集成（Spring Boot + MyBatis）"></a>示例一：最小化AT模式集成（Spring Boot + MyBatis）</h3>
+<figure class="highlight java"><pre><code class="language-java">// 1. 引入依赖（pom.xml）
+// &lt;dependency&gt;
+//     &lt;groupId&gt;io.seata&lt;/groupId&gt;
+//     &lt;artifactId&gt;seata-spring-boot-starter&lt;/artifactId&gt;
+//     &lt;version&gt;1.7.0&lt;/version&gt;
+// &lt;/dependency&gt;
+
+// 2. 配置application.yml
+// seata:
+//   enabled: true
+//   tx-service-group: my_test_tx_group
+//   service:
+//     vgroup-mapping:
+//       my_test_tx_group: default
+//     grouplist:
+//       default: 127.0.0.1:8091
+
+// 3. 业务代码
+@Service
+public class OrderServiceImpl implements OrderService {
+    
+    @Autowired
+    private AccountFeignClient accountClient;
+    @Autowired
+    private InventoryFeignClient inventoryClient;
+    
+    @Override
+    @GlobalTransactional(name = &quot;create-order&quot;, rollbackFor = Exception.class)
+    public void createOrder(OrderRequest request) {
+        // 本地事务：插入订单
+        orderDao.insert(buildOrder(request));
+        
+        // 远程调用：扣减库存（也是AT模式）
+        inventoryClient.deduct(request.getProductId(), request.getQuantity());
+        
+        // 远程调用：扣减账户余额（AT模式）
+        accountClient.debit(request.getUserId(), request.getAmount());
+        
+        // 如果这里抛出异常，所有已执行的本地事务都会回滚
+        // 包括远程服务已经提交的事务
+    }
+}</code></pre></figure>
+<h3 id="示例二-手动控制事务边界-不依赖Spring-AOP"><a href="#示例二-手动控制事务边界-不依赖Spring-AOP" class="headerlink" title="示例二：手动控制事务边界（不依赖Spring AOP）"></a>示例二：手动控制事务边界（不依赖Spring AOP）</h3>
+<figure class="highlight java"><pre><code class="language-java">// 适用于非Spring环境或需要更细粒度控制的场景
+public class ManualTxExample {
+    
+    public void manualTransaction() throws Exception {
+        // 1. 获取全局事务管理器
+        GlobalTransaction tx = GlobalTransactionContext.getCurrentOrCreate();
+        
+        try {
+            // 2. 开启全局事务
+            tx.begin(60000, &quot;manual-tx&quot;);
+            
+            // 3. 执行业务操作（此时DataSourceProxy会自动拦截）
+            try (Connection conn = dataSourceProxy.getConnection()) {
+                // 业务SQL
+                try (PreparedStatement ps = conn.prepareStatement(
+                    &quot;UPDATE account SET balance = balance - ? WHERE user_id = ?&quot;)) {
+                    ps.setBigDecimal(1, new BigDecimal(&quot;100&quot;));
+                    ps.setString(2, &quot;U10001&quot;);
+                    ps.executeUpdate();
+                }
+            }
+            
+            // 4. 也可以调用其他服务的AT模式接口
+            // remoteService.doSomething();
+            
+            // 5. 全局提交
+            tx.commit();
+        } catch (Exception e) {
+            // 6. 全局回滚
+            tx.rollback();
+            throw e;
+        }
+    }
+}</code></pre></figure>
+<h3 id="示例三-全局锁冲突处理"><a href="#示例三-全局锁冲突处理" class="headerlink" title="示例三：全局锁冲突处理"></a>示例三：全局锁冲突处理</h3>
+<figure class="highlight java"><pre><code class="language-java">// 模拟两个并发事务修改同一行数据
+public class LockConflictExample {
+    
+    private static final int MAX_RETRY = 5;
+    private static final long RETRY_INTERVAL_MS = 100;
+    
+    public void updateWithRetry(String userId, BigDecimal amount) {
+        for (int i = 0; i &lt; MAX_RETRY; i++) {
+            try {
+                // 尝试获取全局锁并执行更新
+                doUpdate(userId, amount);
+                return; // 成功则退出
+            } catch (LockConflictException e) {
+                // 锁冲突，等待重试
+                if (i == MAX_RETRY - 1) {
+                    throw new RuntimeException(&quot;获取全局锁超时&quot;, e);
+                }
+                try {
+                    Thread.sleep(RETRY_INTERVAL_MS * (i + 1)); // 指数退避
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(&quot;被中断&quot;, ie);
+                }
+            }
+        }
+    }
+    
+    @GlobalTransactional
+    public void doUpdate(String userId, BigDecimal amount) {
+        // 这个查询会触发SELECT FOR UPDATE（通过Seata的代理）
+        accountDao.updateBalance(userId, amount);
+    }
+}</code></pre></figure>
+<h2 id="方案对比-AT模式-vs-TCC-vs-Saga-vs-X-A"><a href="#方案对比-AT模式-vs-TCC-vs-Saga-vs-X-A" class="headerlink" title="方案对比：AT模式 vs TCC vs Saga vs X/A"></a>方案对比：AT模式 vs TCC vs Saga vs X/A</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>侵入性</th>
+<th>一致性</th>
+<th>性能</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>AT模式</strong></td>
+<td>低（需建undo_log表）</td>
+<td>最终一致（有中间态）</td>
+<td>较高（本地事务）</td>
+<td>通用场景，适合大多数业务</td>
+</tr><tr>
+<td><strong>TCC</strong></td>
+<td>高（需实现Try/Confirm/Cancel）</td>
+<td>强一致</td>
+<td>高</td>
+<td>对一致性要求极高，如金融转账</td>
+</tr><tr>
+<td><strong>Saga</strong></td>
+<td>中（需实现补偿逻辑）</td>
+<td>最终一致</td>
+<td>高</td>
+<td>长事务，如订单流程</td>
+</tr><tr>
+<td><strong>X/A</strong></td>
+<td>低</td>
+<td>强一致</td>
+<td>低（锁持有时间长）</td>
+<td>单体数据库场景，已很少使用</td>
+</tr></tbody></table>
+<p><strong>AT的优势</strong>：代码侵入最小，只需一个注解。业务SQL照写，Seata自动处理回滚逻辑。</p>
+<p><strong>AT的劣势</strong>：</p>
+<ol>
+<li>性能开销：每条SQL需要额外2次查询（before/after image）+ undo_log写入。</li>
+<li>脏写风险：如果手动绕过Seata直接操作数据库，可能导致undo_log校验失败。</li>
+<li>全局锁依赖TC，TC故障会影响整个事务。</li>
+</ol>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="最佳实践"></a>最佳实践</h3>
+<ol>
+<li><strong>正确配置undo_log表</strong>：每个业务库都需要建<code>undo_log</code>表，SQL脚本在Seata官方仓库可以找到。表结构必须完全一致，否则会报错。</li>
+</ol>
+<ol>
+<li><strong>合理设置事务超时</strong>：<code>@GlobalTransactional(timeoutMills = 60000)</code> 默认60秒，如果业务逻辑耗时较长（如多个远程调用），需要适当调大，否则会提前回滚。</li>
+</ol>
+<ol>
+<li><strong>全局锁冲突重试</strong>：在高并发场景，不同全局事务可能修改同一行数据，导致<code>LockConflictException</code>。建议在业务层做重试，重试间隔使用指数退避。</li>
+</ol>
+<ol>
+<li><strong>监控TC的运行状态</strong>：Seata的TC（Server端）是单点，虽然支持集群模式，但需要额外配置。建议使用<code>seata-server</code>的集群模式并配合注册中心。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="常见坑"></a>常见坑</h3>
+<p><strong>坑1：MySQL8.0驱动导致undo_log写入失败</strong></p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># 错误：使用旧版驱动，datetime字段类型映射问题
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver  # 过时
+
+# 正确：使用新版驱动
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver</code></pre></figure>
+<p>同时，<code>undo_log</code>表的<code>log_created</code>和<code>log_modified</code>字段类型应为<code>datetime(6)</code>，否则高并发下可能精度丢失。</p>
+<p><strong>坑2：批量操作无法获取正确的镜像</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 错误：批量操作可能无法生成正确的undo_log
+statement.executeBatch();
+
+// 正确：逐条执行，或使用rewriteBatchedStatements=true
+// jdbc:mysql://localhost:3306/db?rewriteBatchedStatements=true</code></pre></figure>
+<p><strong>坑3：多数据源场景下的事务边界模糊</strong></p>
+<p>如果同一个事务中操作多个数据源，事务边界会变得不清晰。建议每个数据源独立事务，通过全局事务协调。否则可能出现部分分支已提交，但部分分支未注册的情况。</p>
+<p><strong>坑4：本地事务与全局事务混用</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 错误：在@GlobalTransactional方法中，又开启了本地事务
+@GlobalTransactional
+public void badMethod() {
+    @Transactional  // 这会创建嵌套的本地事务，可能破坏AT模式
+    public void innerMethod() {
+        // ...
+    }
+}</code></pre></figure>
+<p>Seata的AT模式会代理<code>DataSource</code>，如果方法上同时有<code>@Transactional</code>和<code>@GlobalTransactional</code>，本地事务会先于全局事务提交，导致undo_log提前删除，回滚失败。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>Seata的AT模式通过“镜像记录 + 反向SQL”的巧妙设计，在保证分布式事务一致性的同时，将对业务代码的侵入降到了最低。它的核心思想是：<strong>既然业务SQL是幂等的，那我们就可以通过记录执行前后的状态，在需要时反向恢复</strong>。</p>
+<p>但AT模式并非银弹，它牺牲了一定的性能（镜像记录开销）和一致性强度（最终一致而非强一致），换来了开发效率。在金融级场景，TCC可能是更好的选择；在长事务场景，Saga更合适；而在大多数微服务业务中，AT模式是最平衡的切入点。</p>
+<p>延伸思考：Seata后续版本引入了<code>@GlobalLock</code>注解来处理“非事务内读取未提交数据”的问题，以及<code>apm</code>监控集成。随着云原生的发展，Seata也在探索与Kubernetes、Service Mesh的融合。理解AT模式的设计哲学，对你在其他分布式协调框架（如DTX、Saga实现）中举一反三，大有裨益。</p>
+<hr>
+<p>*最后留一个问题供你思考：如果AT模式遇到“跨分库的分布式事务”，单个undo_log无法覆盖所有分库的情况，Seata是如何处理的？欢迎在评论区探讨。*</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
