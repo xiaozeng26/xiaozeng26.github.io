@@ -335,6 +335,13 @@
       "subtopic": "Seata分布式事务AT模式源码分析",
       "date": "2026-09-09",
       "url": "/2026/09/09/Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路/"
+    },
+    {
+      "title": "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
+      "category": "ai-ml",
+      "subtopic": "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
+      "date": "2026-09-10",
+      "url": "/2026/09/10/LangChain核心架构：Chain、Agent、Tool三大组件剖析/"
     }
   ],
   "used_subtopics": {
@@ -364,7 +371,8 @@
       "LangChain表达式语言（LCEL）与Runnable协议深度解析",
       "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
       "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
-      "LangGraph Checkpointing：持久化与Human-in-the-Loop模式"
+      "LangGraph Checkpointing：持久化与Human-in-the-Loop模式",
+      "LangChain核心架构：Chain、Agent、Tool三大组件剖析"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -446,6 +454,7 @@
     "Go GC的演进与调优策略": "3dd99f62860b8743f4f91492b150e7cb60a12ceb4e9154b07844f25fdd28dacf",
     "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d",
     "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48",
-    "Seata分布式事务AT模式源码分析": "12e3336eec6bef808d3fe3dade2c992c12f2d179bc842497056e5c436d0eb93e"
+    "Seata分布式事务AT模式源码分析": "12e3336eec6bef808d3fe3dade2c992c12f2d179bc842497056e5c436d0eb93e",
+    "LangChain核心架构：Chain、Agent、Tool三大组件剖析": "62117fb3052e6d77f81202f241507e09d1087fdfef6e72bd6068c148c99fe3e0"
   }
 }

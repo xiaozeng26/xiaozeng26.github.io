@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LangChain核心架构：Chain、Agent、Tool三大组件剖析 | 小曾博客</title>
+  <meta name="description" content="LangChain核心架构：Chain、Agent、Tool三大组件剖析 引言 去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增\"退款流程自动审批\"能力，我打开代码一看——process_ticket() 函数已经膨胀到 800 多行，里">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LangChain核心架构：Chain、Agent、Tool三大组件剖析">
+  <meta name="twitter:description" content="LangChain核心架构：Chain、Agent、Tool三大组件剖析 引言 去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增\"退款流程自动审批\"能力，我打开代码一看——process_ticket() 函数已经膨胀到 800 多行，里">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=1192">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="LangChain核心架构：Chain、Agent、Tool三大组件剖析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="LangChain核心架构：Chain、Agent、Tool三大组件剖析 引言 去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增\"退款流程自动审批\"能力，我打开代码一看——process_ticket() 函数已经膨胀到 800 多行，里">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=1192">
+  <meta property="article:published_time" content="2026-09-10T23:28:46.000Z">
+  <meta property="article:modified_time" content="2026-09-10T23:28:46.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#LangChain核心架构-Chain-Agent-Tool三大组件剖析"><span class="toc-text">LangChain核心架构：Chain、Agent、Tool三大组件剖析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-餐厅-到-车间"><span class="toc-text">核心概念：从"餐厅"到"车间"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析"><span class="toc-text">源码深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Chain-为什么-invoke-只是一个-模板方法"><span class="toc-text">invoke() 只是一个"模板方法"">Chain：为什么 invoke() 只是一个"模板方法"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Tool-schema-是约束-LLM-的-合同"><span class="toc-text">Tool：schema 是约束 LLM 的"合同"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Agent-ReAct-循环的每一次迭代"><span class="toc-text">Agent：ReAct 循环的每一次迭代</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-用-LCEL-构建一个可观测的-RAG-Chain"><span class="toc-text">示例一：用 LCEL 构建一个可观测的 RAG Chain</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-定义带校验的-Tool-并处理幻觉"><span class="toc-text">示例二：定义带校验的 Tool 并处理幻觉</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-带护栏的生产级-Agent"><span class="toc-text">示例三：带护栏的生产级 Agent</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-LangChain-vs-其他流派"><span class="toc-text">方案对比：LangChain vs 其他流派</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-1-把-Agent-当-Chain-用"><span class="toc-text">坑 1：把 Agent 当 Chain 用</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-2-Tool-的-description-写得太随意"><span class="toc-text">坑 2：Tool 的 description 写得太随意</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-3-忽略-intermediate-steps-的-token-膨胀"><span class="toc-text">intermediate_steps 的 token 膨胀">坑 3：忽略 intermediate_steps 的 token 膨胀</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-4-工具里抛未捕获异常"><span class="toc-text">坑 4：工具里抛未捕获异常</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-5-没有设置-max-iterations"><span class="toc-text">max_iterations">坑 5：没有设置 max_iterations</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-6-Prompt-里没写-何时停止"><span class="toc-text">坑 6：Prompt 里没写"何时停止"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=1192)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">LangChain核心架构：Chain、Agent、Tool三大组件剖析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-10"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-10</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-10"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-10</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="LangChain核心架构-Chain-Agent-Tool三大组件剖析"><a href="#LangChain核心架构-Chain-Agent-Tool三大组件剖析" class="headerlink" title="LangChain核心架构：Chain、Agent、Tool三大组件剖析"></a>LangChain核心架构：Chain、Agent、Tool三大组件剖析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增"退款流程自动审批"能力，我打开代码一看——<code>process_ticket()</code> 函数已经膨胀到 800 多行，里面嵌套了 6 层 if-else，每次新增一个业务分支，都要在函数中间小心翼翼地插入代码，稍有不慎就会踩到前面的分支。</p>
+<p>这不是个例。几乎所有从"调 API 写 Demo"走向"构建生产系统"的团队，都会撞上同一堵墙：<strong>LLM 应用的本质是一次次"决策 + 执行"的循环，而 if-else 是最不适合表达循环和决策的抽象</strong>。</p>
+<p>LangChain 用三个组件试图解决这个问题：</p>
+<ul>
+<li><strong>Chain</strong>：把"固定的多步流程"抽象成可组合的管道</li>
+</ul>
+<ul>
+<li><strong>Tool</strong>：把"外部能力"抽象成 LLM 可调用的函数</li>
+</ul>
+<ul>
+<li><strong>Agent</strong>：把"决策循环"抽象成由 LLM 驱动的状态机</li>
+</ul>
+<p>很多人把这三者当成"三个 API 类"来用，结果写出来的代码比 if-else 还乱。真正理解它们，需要看穿它们背后各自解决的是<strong>流程编排、能力边界、决策循环</strong>这三件本质不同的事。</p>
+<p>本文不打算复述官方文档，而是带你从源码层面看清楚：<code>Chain.invoke()</code> 到底做了什么？<code>AgentExecutor</code> 的 while 循环里藏了哪些坑？<code>Tool</code> 的 schema 为什么能约束住"幻觉"？最后我会给出三个可直接运行的生产级示例，以及一份踩坑清单。</p>
+<hr>
+<h2 id="核心概念-从-餐厅-到-车间"><a href="#核心概念-从-餐厅-到-车间" class="headerlink" title="核心概念：从"餐厅"到"车间""></a>核心概念：从"餐厅"到"车间"</h2>
+<p>先用一个生活类比把三者的分工讲清楚。</p>
+<p><strong>Chain 像餐厅的固定套餐流程</strong>：客人点"A 套餐"，后厨就按"前菜 → 主菜 → 甜点"的固定顺序出餐。每一步的输入是上一步的输出，顺序写死在菜单上。这种流程确定性高、延迟低，但客人没法说"今天主菜换成牛排"。</p>
+<p><strong>Tool 像后厨的一件专用设备</strong>：比如那台只能做意式浓缩的咖啡机。它有一个明确的接口（放咖啡豆、按按钮），有明确的输入输出（豆子进、浓缩出），而且<strong>它自己不会主动工作</strong>——必须有厨师去操作它。</p>
+<p><strong>Agent 像一位能看菜单、会指挥后厨的主厨</strong>：客人说"我想吃点清淡的，预算 100"，主厨会自己判断：要不要先看看今天有什么食材？要不要问问客人忌口？然后决定调用哪台设备、按什么顺序做菜。<strong>主厨的决策是动态的，是"看一眼情况、做一个动作、再看一眼情况"的循环</strong>。</p>
+<p>用工程语言重新定义：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>本质</th>
+<th>控制流归属</th>
+<th>典型场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Chain</td>
+<td>有向无环图（DAG）的静态编排</td>
+<td>开发者</td>
+<td>固定的 RAG 流程、文档摘要、格式转换</td>
+</tr><tr>
+<td>Tool</td>
+<td>带 schema 的外部函数封装</td>
+<td>被调用方</td>
+<td>搜索、数据库查询、API 调用、代码执行</td>
+</tr><tr>
+<td>Agent</td>
+<td>由 LLM 驱动的 ReAct 状态机</td>
+<td>LLM（运行时决定）</td>
+<td>开放域问答、多步任务、需要动态规划的场景</td>
+</tr></tbody></table>
+<p>关键区别在于<strong>控制流归属</strong>：Chain 的下一步是代码写死的，Agent 的下一步是 LLM 在运行时"想"出来的。这个区别决定了两者在可预测性、延迟、成本上的巨大差异。</p>
+<p>下面这张图展示了三者在一个典型 Agent 执行流程中的协作关系：</p>
+<div class="mermaid">
+graph TD
+    U[用户输入] --> A[AgentExecutor]
+    A --> P[构建 Prompt: 系统指令 + 历史 + 工具描述]
+    P --> L[LLM 推理]
+    L --> D{输出类型?}
+    D -->|Final Answer| F[返回给用户]
+    D -->|Action + ActionInput| T[解析工具名和参数]
+    T --> V[Tool Schema 校验]
+    V -->|校验通过| E[执行 Tool]
+    V -->|校验失败| R[生成错误反馈]
+    E --> O[Observation]
+    R --> O
+    O --> H[追加到中间步骤历史]
+    H --> P
+    A -.调用.-> C[Chain: 可选的预处理/后处理]
+</div>
+<p>注意图中从 <code>O</code> 回到 <code>P</code> 的那条线——这就是 Agent 的"心脏"，即 ReAct 循环。理解 Agent，本质上就是理解这个循环的每一次迭代在做什么、什么时候会停下来、什么时候会失控。</p>
+<hr>
+<h2 id="源码深度分析"><a href="#源码深度分析" class="headerlink" title="源码深度分析"></a>源码深度分析</h2>
+<h3 id="Chain-为什么-invoke-只是一个-模板方法"><a href="#Chain-为什么-invoke-只是一个-模板方法" class="headerlink" title="Chain：为什么 <code>invoke()</code> 只是一个"模板方法""></a>Chain：为什么 <code>invoke()</code> 只是一个"模板方法"</h3>
+<p>打开 LangChain 的 <code>libs/langchain/langchain/chains/base.py</code>，你会看到 <code>Chain</code> 的核心实现：</p>
+<figure class="highlight python"><pre><code class="language-python">class Chain(Serializable, Runnable[Dict[str, Any], Dict[str, Any]], ABC):
+    @abstractmethod
+    def _call(
+        self,
+        inputs: Dict[str, Any],
+        run_manager: Optional[CallbackManagerForChainRun] = None,
+    ) -&gt; Dict[str, Any]:
+        &quot;&quot;&quot;执行链的逻辑，子类必须实现。&quot;&quot;&quot;
+        raise NotImplementedError
+
+    def invoke(
+        self, input: Dict[str, Any], config: Optional[RunnableConfig] = None
+    ) -&gt; Dict[str, Any]:
+        # 1. 参数校验
+        self._validate_inputs(input)
+        # 2. 准备回调管理器
+        callback_manager = CallbackManager.configure(
+            config.get(&quot;callbacks&quot;), self.callbacks
+        )
+        run_manager = callback_manager.on_chain_start(
+            {&quot;name&quot;: self.__class__.__name__}, input
+        )
+        try:
+            # 3. 真正的执行逻辑（子类实现）
+            outputs = (
+                self._call(inputs, run_manager=run_manager)
+                if run_manager
+                else self._call(inputs)
+            )
+        except BaseException as e:
+            run_manager.on_chain_error(e)
+            raise
+        else:
+            run_manager.on_chain_end(outputs)
+            # 4. 输出校验
+            final_outputs = self.prep_outputs(inputs, outputs, return_only_outputs=True)
+            return final_outputs</code></pre></figure>
+<p>这段代码是一个教科书级的<strong>模板方法模式</strong>。<code>invoke()</code> 定义了执行骨架（校验 → 回调 → 执行 → 校验 → 返回），把真正的执行逻辑交给子类实现 <code>_call()</code>。</p>
+<p>这个设计带来两个重要特性：</p>
+<p><strong>第一，可观测性统一</strong>。所有 Chain（无论多复杂）的回调、日志、追踪都由基类统一处理。你不需要在每个子类里手动埋点。</p>
+<p><strong>第二，Runnable 协议的适配</strong>。注意 <code>Chain</code> 继承自 <code>Runnable</code>，这让它可以和 LCEL（LangChain Expression Language）的 <code>|</code> 管道运算符无缝配合。<code>prompt | llm | parser</code> 之所以能工作，是因为每一个组件都实现了 <code>Runnable</code> 接口，而 <code>Chain</code> 只是其中一种实现。</p>
+<p>这里有个<strong>常被忽视的坑</strong>：<code>_validate_inputs</code> 会检查 <code>input_keys</code>，如果输入字典缺了键，会在调用 LLM 之前就抛 <code>ValueError</code>。很多初学者在 LCEL 里混用 <code>Chain</code> 和 <code>Runnable</code> 时，会因为输入输出键不匹配报错，根源就在这里——<code>Chain</code> 对输入输出有<strong>显式的键约束</strong>，而纯 <code>Runnable</code> 没有。</p>
+<p>再往深看一层，<code>SequentialChain</code> 的实现揭示了"管道"的本质：</p>
+<figure class="highlight python"><pre><code class="language-python">class SequentialChain(Chain):
+    def _call(self, inputs, run_manager=None):
+        known_values = inputs.copy()
+        for i, chain in enumerate(self.chains):
+            outputs = chain(known_values, return_only_outputs=True)
+            known_values.update(outputs)
+            # 检查是否有变量冲突
+            if set(outputs) &amp; set(self.input_variables):
+                raise ValueError(f&quot;变量名冲突: {set(outputs) &amp; set(self.input_variables)}&quot;)
+        return {k: known_values[k] for k in self.output_variables}</code></pre></figure>
+<p>它就是一个循环：把上一步的输出 merge 进上下文，喂给下一步。<strong>没有魔法，就是一个 for 循环加字典合并</strong>。这也解释了为什么 <code>SequentialChain</code> 不支持条件分支和并行——它的骨架就是一个线性循环。</p>
+<h3 id="Tool-schema-是约束-LLM-的-合同"><a href="#Tool-schema-是约束-LLM-的-合同" class="headerlink" title="Tool：schema 是约束 LLM 的"合同""></a>Tool：schema 是约束 LLM 的"合同"</h3>
+<p>Tool 的核心不是"能执行函数"，而是<strong>用结构化 schema 把"LLM 的自由文本输出"翻译成"可信的函数调用"</strong>。</p>
+<figure class="highlight python"><pre><code class="language-python">class BaseTool(RunnableSerializable[Union[str, Dict], Any]):
+    name: str
+    description: str
+    args_schema: Optional[Type[BaseModel]] = None
+
+    def invoke(self, input, config=None):
+        # 如果定义了 Pydantic schema，先做参数校验
+        if self.args_schema is not None:
+            if isinstance(input, dict):
+                input = self.args_schema(**input)  # 校验并转换
+        parsed_input = self._parse_input(input)
+        return self._run(*parsed_input, ...)
+
+    @property
+    def args(self) -&gt; dict:
+        &quot;&quot;&quot;生成工具描述，喂给 LLM。&quot;&quot;&quot;
+        if self.args_schema is not None:
+            return self.args_schema.schema()[&quot;properties&quot;]
+        return {}</code></pre></figure>
+<p>关键在于 <code>args_schema</code>。当你定义一个 Tool 时：</p>
+<figure class="highlight python"><pre><code class="language-python">class SearchInput(BaseModel):
+    query: str = Field(description=&quot;搜索关键词&quot;)
+    top_k: int = Field(default=3, description=&quot;返回结果数量&quot;)
+
+search_tool = StructuredTool.from_function(
+    func=web_search,
+    name=&quot;web_search&quot;,
+    description=&quot;搜索互联网获取最新信息，适用于时效性问题&quot;,
+    args_schema=SearchInput,
+)</code></pre></figure>
+<p><code>args_schema.schema()</code> 会被序列化成 JSON Schema，注入到给 LLM 的 Prompt 里。LLM 看到的不再是"有个叫 web_search 的函数"，而是：</p>
+<figure class="highlight json"><pre><code class="language-json">{
+  &quot;query&quot;: {&quot;type&quot;: &quot;string&quot;, &quot;description&quot;: &quot;搜索关键词&quot;},
+  &quot;top_k&quot;: {&quot;type&quot;: &quot;integer&quot;, &quot;default&quot;: 3, &quot;description&quot;: &quot;返回结果数量&quot;}
+}</code></pre></figure>
+<p><strong>这就是"合同"</strong>：LLM 必须按这个格式输出 Action Input，Tool 在 <code>invoke</code> 时再用 Pydantic 校验一遍。如果 LLM 输出了 <code>top_k: "three"</code>，Pydantic 会抛 <code>ValidationError</code>，Agent 会把这个错误作为 Observation 反馈给 LLM，让它重新生成。</p>
+<p>这个"生成 → 校验 → 反馈"的闭环，是 LangChain 抑制幻觉的核心机制。<strong>它不保证 LLM 不出错，但保证错误会被捕获并反馈，而不是静默地传入你的业务函数</strong>。</p>
+<h3 id="Agent-ReAct-循环的每一次迭代"><a href="#Agent-ReAct-循环的每一次迭代" class="headerlink" title="Agent：ReAct 循环的每一次迭代"></a>Agent：ReAct 循环的每一次迭代</h3>
+<p>打开 <code>libs/langchain/langchain/agents/agent.py</code>，<code>AgentExecutor._take_next_step</code> 是整个 Agent 的核心：</p>
+<figure class="highlight python"><pre><code class="language-python">def _take_next_step(self, name_to_tool_map, color_mapping, inputs, 
+                    intermediate_steps, run_manager):
+    # 1. 把中间步骤格式化成 LLM 能理解的文本
+    intermediate_steps = self._prepare_intermediate_steps(intermediate_steps)
+    
+    # 2. 调用 Agent.plan()，让 LLM 决定下一步
+    output = self.agent.plan(
+        intermediate_steps,
+        callbacks=run_manager.get_child() if run_manager else None,
+        **inputs,
+    )
+    
+    # 3. 如果 LLM 输出的是 AgentFinish，结束循环
+    if isinstance(output, AgentFinish):
+        return output
+    
+    # 4. 否则是 AgentAction，解析出工具名和参数
+    tool = name_to_tool_map.get(output.tool)
+    if tool is None:
+        # 工具不存在，生成错误 Observation
+        observation = f&quot;工具 {output.tool} 不存在，可用工具: {list(name_to_tool_map.keys())}&quot;
+        return AgentStep(action=output, observation=observation)
+    
+    # 5. 执行工具
+    try:
+        observation = tool.run(output.tool_input, ...)
+    except Exception as e:
+        observation = f&quot;工具执行出错: {e}&quot;
+    
+    return AgentStep(action=output, observation=observation)</code></pre></figure>
+<p>而外层的 <code>_call</code> 是一个 while 循环：</p>
+<figure class="highlight python"><pre><code class="language-python">def _call(self, inputs, run_manager=None):
+    intermediate_steps = []
+    iterations = 0
+    while iterations &lt; self.max_iterations:
+        iterations += 1
+        next_step_output = self._take_next_step(...)
+        
+        if isinstance(next_step_output, AgentFinish):
+            return next_step_output.return_values
+        
+        intermediate_steps.extend(next_step_output)
+        
+        # 检查是否达到早停条件
+        if len(next_step_output) == 1:
+            step = next_step_output[0]
+            if self.early_stopping_method == &quot;force&quot;:
+                return self.agent.return_stopped_response(...)
+    
+    return self.agent.return_stopped_response(...)</code></pre></figure>
+<p>看清楚了吗？<strong>Agent 的本质就是一个带最大迭代次数的 while 循环</strong>。每次循环：</p>
+<ol>
+<li>把"历史步骤"拼进 Prompt</li>
+<li>让 LLM 输出"下一步做什么"</li>
+<li>如果是 <code>AgentFinish</code>，退出</li>
+<li>如果是 <code>AgentAction</code>，执行工具，把结果 append 到历史</li>
+<li>回到第 1 步</li>
+</ol>
+<p>这里有几个<strong>生产环境的致命细节</strong>：</p>
+<p><strong>细节一：<code>max_iterations</code> 是硬性护栏</strong>。默认值是 15（不同版本有差异）。如果 LLM 陷入"调用搜索 → 结果不满意 → 再搜索"的死循环，15 次之后会强制返回 <code>return_stopped_response</code>。<strong>但此时你可能已经烧掉了几十美分的 token</strong>。生产环境建议设为 5-8。</p>
+<p><strong>细节二：<code>intermediate_steps</code> 会线性增长</strong>。每一步的 Action 和 Observation 都拼进 Prompt，第 10 步的 Prompt 长度可能是第 1 步的 10 倍。这是 Agent 成本随步数<strong>超线性增长</strong>的根源。缓解方案见后文"最佳实践"。</p>
+<p><strong>细节三：工具异常不会中断循环</strong>。看第 5 步的 <code>except</code>——工具抛异常会被捕获成 Observation 字符串。这看起来是优点（容错），但会带来"错误被 LLM 忽略、反复调用同一个坏工具"的问题。需要在 Observation 里明确标注 <code>[ERROR]</code> 并引导 LLM 换策略。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面三个示例，从简单到复杂，覆盖 Chain、Tool、Agent 的核心用法。</p>
+<h3 id="示例一-用-LCEL-构建一个可观测的-RAG-Chain"><a href="#示例一-用-LCEL-构建一个可观测的-RAG-Chain" class="headerlink" title="示例一：用 LCEL 构建一个可观测的 RAG Chain"></a>示例一：用 LCEL 构建一个可观测的 RAG Chain</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+示例一：LCEL 构建 RAG Chain
+展示 Runnable 协议、流式输出、以及回调追踪
+&quot;&quot;&quot;
+import os
+from operator import itemgetter
+
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.vectorstores import FAISS
+
+# ---------- 1. 准备检索器 ----------
+# 假设你已有文档列表 docs
+docs = [
+    &quot;LangChain 的 Chain 用于编排固定流程。&quot;,
+    &quot;Agent 由 LLM 驱动决策，适合动态任务。&quot;,
+    &quot;Tool 需要定义 args_schema 来约束 LLM 输出。&quot;,
+]
+vectorstore = FAISS.from_texts(docs, OpenAIEmbeddings())
+retriever = vectorstore.as_retriever(search_kwargs={&quot;k&quot;: 2})
+
+# ---------- 2. 定义 Prompt ----------
+prompt = ChatPromptTemplate.from_messages([
+    (&quot;system&quot;, &quot;你是技术助手。基于以下上下文回答问题，不知道就说不知道。\n\n上下文:\n{context}&quot;),
+    (&quot;human&quot;, &quot;{question}&quot;),
+])
+
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+
+# ---------- 3. 用 LCEL 组装 Chain ----------
+# 注意：LCEL 的 | 运算符本质是 RunnableSequence 的语法糖
+def format_docs(docs):
+    return &quot;\n\n&quot;.join(doc.page_content for doc in docs)
+
+rag_chain = (
+    # 并行执行：一路检索，一路透传问题
+    {
+        &quot;context&quot;: retriever | RunnableLambda(format_docs),
+        &quot;question&quot;: RunnablePassthrough(),
+    }
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+
+# ---------- 4. 调用并追踪 ----------
+if __name__ == &quot;__main__&quot;:
+    # 普通调用
+    answer = rag_chain.invoke(&quot;Agent 和 Chain 有什么区别？&quot;)
+    print(f&quot;[普通调用] {answer}\n&quot;)
+
+    # 流式调用 —— LCEL 的杀手锏，所有组件自动支持
+    print(&quot;[流式输出] &quot;, end=&quot;&quot;)
+    for chunk in rag_chain.stream(&quot;Tool 的 schema 有什么用？&quot;):
+        print(chunk, end=&quot;&quot;, flush=True)
+    print()
+
+    # 带回调的调用 —— 可观测性
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    class LogHandler(BaseCallbackHandler):
+        def on_chain_start(self, serialized, inputs, **kwargs):
+            print(f&quot;  &gt;&gt; 进入 Chain: {serialized.get(&#x27;name&#x27;, &#x27;unknown&#x27;)}&quot;)
+        def on_retriever_end(self, documents, **kwargs):
+            print(f&quot;  &gt;&gt; 检索到 {len(documents)} 篇文档&quot;)
+
+    rag_chain.invoke(&quot;什么是 ReAct？&quot;, config={&quot;callbacks&quot;: [LogHandler()]})</code></pre></figure>
+<p><strong>关键点</strong>：LCEL 的 <code>|</code> 不是普通的管道，它是 <code>RunnableSequence</code>。每个 <code>Runnable</code> 都实现了 <code>invoke/stream/batch</code> 三件套，所以<strong>整个 Chain 自动获得流式和批量能力</strong>——这是 <code>Chain</code> 基类做不到的。新项目应优先用 LCEL，<code>Chain</code> 子类主要用于兼容旧代码。</p>
+<h3 id="示例二-定义带校验的-Tool-并处理幻觉"><a href="#示例二-定义带校验的-Tool-并处理幻觉" class="headerlink" title="示例二：定义带校验的 Tool 并处理幻觉"></a>示例二：定义带校验的 Tool 并处理幻觉</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+示例二：定义生产级 Tool
+重点：args_schema 约束、错误处理、返回值格式化
+&quot;&quot;&quot;
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
+from langchain_core.tools import StructuredTool
+import json
+
+# ---------- 1. 用 Pydantic 定义严格的参数 schema ----------
+class WeatherInput(BaseModel):
+    &quot;&quot;&quot;查询天气的参数。&quot;&quot;&quot;
+    city: str = Field(description=&quot;城市名称，如 &#x27;北京&#x27;、&#x27;Shanghai&#x27;&quot;)
+    date: Optional[str] = Field(
+        default=None,
+        description=&quot;日期，格式 YYYY-MM-DD。不填则查今天&quot;,
+    )
+
+    @field_validator(&quot;date&quot;)
+    @classmethod
+    def validate_date(cls, v):
+        if v is None:
+            return v
+        import re
+        if not re.match(r&quot;^\d{4}-\d{2}-\d{2}$&quot;, v):
+            raise ValueError(f&quot;日期格式错误: {v}，应为 YYYY-MM-DD&quot;)
+        return v
+
+# ---------- 2. 实现工具函数，注意异常处理 ----------
+def query_weather(city: str, date: Optional[str] = None) -&gt; str:
+    &quot;&quot;&quot;
+    真实场景这里会调用天气 API。
+    关键原则：永远不要在工具里抛未捕获异常，返回结构化错误字符串。
+    &quot;&quot;&quot;
+    try:
+        # 模拟 API 调用
+        if city not in [&quot;北京&quot;, &quot;上海&quot;, &quot;广州&quot;, &quot;深圳&quot;]:
+            return json.dumps(
+                {&quot;status&quot;: &quot;error&quot;, &quot;message&quot;: f&quot;暂不支持城市 {city}，支持: 北京/上海/广州/深圳&quot;},
+                ensure_ascii=False,
+            )
+        # 模拟返回
+        return json.dumps(
+            {&quot;status&quot;: &quot;ok&quot;, &quot;city&quot;: city, &quot;date&quot;: date or &quot;today&quot;, &quot;temp&quot;: &quot;22°C&quot;, &quot;weather&quot;: &quot;晴&quot;},
+            ensure_ascii=False,
+        )
+    except Exception as e:
+        return json.dumps({&quot;status&quot;: &quot;error&quot;, &quot;message&quot;: str(e)}, ensure_ascii=False)
+
+# ---------- 3. 封装成 Tool ----------
+weather_tool = StructuredTool.from_function(
+    func=query_weather,
+    name=&quot;query_weather&quot;,
+    description=(
+        &quot;查询指定城市的天气。适用于用户询问天气、温度、是否下雨等场景。&quot;
+        &quot;支持城市: 北京、上海、广州、深圳。&quot;
+    ),
+    args_schema=WeatherInput,
+    return_direct=False,  # 结果是否直接返回用户（不经过 LLM 再加工）
+)
+
+if __name__ == &quot;__main__&quot;:
+    # 正常调用
+    print(weather_tool.invoke({&quot;city&quot;: &quot;北京&quot;, &quot;date&quot;: &quot;2026-09-10&quot;}))
+
+    # 触发 Pydantic 校验错误 —— 模拟 LLM 幻觉
+    try:
+        weather_tool.invoke({&quot;city&quot;: &quot;北京&quot;, &quot;date&quot;: &quot;明天&quot;})
+    except Exception as e:
+        print(f&quot;[校验失败] {type(e).__name__}: {e}&quot;)
+
+    # 查看喂给 LLM 的 schema
+    print(f&quot;\n[LLM 看到的 schema]\n{json.dumps(weather_tool.args, ensure_ascii=False, indent=2)}&quot;)</code></pre></figure>
+<p><strong>关键点</strong>：</p>
+<ol>
+<li><strong><code>args_schema</code> 是强约束</strong>。LLM 输出 <code>date: "明天"</code> 会被 Pydantic 直接拒绝，错误信息反馈给 LLM 让它重试。</li>
+<li><strong>工具内部不抛异常，返回结构化错误</strong>。这样 Agent 能把错误当作 Observation 继续推理，而不是整个流程崩溃。</li>
+<li><strong><code>description</code> 是给 LLM 看的"使用说明"</strong>，要写清楚适用场景和边界。很多 Agent 调错工具，根源是 description 写得太含糊。</li>
+</ol>
+<h3 id="示例三-带护栏的生产级-Agent"><a href="#示例三-带护栏的生产级-Agent" class="headerlink" title="示例三：带护栏的生产级 Agent"></a>示例三：带护栏的生产级 Agent</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+示例三：生产级 Agent
+重点：max_iterations、超时、中间步骤裁剪、成本控制
+&quot;&quot;&quot;
+import time
+from typing import List, Tuple
+
+from langchain.agents import AgentExecutor, create_openai_tools_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import SystemMessage
+from langchain_openai import ChatOpenAI
+
+from example2_weather_tool import weather_tool  # 复用示例二的工具
+
+# ---------- 1. 定义一个简单计算工具 ----------
+from langchain_core.tools import tool
+
+@tool
+def calculator(expression: str) -&gt; str:
+    &quot;&quot;&quot;计算数学表达式，如 &#x27;2 + 3 * 4&#x27;。只支持四则运算。&quot;&quot;&quot;
+    import re
+    # 安全校验：只允许数字和运算符
+    if not re.match(r&quot;^[\d\s\+\-\*/\(\)\.]+$&quot;, expression):
+        return &quot;[ERROR] 表达式包含非法字符，仅支持数字和 + - * / ( )&quot;
+    try:
+        result = eval(expression, {&quot;__builtins__&quot;: {}}, {})
+        return str(result)
+    except Exception as e:
+        return f&quot;[ERROR] 计算失败: {e}&quot;
+
+tools = [weather_tool, calculator]
+
+# ---------- 2. 构建 Prompt ----------
+prompt = ChatPromptTemplate.from_messages([
+    SystemMessage(content=(
+        &quot;你是一个严谨的助手。规则：\n&quot;
+        &quot;1. 只在必要时调用工具，能直接回答的直接回答。\n&quot;
+        &quot;2. 工具返回 [ERROR] 时，不要重复相同调用，换策略或告知用户。\n&quot;
+        &quot;3. 最多调用 5 次工具，超出则总结已有信息回答。&quot;
+    )),
+    MessagesPlaceholder(&quot;chat_history&quot;, optional=True),
+    (&quot;human&quot;, &quot;{input}&quot;),
+    MessagesPlaceholder(&quot;agent_scratchpad&quot;),
+])
+
+# ---------- 3. 组装 Agent ----------
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+agent = create_openai_tools_agent(llm, tools, prompt)
+
+class GuardedAgentExecutor(AgentExecutor):
+    &quot;&quot;&quot;在 AgentExecutor 基础上加超时和成本护栏。&quot;&quot;&quot;
+    
+    max_execution_time: float = 30.0  # 秒
+    
+    def _call(self, inputs, run_manager=None):
+        start = time.time()
+        result = super()._call(inputs, run_manager)
+        elapsed = time.time() - start
+        if elapsed &gt; self.max_execution_time:
+            result[&quot;warning&quot;] = f&quot;执行超时 {elapsed:.1f}s&quot;
+        return result
+
+executor = GuardedAgentExecutor(
+    agent=agent,
+    tools=tools,
+    verbose=True,
+    max_iterations=5,              # 硬性迭代上限
+    max_execution_time=30,          # 超时保护
+    early_stopping_method=&quot;force&quot;,  # 达到上限时强制返回
+    handle_parsing_errors=True,     # LLM 输出格式错误时自动重试
+    return_intermediate_steps=True, # 返回中间步骤便于调试
+)
+
+if __name__ == &quot;__main__&quot;:
+    # 测试 1：需要多步推理
+    result = executor.invoke({
+        &quot;input&quot;: &quot;北京今天天气怎么样？如果温度高于 20 度，告诉我 25 * 4 是多少。&quot;
+    })
+    print(f&quot;\n[回答] {result[&#x27;output&#x27;]}&quot;)
+    print(f&quot;[步数] {len(result[&#x27;intermediate_steps&#x27;])}&quot;)
+    for action, obs in result[&quot;intermediate_steps&quot;]:
+        print(f&quot;  - 调用 {action.tool}({action.tool_input}) -&gt; {obs[:80]}&quot;)
+
+    # 测试 2：触发护栏
+    result = executor.invoke({
+        &quot;input&quot;: &quot;查一下火星的天气，然后计算 1/0。&quot;
+    })
+    print(f&quot;\n[护栏测试] {result[&#x27;output&#x27;]}&quot;)</code></pre></figure>
+<p><strong>关键点</strong>：</p>
+<ol>
+<li><strong><code>max_iterations=5</code></strong> 是成本护栏。默认 15 太宽松，生产环境 5-8 足够覆盖绝大多数任务。</li>
+<li><strong><code>handle_parsing_errors=True</code></strong> 让 LLM 输出格式错误时自动重试，而不是直接崩溃。</li>
+<li><strong><code>return_intermediate_steps=True</code></strong> 是调试利器，能看清 Agent 每一步的决策。</li>
+<li><strong>自定义 Executor 加超时</strong>：<code>AgentExecutor</code> 本身没有超时机制，长任务可能挂死。子类化是最简单的加护栏方式。</li>
+</ol>
+<hr>
+<h2 id="方案对比-LangChain-vs-其他流派"><a href="#方案对比-LangChain-vs-其他流派" class="headerlink" title="方案对比：LangChain vs 其他流派"></a>方案对比：LangChain vs 其他流派</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>LangChain Chain</th>
+<th>LangChain Agent</th>
+<th>LangGraph</th>
+<th>LlamaIndex</th>
+<th>裸调 API</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>控制流</td>
+<td>静态 DAG</td>
+<td>LLM 动态</td>
+<td>显式状态机</td>
+<td>静态 + 部分动态</td>
+<td>完全手写</td>
+</tr><tr>
+<td>可预测性</td>
+<td>高</td>
+<td>低</td>
+<td>中高</td>
+<td>高</td>
+<td>取决于实现</td>
+</tr><tr>
+<td>调试难度</td>
+<td>低</td>
+<td>高</td>
+<td>中</td>
+<td>中</td>
+<td>低</td>
+</tr><tr>
+<td>循环/分支</td>
+<td>不支持</td>
+<td>隐式支持</td>
+<td>原生支持</td>
+<td>有限</td>
+<td>手写</td>
+</tr><tr>
+<td>状态持久化</td>
+<td>弱</td>
+<td>弱</td>
+<td>强（checkpoint）</td>
+<td>中</td>
+<td>手写</td>
+</tr><tr>
+<td>适合场景</td>
+<td>固定流程</td>
+<td>开放任务</td>
+<td>复杂工作流</td>
+<td>RAG 为主</td>
+<td>极简需求</td>
+</tr></tbody></table>
+<p><strong>核心洞察</strong>：</p>
+<ul>
+<li><strong>Chain 适合"流程已知"</strong>：RAG、文档摘要、格式转换。用 LCEL 写，性能好、可观测、易测试。</li>
+</ul>
+<ul>
+<li><strong>Agent 适合"流程未知"</strong>：需要 LLM 现场规划的任务。但要接受它的不确定性，并用护栏兜底。</li>
+</ul>
+<ul>
+<li><strong>LangGraph 是 Agent 的进化形态</strong>：当你的 Agent 需要"人机协作""状态持久化""多 Agent 协作"时，直接用 LangGraph，它是显式状态机，比 <code>AgentExecutor</code> 的隐式循环可控得多。</li>
+</ul>
+<ul>
+<li><strong>LlamaIndex 在 RAG 上更专精</strong>：检索策略、索引结构比 LangChain 丰富。但编排能力不如 LangChain。</li>
+</ul>
+<ul>
+<li><strong>裸调 API 不是落后</strong>：如果你的流程只有 2-3 步且永远不变，直接调 API 反而更简单。<strong>框架的价值在于抽象能覆盖复杂度，而不是为了用而用</strong>。</li>
+</ul>
+<p>一个实用的决策树：</p>
+<div class="mermaid">
+graph TD
+    A[需要 LLM 应用] --> B{流程是否固定?}
+    B -->|是| C{步骤数 > 3?}
+    B -->|否| D{需要持久化状态?}
+    C -->|否| E[裸调 API]
+    C -->|是| F[LCEL Chain]
+    D -->|是| G[LangGraph]
+    D -->|否| H[AgentExecutor]
+    F --> I{需要动态决策?}
+    I -->|是| H
+    I -->|否| J[保持 Chain]
+</div>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑-1-把-Agent-当-Chain-用"><a href="#坑-1-把-Agent-当-Chain-用" class="headerlink" title="坑 1：把 Agent 当 Chain 用"></a>坑 1：把 Agent 当 Chain 用</h3>
+<p><strong>症状</strong>：用 Agent 处理"永远按固定顺序执行"的任务，结果每次调用 LLM 决定下一步，延迟翻倍、成本翻倍、还偶尔走错路。</p>
+<p><strong>药方</strong>：先问自己"下一步能不能写死"。能写死就用 Chain。Agent 的价值在于<strong>处理你无法预判的分支</strong>。</p>
+<h3 id="坑-2-Tool-的-description-写得太随意"><a href="#坑-2-Tool-的-description-写得太随意" class="headerlink" title="坑 2：Tool 的 description 写得太随意"></a>坑 2：Tool 的 description 写得太随意</h3>
+<p><strong>症状</strong>：Agent 频繁调错工具，或者在不需要工具时也调用。</p>
+<p><strong>药方</strong>：description 要写清楚三件事——<strong>做什么、什么时候用、什么时候不用</strong>。例如：</p>
+<figure class="highlight python"><pre><code class="language-python"># 差
+description = &quot;搜索&quot;
+
+# 好
+description = (
+    &quot;搜索互联网获取实时信息。&quot;
+    &quot;适用于：新闻、股价、天气等时效性问题。&quot;
+    &quot;不适用于：常识问答、数学计算（用 calculator 工具）。&quot;
+)</code></pre></figure>
+<h3 id="坑-3-忽略-intermediate-steps-的-token-膨胀"><a href="#坑-3-忽略-intermediate-steps-的-token-膨胀" class="headerlink" title="坑 3：忽略 <code>intermediate_steps</code> 的 token 膨胀"></a>坑 3：忽略 <code>intermediate_steps</code> 的 token 膨胀</h3>
+<p><strong>症状</strong>：Agent 跑到第 8 步时，单次 Prompt 已经 8000+ token，成本飙升。</p>
+<p><strong>药方</strong>：自定义 <code>_prepare_intermediate_steps</code>，只保留最近 N 步的完整内容，更早的步骤只保留 Action 摘要：</p>
+<figure class="highlight python"><pre><code class="language-python">def truncate_steps(steps, keep_recent=3):
+    if len(steps) &lt;= keep_recent:
+        return steps
+    old = steps[:-keep_recent]
+    recent = steps[-keep_recent:]
+    summary = f&quot;[已完成 {len(old)} 步，摘要: &quot; + \
+              &quot;, &quot;.join(f&quot;{s[0].tool}({s[0].tool_input})&quot; for s in old) + &quot;]&quot;
+    return [(&quot;summary&quot;, summary)] + recent</code></pre></figure>
+<h3 id="坑-4-工具里抛未捕获异常"><a href="#坑-4-工具里抛未捕获异常" class="headerlink" title="坑 4：工具里抛未捕获异常"></a>坑 4：工具里抛未捕获异常</h3>
+<p><strong>症状</strong>：Agent 运行到一半突然崩溃，用户看到 500 错误。</p>
+<p><strong>药方</strong>：工具内部<strong>永远</strong>返回结构化错误字符串，让 LLM 有机会自我修正。参考示例二的写法。</p>
+<h3 id="坑-5-没有设置-max-iterations"><a href="#坑-5-没有设置-max-iterations" class="headerlink" title="坑 5：没有设置 <code>max_iterations</code>"></a>坑 5：没有设置 <code>max_iterations</code></h3>
+<p><strong>症状</strong>：LLM 陷入死循环，疯狂调用工具，账单爆炸。</p>
+<p><strong>药方</strong>：<code>max_iterations=5~8</code>，加上 <code>max_execution_time</code> 超时。<strong>成本失控是 Agent 最常见的生产事故</strong>。</p>
+<h3 id="坑-6-Prompt-里没写-何时停止"><a href="#坑-6-Prompt-里没写-何时停止" class="headerlink" title="坑 6：Prompt 里没写"何时停止""></a>坑 6：Prompt 里没写"何时停止"</h3>
+<p><strong>症状</strong>：Agent 明明已经拿到答案，还继续调用工具"确认"。</p>
+<p><strong>药方</strong>：系统 Prompt 里明确写"信息足够时直接回答，不要重复调用工具"。同时设置 <code>early_stopping_method="force"</code>。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>优先 LCEL，其次 Chain 子类，最后才用 Agent</strong>。能用静态流程解决的，绝不引入动态决策。</li>
+<li><strong>所有 Tool 必须有 <code>args_schema</code></strong>。没有 schema 的 Tool 等于把幻觉直接放进你的业务函数。</li>
+<li><strong>Agent 必须有护栏三件套</strong>：<code>max_iterations</code> + <code>max_execution_time</code> + <code>handle_parsing_errors</code>。</li>
+<li><strong>用 <code>return_intermediate_steps=True</code> 调试</strong>，上线后可改为 False 省 token。</li>
+<li><strong>复杂工作流用 LangGraph</strong>。当你的 Agent 需要状态持久化、人机协作、多 Agent 时，<code>AgentExecutor</code> 的隐式循环会成为负担。</li>
+<li><strong>给工具加幂等性</strong>。Agent 可能重复调用同一个工具，写操作类工具要做好幂等或去重。</li>
+<li><strong>监控 token 消耗</strong>。用 LangSmith 或自建回调，记录每次 Agent 调用的步数和 token，设置告警阈值。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个客服系统的故事。重构后，我把系统拆成了三层：</p>
+<ul>
+<li><strong>Chain 层</strong>：工单分类、知识库检索、回复生成，用 LCEL 编排，稳定可测。</li>
+</ul>
+<ul>
+<li><strong>Tool 层</strong>：退款审批、订单查询、用户画像，每个都有严格的 Pydantic schema。</li>
+</ul>
+<ul>
+<li><strong>Agent 层</strong>：只负责"这个工单该走哪条流程"的决策，<code>max_iterations=5</code>，超时 20 秒。</li>
+</ul>
+<p>结果是：延迟从平均 8 秒降到 3 秒，成本降低 60%，新增业务分支从"改 800 行函数"变成"加一个 Tool"。</p>
+<p>三个组件，三种抽象，对应三类问题：</p>
+<ul>
+<li><strong>Chain 解决"流程编排"</strong>——把已知的步骤串起来，是工程问题。</li>
+</ul>
+<ul>
+<li><strong>Tool 解决"能力边界"</strong>——用 schema 定义 LLM 能做什么、不能做什么，是接口问题。</li>
+</ul>
+<ul>
+<li><strong>Agent 解决"动态决策"</strong>——让 LLM 在运行时规划，是控制论问题。</li>
+</ul>
+<p><strong>理解它们的本质区别，比记住 API 更重要</strong>。因为框架会迭代，API 会改名，但"静态流程用 Chain、外部能力用 Tool、动态决策用 Agent"这个判断，五年后依然成立。</p>
+<p>延伸思考：当 LLM 的推理能力持续增强，Agent 的"决策循环"会不会逐渐取代 Chain 的"固定编排"？我的判断是——<strong>不会完全取代，但边界会移动</strong>。就像微服务没有完全取代单体，而是让"该拆的拆、该合的合"成为工程判断。未来的主流形态，可能是"LangGraph 式的混合架构"：主干流程是显式状态机（可控），局部节点用 Agent（灵活）。掌握今天这三个组件，正是理解那个未来的起点。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

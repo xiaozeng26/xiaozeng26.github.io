@@ -1,5 +1,25 @@
 [
  {
+  "title": "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
+  "url": "/2026/09/10/LangChain%E6%A0%B8%E5%BF%83%E6%9E%B6%E6%9E%84%EF%BC%9AChain%E3%80%81Agent%E3%80%81Tool%E4%B8%89%E5%A4%A7%E7%BB%84%E4%BB%B6%E5%89%96%E6%9E%90/",
+  "date": "2026-09-10",
+  "year": 2026,
+  "month": 9,
+  "day": 10,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=1192",
+  "excerpt": "引言 去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增\\"
+ },
+ {
   "title": "Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路",
   "url": "/2026/09/09/Seata%E5%88%86%E5%B8%83%E5%BC%8F%E4%BA%8B%E5%8A%A1AT%E6%A8%A1%E5%BC%8F%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90%EF%BC%9A%E4%BB%8E%E5%85%A8%E5%B1%80%E4%BA%8B%E5%8A%A1%E5%88%B0%E5%88%86%E6%94%AF%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%8C%E6%95%B4%E9%93%BE%E8%B7%AF/",
   "date": "2026-09-09",
