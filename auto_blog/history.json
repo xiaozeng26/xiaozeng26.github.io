@@ -342,6 +342,13 @@
       "subtopic": "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
       "date": "2026-09-10",
       "url": "/2026/09/10/LangChain核心架构：Chain、Agent、Tool三大组件剖析/"
+    },
+    {
+      "title": "Python GIL的过去、现在与未来（Python 3.13自由线程）",
+      "category": "python",
+      "subtopic": "Python GIL的过去、现在与未来（Python 3.13自由线程）",
+      "date": "2026-09-11",
+      "url": "/2026/09/11/Python GIL的过去、现在与未来（Python 3.13自由线程）/"
     }
   ],
   "used_subtopics": {
@@ -362,7 +369,8 @@
       "Python内存管理与对象池机制",
       "SQLAlchemy Session管理与事务隔离",
       "pytest插件体系与Fixture机制",
-      "装饰器与上下文管理器的实现原理"
+      "装饰器与上下文管理器的实现原理",
+      "Python GIL的过去、现在与未来（Python 3.13自由线程）"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -455,6 +463,7 @@
     "装饰器与上下文管理器的实现原理": "725024b88d6d49638cb6fd2e0394503583abb22d7d115b0effecd92c2544470d",
     "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48",
     "Seata分布式事务AT模式源码分析": "12e3336eec6bef808d3fe3dade2c992c12f2d179bc842497056e5c436d0eb93e",
-    "LangChain核心架构：Chain、Agent、Tool三大组件剖析": "62117fb3052e6d77f81202f241507e09d1087fdfef6e72bd6068c148c99fe3e0"
+    "LangChain核心架构：Chain、Agent、Tool三大组件剖析": "62117fb3052e6d77f81202f241507e09d1087fdfef6e72bd6068c148c99fe3e0",
+    "Python GIL的过去、现在与未来（Python 3.13自由线程）": "3b8d1086151381ec885355a4d52ae49b375497ef0105f0a598f4d452b64d872b"
   }
 }

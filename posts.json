@@ -1,5 +1,23 @@
 [
  {
+  "title": "Python GIL的过去、现在与未来（Python 3.13自由线程）",
+  "url": "/2026/09/11/Python%20GIL%E7%9A%84%E8%BF%87%E5%8E%BB%E3%80%81%E7%8E%B0%E5%9C%A8%E4%B8%8E%E6%9C%AA%E6%9D%A5%EF%BC%88Python%203.13%E8%87%AA%E7%94%B1%E7%BA%BF%E7%A8%8B%EF%BC%89/",
+  "date": "2026-09-11",
+  "year": 2026,
+  "month": 9,
+  "day": 11,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=6733",
+  "excerpt": "引言 2024年10月，CPython 3.13 正式发布，带来了一个被讨论了近十年的实验性特性：自由线程（Free-Threaded）模式，也就是官方所称的 \\"
+ },
+ {
   "title": "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
   "url": "/2026/09/10/LangChain%E6%A0%B8%E5%BF%83%E6%9E%B6%E6%9E%84%EF%BC%9AChain%E3%80%81Agent%E3%80%81Tool%E4%B8%89%E5%A4%A7%E7%BB%84%E4%BB%B6%E5%89%96%E6%9E%90/",
   "date": "2026-09-10",
