@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>API网关设计：限流、熔断、降级、灰度发布 | 小曾博客</title>
+  <meta name="description" content="API网关设计：限流、熔断、降级、灰度发布 引言 凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的雪崩效应。 事后复盘发现：真正的问题不在于订单服务扛不住，而在于没有任何一道防线">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="API网关设计：限流、熔断、降级、灰度发布">
+  <meta name="twitter:description" content="API网关设计：限流、熔断、降级、灰度发布 引言 凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的雪崩效应。 事后复盘发现：真正的问题不在于订单服务扛不住，而在于没有任何一道防线">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=5974">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="API网关设计：限流、熔断、降级、灰度发布">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="API网关设计：限流、熔断、降级、灰度发布 引言 凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的雪崩效应。 事后复盘发现：真正的问题不在于订单服务扛不住，而在于没有任何一道防线">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=5974">
+  <meta property="article:published_time" content="2026-09-12T22:38:01.000Z">
+  <meta property="article:modified_time" content="2026-09-12T22:38:01.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#API网关设计-限流-熔断-降级-灰度发布"><span class="toc-text">API网关设计：限流、熔断、降级、灰度发布</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把网关想象成一家餐厅的-前台"><span class="toc-text">核心概念：把网关想象成一家餐厅的"前台"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#一-限流-从计数器到漏桶-算法与源码级实现"><span class="toc-text">一、限流：从计数器到漏桶，算法与源码级实现</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-四种主流限流算法对比"><span class="toc-text">1.1 四种主流限流算法对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-源码深度-Guava-RateLimiter-的-SmoothBursty"><span class="toc-text">1.2 源码深度：Guava RateLimiter 的 SmoothBursty</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-3-分布式限流-单机限流为什么不够"><span class="toc-text">1.3 分布式限流：单机限流为什么不够</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#二-熔断-从状态机到-Resilience4j-源码"><span class="toc-text">二、熔断：从状态机到 Resilience4j 源码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-熔断器的三种状态"><span class="toc-text">2.1 熔断器的三种状态</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-源码深度-Resilience4j-CircuitBreaker-状态转换"><span class="toc-text">2.2 源码深度：Resilience4j CircuitBreaker 状态转换</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-熔断-vs-限流-容易混淆的两个概念"><span class="toc-text">2.3 熔断 vs 限流：容易混淆的两个概念</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#三-降级-让核心链路在故障中依然能走通"><span class="toc-text">三、降级：让核心链路在故障中依然能走通</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-降级的三个层次"><span class="toc-text">3.1 降级的三个层次</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-降级数据的来源"><span class="toc-text">3.2 降级数据的来源</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-完整实战-基于-Spring-Cloud-Gateway-Sentinel-的降级"><span class="toc-text">3.3 完整实战：基于 Spring Cloud Gateway + Sentinel 的降级</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#四-灰度发布-让新版本只承接-1-的流量"><span class="toc-text">四、灰度发布：让新版本只承接 1% 的流量</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-灰度发布的四种流量切分策略"><span class="toc-text">4.1 灰度发布的四种流量切分策略</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-源码深度-Spring-Cloud-Gateway-的灰度路由"><span class="toc-text">4.2 源码深度：Spring Cloud Gateway 的灰度路由</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#五-方案对比-自研-vs-开源-vs-云原生"><span class="toc-text">五、方案对比：自研 vs 开源 vs 云原生</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#六-最佳实践与避坑指南"><span class="toc-text">六、最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-限流的坑"><span class="toc-text">6.1 限流的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-熔断的坑"><span class="toc-text">6.2 熔断的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-降级的坑"><span class="toc-text">6.3 降级的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-灰度的坑"><span class="toc-text">6.4 灰度的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-5-综合最佳实践"><span class="toc-text">6.5 综合最佳实践</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=5974)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">API网关设计：限流、熔断、降级、灰度发布</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-12"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-12</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-12"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-12</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="API网关设计-限流-熔断-降级-灰度发布"><a href="#API网关设计-限流-熔断-降级-灰度发布" class="headerlink" title="API网关设计：限流、熔断、降级、灰度发布"></a>API网关设计：限流、熔断、降级、灰度发布</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的<strong>雪崩效应</strong>。</p>
+<p>事后复盘发现：真正的问题不在于订单服务扛不住，而在于<strong>没有任何一道防线去拦截、削减、隔离这股洪流</strong>。如果当时有一个设计良好的 API 网关，第一层限流会直接拒绝超出配额的请求，第二层熔断会在订单服务延迟升高时快速失败，第三层降级会给用户返回兜底数据，第四层灰度能力甚至能让新版本只承接 1% 的流量做验证——这场事故根本不会发生。</p>
+<p>API 网关不是简单的"反向代理 + 转发"，它是整个微服务体系的<strong>总闸门、保险丝、泄压阀和分流器</strong>。本文从一位全栈架构师的视角，把限流、熔断、降级、灰度发布这四件事从算法原理讲到源码实现，再到生产环境的避坑指南，一次性讲透。</p>
+<hr>
+<h2 id="核心概念-把网关想象成一家餐厅的-前台"><a href="#核心概念-把网关想象成一家餐厅的-前台" class="headerlink" title="核心概念：把网关想象成一家餐厅的"前台""></a>核心概念：把网关想象成一家餐厅的"前台"</h2>
+<p>先抛开技术，我们用一个餐厅类比把四个概念串起来：</p>
+<table>
+<thead>
+<tr>
+<th>网关能力</th>
+<th>餐厅类比</th>
+<th>技术本质</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>限流</strong></td>
+<td>门口保安控制入场人数，超过承载量就让顾客排队或劝返</td>
+<td>控制单位时间内的请求速率</td>
+</tr><tr>
+<td><strong>熔断</strong></td>
+<td>后厨某道菜老是做糊，前台就不再下单这道菜，避免厨房累垮</td>
+<td>下游服务故障时快速失败，不再调用</td>
+</tr><tr>
+<td><strong>降级</strong></td>
+<td>招牌菜没了，就给顾客上一份"今日推荐"替代品</td>
+<td>主逻辑失败时返回兜底结果</td>
+</tr><tr>
+<td><strong>灰度发布</strong></td>
+<td>新菜品先给 1% 的老顾客试吃，反馈好再全面上架</td>
+<td>按规则将部分流量路由到新版本</td>
+</tr></tbody></table>
+<p>这四件事有明确的<strong>职责边界</strong>：</p>
+<ul>
+<li><strong>限流</strong>面向<strong>入口流量</strong>，是"准入控制"，保护的是整个系统不被压垮；</li>
+</ul>
+<ul>
+<li><strong>熔断</strong>面向<strong>下游依赖</strong>，是"故障隔离"，保护的是调用方不被拖死；</li>
+</ul>
+<ul>
+<li><strong>降级</strong>面向<strong>业务可用性</strong>，是"体验兜底"，保证核心链路在异常时仍能走通；</li>
+</ul>
+<ul>
+<li><strong>灰度发布</strong>面向<strong>变更风险</strong>，是"流量调度"，让新版本以最小代价被验证。</li>
+</ul>
+<p>它们组合在一起，才构成一个真正高可用的网关。下面我们逐个深入。</p>
+<hr>
+<h2 id="一-限流-从计数器到漏桶-算法与源码级实现"><a href="#一-限流-从计数器到漏桶-算法与源码级实现" class="headerlink" title="一、限流：从计数器到漏桶，算法与源码级实现"></a>一、限流：从计数器到漏桶，算法与源码级实现</h2>
+<h3 id="1-1-四种主流限流算法对比"><a href="#1-1-四种主流限流算法对比" class="headerlink" title="1.1 四种主流限流算法对比"></a>1.1 四种主流限流算法对比</h3>
+<p>限流算法看似简单，但选错了会在边界场景翻车。</p>
+<p><strong>计数器（固定窗口）</strong>：最简单，把时间切成固定窗口（如每秒），窗口内计数超过阈值就拒绝。问题是<strong>临界突变</strong>——比如限制 100 QPS，在 0.9s 到 1.1s 之间可能通过 200 个请求，因为跨了两个窗口。</p>
+<p><strong>滑动窗口</strong>：把固定窗口再细分成多个小格（如 1s 分成 10 个 100ms 的格子），统计最近 1s 内所有格子的总和。解决了临界问题，代价是需要维护更多计数状态。Sentinel 的 <code>LeapArray</code> 就是这个思路。</p>
+<p><strong>漏桶（Leaky Bucket）</strong>：请求先进入桶，桶以恒定速率漏出（处理）。桶满了就拒绝。<strong>流出速率恒定</strong>，适合做流量整形（traffic shaping），但无法应对突发流量。</p>
+<p><strong>令牌桶（Token Bucket）</strong>：以恒定速率往桶里放令牌，请求来的时候拿走一个令牌，没令牌就拒绝。<strong>允许一定程度的突发</strong>（桶里攒的令牌可以一次用掉），这是绝大多数网关的选择——Guava RateLimiter、Nginx <code>limit_req</code>、Sentinel 的匀速排队模式都基于这个思想。</p>
+<div class="mermaid">
+graph LR
+    subgraph 令牌桶
+        G[令牌生成器<br/>恒定速率] -->|放入| B[令牌桶<br/>容量 N]
+        R[请求] -->|取令牌| B
+        B -->|有令牌| P[放行]
+        B -->|无令牌| D[拒绝/排队]
+    end
+</div>
+<h3 id="1-2-源码深度-Guava-RateLimiter-的-SmoothBursty"><a href="#1-2-源码深度-Guava-RateLimiter-的-SmoothBursty" class="headerlink" title="1.2 源码深度：Guava RateLimiter 的 SmoothBursty"></a>1.2 源码深度：Guava RateLimiter 的 SmoothBursty</h3>
+<p>很多人以为令牌桶就是"一个定时任务不停往桶里加令牌"，实际上 Guava 用的是<strong>惰性计算</strong>——不启动任何定时器，而是在每次请求时根据时间差算出应该有多少令牌。看核心源码（<code>SmoothRateLimiter</code>）：</p>
+<figure class="highlight java"><pre><code class="language-java">// Guava SmoothRateLimiter#reserveEarliestAvailable 核心逻辑（简化）
+final long reserveEarliestAvailable(int requiredPermits, long nowMicros) {
+    // 1. 根据距离上次的时间差，补充令牌
+    resync(nowMicros);
+    long returnValue = nextFreeTicketMicros;
+
+    // 2. 计算本次能直接拿到的令牌数（storedPermits 和 requiredPermits 取小）
+    double storedPermitsToSpend = Math.min(requiredPermits, this.storedPermits);
+    // 3. 不够的部分需要&quot;预支&quot;，计算要等多长时间
+    double freshPermits = requiredPermits - storedPermitsToSpend;
+    long waitMicros = storedPermitsToWaitTime(this.storedPermits, storedPermitsToSpend)
+            + (long) (freshPermits * stableIntervalMicros);
+
+    // 4. 更新下一次可用的时间点（关键：预支的时间会累加到下一次）
+    this.nextFreeTicketMicros = LongMath.saturatedAdd(nextFreeTicketMicros, waitMicros);
+    this.storedPermits -= storedPermitsToSpend;
+    return returnValue;
+}
+
+// 惰性补令牌：根据时间差计算新增令牌
+void resync(long nowMicros) {
+    if (nowMicros &gt; nextFreeTicketMicros) {
+        double newPermits = (nowMicros - nextFreeTicketMicros) / coolDownIntervalMicros();
+        storedPermits = Math.min(maxPermits, storedPermits + newPermits);
+        nextFreeTicketMicros = nowMicros;
+    }
+}</code></pre></figure>
+<p><strong>这里有个精妙的设计值得注意</strong>：<code>nextFreeTicketMicros</code> 会"预支"未来时间。也就是说，如果现在令牌不够，Guava 不是拒绝请求，而是让它等——并且这个等待时间会累加到下一次请求上。这就是为什么 <code>SmoothBursty</code> 能实现<strong>平滑的突发</strong>：桶里攒的令牌可以立刻用掉，但用超了要还债。</p>
+<p><code>SmoothBursty</code> 还有一个隐藏坑：<strong>桶容量默认只够存 1 秒的令牌</strong>（<code>maxBurstSeconds = 1.0</code>）。如果你的服务 QPS 限制是 1000，那桶里最多攒 1000 个令牌，突发流量最多一次打 1000 个。生产环境如果想让突发更大，需要通过 <code>RateLimiter.create(permitsPerSecond)</code> 后没有直接 API 调整，得用反射或改用 Sentinel。</p>
+<h3 id="1-3-分布式限流-单机限流为什么不够"><a href="#1-3-分布式限流-单机限流为什么不够" class="headerlink" title="1.3 分布式限流：单机限流为什么不够"></a>1.3 分布式限流：单机限流为什么不够</h3>
+<p>单机 Guava RateLimiter 只能限制单实例。假设你有 10 个网关实例，每个限 1000 QPS，集群实际能放 10000 QPS 进来——如果后端只能扛 5000，照样被打挂。</p>
+<p>分布式限流必须有一个<strong>共享的计数器</strong>，通常是 Redis + Lua 脚本保证原子性。下面是完整的生产级 Redis 令牌桶实现：</p>
+<figure class="highlight lua"><pre><code class="language-lua">-- distributed_rate_limiter.lua
+-- KEYS[1]: 限流 key
+-- ARGV[1]: 桶容量 capacity
+-- ARGV[2]: 令牌生成速率 rate（个/秒）
+-- ARGV[3]: 当前时间戳（毫秒）
+-- ARGV[4]: 本次请求令牌数
+-- 返回: 1 表示放行，0 表示拒绝
+
+local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local rate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local requested = tonumber(ARGV[4])
+
+-- 获取当前桶状态：tokens 剩余令牌，last_time 上次刷新时间
+local bucket = redis.call(&#x27;HMGET&#x27;, key, &#x27;tokens&#x27;, &#x27;last_time&#x27;)
+local tokens = tonumber(bucket[1])
+local last_time = tonumber(bucket[2])
+
+-- 初始化
+if tokens == nil then
+    tokens = capacity
+    last_time = now
+end
+
+-- 惰性补充令牌：按时间差计算
+local delta = math.max(0, now - last_time)
+local filled = delta * rate / 1000.0
+tokens = math.min(capacity, tokens + filled)
+
+-- 判断是否够用
+local allowed = 0
+if tokens &gt;= requested then
+    tokens = tokens - requested
+    allowed = 1
+end
+
+-- 写回状态，设置过期时间防止冷 key 堆积
+redis.call(&#x27;HMSET&#x27;, key, &#x27;tokens&#x27;, tokens, &#x27;last_time&#x27;, now)
+redis.call(&#x27;EXPIRE&#x27;, key, math.ceil(capacity / rate) + 1)
+
+return allowed</code></pre></figure>
+<p>Java 侧调用：</p>
+<figure class="highlight java"><pre><code class="language-java">public class RedisTokenBucketLimiter {
+    private final RedissonClient redisson;
+    private final String luaSha;
+
+    public RedisTokenBucketLimiter(RedissonClient redisson) throws IOException {
+        this.redisson = redisson;
+        // 预加载 Lua 脚本，返回 SHA1，后续用 evalsha 减少网络传输
+        String script = loadScriptFromClasspath(&quot;distributed_rate_limiter.lua&quot;);
+        this.luaSha = redisson.getScript().scriptLoad(script);
+    }
+
+    /**
+     * @param key      限流维度，如 &quot;order:create:userId:123&quot;
+     * @param capacity 桶容量
+     * @param rate     每秒补充令牌数
+     * @return true 放行
+     */
+    public boolean tryAcquire(String key, int capacity, double rate) {
+        long now = System.currentTimeMillis();
+        List&lt;Object&gt; keys = Collections.singletonList(key);
+        Object[] args = {capacity, rate, now, 1};
+        Long result = redisson.getScript().evalSha(
+                RScript.Mode.READ_WRITE, luaSha,
+                RScript.ReturnType.INTEGER, keys, args);
+        return result != null &amp;&amp; result == 1L;
+    }
+}</code></pre></figure>
+<p><strong>生产环境的坑</strong>：</p>
+<ol>
+<li><strong>Redis 本身成为瓶颈</strong>：每次请求都要打一次 Redis，如果 QPS 上万，Redis 网络往返会拖慢网关。优化手段是用<strong>批量预取</strong>（一次取 100 个令牌缓存在本地，用完再取），代价是限流精度下降。</li>
+<li><strong>时钟漂移</strong>：多机之间 <code>System.currentTimeMillis()</code> 可能有偏差，导致令牌算多或算少。建议用 Redis 的 <code>TIME</code> 命令统一时间源，或者接受小幅偏差。</li>
+<li><strong>Lua 脚本的 key 必须用 <code>{tag}</code> 保证同槽</strong>：集群模式下，<code>HMGET</code> 和 <code>HMSET</code> 操作如果跨 slot 会报错。key 里带 <code>{order}</code> 这种 hash tag 能强制路由到同一节点。</li>
+</ol>
+<hr>
+<h2 id="二-熔断-从状态机到-Resilience4j-源码"><a href="#二-熔断-从状态机到-Resilience4j-源码" class="headerlink" title="二、熔断：从状态机到 Resilience4j 源码"></a>二、熔断：从状态机到 Resilience4j 源码</h2>
+<h3 id="2-1-熔断器的三种状态"><a href="#2-1-熔断器的三种状态" class="headerlink" title="2.1 熔断器的三种状态"></a>2.1 熔断器的三种状态</h3>
+<p>熔断器的本质是一个<strong>有限状态机</strong>，只有三个状态：</p>
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN: 失败率/慢调用率超过阈值
+    OPEN --> HALF_OPEN: 等待窗口结束
+    HALF_OPEN --> CLOSED: 探测请求成功率达到阈值
+    HALF_OPEN --> OPEN: 探测请求失败
+</div>
+<ul>
+<li><strong>CLOSED（关闭）</strong>：正常放行所有请求，同时统计成功/失败/慢调用。</li>
+</ul>
+<ul>
+<li><strong>OPEN（打开）</strong>：直接快速失败，不调用下游，给下游喘息时间。</li>
+</ul>
+<ul>
+<li><strong>HALF_OPEN（半开）</strong>：放行少量探测请求，如果成功则恢复 CLOSED，失败则回到 OPEN。</li>
+</ul>
+<p>关键参数：</p>
+<ul>
+<li><strong>失败率阈值</strong>（如 50%）：窗口内失败比例超过它才触发熔断，避免偶发失败误伤。</li>
+</ul>
+<ul>
+<li><strong>最小请求数</strong>（如 20）：窗口内请求太少时不熔断，防止"1 个请求失败 = 100% 失败率"。</li>
+</ul>
+<ul>
+<li><strong>慢调用阈值</strong>（如 500ms）：超过这个时间的请求算"慢调用"，也计入失败统计——这点非常重要，<strong>熔断不只看异常，更要看延迟</strong>。</li>
+</ul>
+<ul>
+<li><strong>熔断时长</strong>（如 10s）：OPEN 状态持续多久后进入 HALF_OPEN。</li>
+</ul>
+<h3 id="2-2-源码深度-Resilience4j-CircuitBreaker-状态转换"><a href="#2-2-源码深度-Resilience4j-CircuitBreaker-状态转换" class="headerlink" title="2.2 源码深度：Resilience4j CircuitBreaker 状态转换"></a>2.2 源码深度：Resilience4j CircuitBreaker 状态转换</h3>
+<p>Resilience4j 是当前 Java 生态最主流的熔断实现（Hystrix 已停止维护）。看它的核心状态转换逻辑（<code>CircuitBreakerStateMachine</code>）：</p>
+<figure class="highlight java"><pre><code class="language-java">// Resilience4j CircuitBreakerStateMachine 核心片段（简化）
+private void evaluateCircuitBreakerState(CircuitBreakerState currentState) {
+    if (currentState == CLOSED_STATE) {
+        // 关闭状态：判断是否要打开
+        Metrics metrics = this.metrics.get();
+        float failureRate = metrics.getFailureRate();
+        int bufferedCalls = metrics.getNumberOfBufferedCalls();
+
+        // 触发条件：调用数达到最小阈值 AND 失败率超限
+        if (bufferedCalls &gt;= config.getMinimumNumberOfCalls()) {
+            boolean failureRateExceeded = failureRate &gt;= config.getFailureRateThreshold();
+            boolean slowCallRateExceeded = metrics.getSlowCallRate()
+                    &gt;= config.getSlowCallRateThreshold();
+            if (failureRateExceeded || slowCallRateExceeded) {
+                transitionToOpenState();
+            }
+        }
+    } else if (currentState == HALF_OPEN_STATE) {
+        // 半开状态：根据探测结果决定回到 CLOSED 还是 OPEN
+        Metrics metrics = this.metrics.get();
+        int bufferedCalls = metrics.getNumberOfBufferedCalls();
+        if (bufferedCalls &gt;= config.getPermittedNumberOfCallsInHalfOpenState()) {
+            if (metrics.getFailureRate() &gt;= config.getFailureRateThreshold()) {
+                transitionToOpenState();  // 探测失败，继续熔断
+            } else {
+                transitionToClosedState(); // 探测成功，恢复
+            }
+        }
+    }
+    // OPEN 状态不在这里处理，由定时器 afterWaitDuration 触发转 HALF_OPEN
+}</code></pre></figure>
+<p><strong>几个源码级的洞察</strong>：</p>
+<ol>
+<li><strong>滑动窗口有两种实现</strong>：<code>COUNT_BASED</code>（基于调用次数，如最近 100 次）和 <code>TIME_BASED</code>（基于时间，如最近 60 秒）。高并发场景推荐 <code>TIME_BASED</code>，因为固定调用次数在低峰期会"记太久"，把几小时前的失败也算进去。</li>
+</ol>
+<ol>
+<li><strong>原子性统计</strong>：Resilience4j 用 <code>LongAdder</code> 而不是 <code>AtomicLong</code> 做计数，在高并发下性能更好（分散热点，最后汇总）。</li>
+</ol>
+<ol>
+<li><strong>半开状态的探测数</strong>：默认 <code>permittedNumberOfCallsInHalfOpenState = 10</code>，意思是半开时最多放 10 个请求探测。如果下游恢复得慢，这 10 个也会超时失败，导致重新 OPEN。生产环境如果下游冷启动慢，可以适当调大这个值。</li>
+</ol>
+<h3 id="2-3-熔断-vs-限流-容易混淆的两个概念"><a href="#2-3-熔断-vs-限流-容易混淆的两个概念" class="headerlink" title="2.3 熔断 vs 限流：容易混淆的两个概念"></a>2.3 熔断 vs 限流：容易混淆的两个概念</h3>
+<p>很多人搞不清"熔断"和"限流"的区别。一句话：<strong>限流保护自己，熔断保护下游</strong>。</p>
+<ul>
+<li>限流是"我知道我最多只能处理 1000 QPS，超过的别进来"——<strong>主动拒绝</strong>。</li>
+</ul>
+<ul>
+<li>熔断是"我发现下游挂了我还一直调它，会把我自己也拖死，所以先停止调用"——<strong>被动隔离</strong>。</li>
+</ul>
+<p>两者常常配合使用：网关层做限流挡住超量入口，服务间调用做熔断防止级联失败。</p>
+<hr>
+<h2 id="三-降级-让核心链路在故障中依然能走通"><a href="#三-降级-让核心链路在故障中依然能走通" class="headerlink" title="三、降级：让核心链路在故障中依然能走通"></a>三、降级：让核心链路在故障中依然能走通</h2>
+<h3 id="3-1-降级的三个层次"><a href="#3-1-降级的三个层次" class="headerlink" title="3.1 降级的三个层次"></a>3.1 降级的三个层次</h3>
+<p>降级不是简单的 <code>try-catch</code> 返回默认值，它有三个层次：</p>
+<p><strong>第一层：接口级降级</strong>——某个非核心接口（如推荐、评论）失败时，直接返回空或缓存数据，不影响主流程。</p>
+<p><strong>第二层：功能级降级</strong>——某个功能模块整体不可用时，关闭这个功能。比如大促期间关闭"商品评价"，只保留"下单"。</p>
+<p><strong>第三层：业务级降级</strong>——整个系统进入"保命模式"，只保留最核心的链路。比如支付系统故障时，先让订单进入"待支付"状态，异步补偿。</p>
+<h3 id="3-2-降级数据的来源"><a href="#3-2-降级数据的来源" class="headerlink" title="3.2 降级数据的来源"></a>3.2 降级数据的来源</h3>
+<p>降级的核心是<strong>有东西可返回</strong>。常见的兜底数据来源：</p>
+<ol>
+<li><strong>本地缓存</strong>：热点数据（如商品基础信息）缓存在网关本地，下游挂了直接返回缓存。</li>
+<li><strong>静态兜底</strong>：预置的默认值，如"服务繁忙，请稍后重试"。</li>
+<li><strong>异步缓存</strong>：通过消息队列预热的副本数据。</li>
+<li><strong>限流降级</strong>：被限流的请求走降级逻辑，返回排队提示而非直接报错。</li>
+</ol>
+<h3 id="3-3-完整实战-基于-Spring-Cloud-Gateway-Sentinel-的降级"><a href="#3-3-完整实战-基于-Spring-Cloud-Gateway-Sentinel-的降级" class="headerlink" title="3.3 完整实战：基于 Spring Cloud Gateway + Sentinel 的降级"></a>3.3 完整实战：基于 Spring Cloud Gateway + Sentinel 的降级</h3>
+<p>Sentinel 是阿里开源的流量治理组件，其 <code>@SentinelResource</code> 注解配合 <code>blockHandler</code> 和 <code>fallback</code> 能优雅实现降级。下面是一个完整的网关降级配置：</p>
+<figure class="highlight java"><pre><code class="language-java">@Configuration
+public class GatewayDegradeConfig {
+
+    /**
+     * 自定义降级响应：根据异常类型返回不同内容
+     * - BlockException：被限流/熔断，返回 429
+     * - 其他异常：业务失败，返回兜底数据
+     */
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public GlobalFilter degradeFilter() {
+        return (exchange, chain) -&gt; chain.filter(exchange)
+            .onErrorResume(throwable -&gt; {
+                ServerHttpResponse response = exchange.getResponse();
+                response.setStatusCode(HttpStatus.OK);
+                response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+
+                String body;
+                if (throwable instanceof BlockException) {
+                    // 被 Sentinel 拦截：限流或熔断
+                    body = &quot;{\&quot;code\&quot;:429,\&quot;msg\&quot;:\&quot;当前请求过于频繁，请稍后重试\&quot;,&quot;
+                         + &quot;\&quot;data\&quot;:null,\&quot;degraded\&quot;:true}&quot;;
+                    response.setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+                } else if (throwable instanceof TimeoutException) {
+                    // 下游超时：返回缓存或兜底
+                    body = &quot;{\&quot;code\&quot;:200,\&quot;msg\&quot;:\&quot;success\&quot;,&quot;
+                         + &quot;\&quot;data\&quot;:{\&quot;cached\&quot;:true},\&quot;degraded\&quot;:true}&quot;;
+                } else {
+                    body = &quot;{\&quot;code\&quot;:500,\&quot;msg\&quot;:\&quot;服务暂时不可用\&quot;,&quot;
+                         + &quot;\&quot;data\&quot;:null,\&quot;degraded\&quot;:true}&quot;;
+                }
+
+                DataBuffer buffer = response.bufferFactory()
+                        .wrap(body.getBytes(StandardCharsets.UTF_8));
+                return response.writeWith(Mono.just(buffer));
+            });
+    }
+}</code></pre></figure>
+<p>配合 Sentinel 的规则配置：</p>
+<figure class="highlight java"><pre><code class="language-java">@Component
+public class SentinelRuleInitializer implements CommandLineRunner {
+
+    @Override
+    public void run(String... args) {
+        // 1. 限流规则：订单接口 1000 QPS
+        FlowRule flowRule = new FlowRule();
+        flowRule.setResource(&quot;order_create&quot;);
+        flowRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        flowRule.setCount(1000);
+        // 关联限流：订单接口被限流时，同时限制商品详情接口
+        flowRule.setRefResource(&quot;product_detail&quot;);
+        flowRule.setStrategy(RuleConstant.STRATEGY_ASSOCIATE);
+
+        // 2. 熔断规则：慢调用比例 &gt; 50% 且 RT &gt; 500ms 时熔断 10s
+        DegradeRule degradeRule = new DegradeRule();
+        degradeRule.setResource(&quot;order_create&quot;);
+        degradeRule.setGrade(RuleConstant.DEGRADE_GRADE_RT);
+        degradeRule.setCount(500);           // RT 阈值 500ms
+        degradeRule.setSlowRatioThreshold(0.5); // 慢调用比例阈值
+        degradeRule.setMinRequestAmount(20);    // 最小请求数
+        degradeRule.setStatIntervalMs(10000);   // 统计窗口 10s
+        degradeRule.setTimeWindow(10);          // 熔断时长 10s
+
+        // 3. 系统自适应保护：整体 Load 超过阈值时全局限流
+        SystemRule systemRule = new SystemRule();
+        systemRule.setHighestSystemLoad(8.0);  // 1 分钟平均 load 超过 8 触发
+        systemRule.setAvgRt(200);              // 所有入口平均 RT 超过 200ms 触发
+        systemRule.setMaxThread(500);          // 并发线程数超过 500 触发
+
+        FlowRuleManager.loadRules(Collections.singletonList(flowRule));
+        DegradeRuleManager.loadRules(Collections.singletonList(degradeRule));
+        SystemRuleManager.loadRules(Collections.singletonList(systemRule));
+    }
+}</code></pre></figure>
+<p><strong>降级的最佳实践</strong>：</p>
+<ul>
+<li><strong>降级开关要能动态调整</strong>：通过配置中心（Nacos/Apollo）实时推送，不要重启服务。Sentinel 的 Dashboard 支持动态改规则。</li>
+</ul>
+<ul>
+<li><strong>降级要有监控</strong>：每次降级都要上报指标，否则你会不知道系统正在"带病运行"。</li>
+</ul>
+<ul>
+<li><strong>降级要分级</strong>：区分"返回缓存"、"返回空"、"返回错误"三种降级级别，优先用体验最好的。</li>
+</ul>
+<ul>
+<li><strong>降级要有恢复机制</strong>：不能降级了就忘了恢复，要配合熔断的半开探测自动恢复。</li>
+</ul>
+<hr>
+<h2 id="四-灰度发布-让新版本只承接-1-的流量"><a href="#四-灰度发布-让新版本只承接-1-的流量" class="headerlink" title="四、灰度发布：让新版本只承接 1% 的流量"></a>四、灰度发布：让新版本只承接 1% 的流量</h2>
+<h3 id="4-1-灰度发布的四种流量切分策略"><a href="#4-1-灰度发布的四种流量切分策略" class="headerlink" title="4.1 灰度发布的四种流量切分策略"></a>4.1 灰度发布的四种流量切分策略</h3>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>切分依据</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>按比例</strong></td>
+<td>随机 1%、5%、50%</td>
+<td>通用，最简单</td>
+</tr><tr>
+<td><strong>按用户</strong></td>
+<td>userId 取模、白名单</td>
+<td>定向验证，同用户始终走同版本</td>
+</tr><tr>
+<td><strong>按 Header</strong></td>
+<td>自定义 header（如 <code>x-gray: true</code>）</td>
+<td>内部测试、A/B 测试</td>
+</tr><tr>
+<td><strong>按地域/机房</strong></td>
+<td>IP 段、机房标签</td>
+<td>就近验证，降低跨地域影响</td>
+</tr></tbody></table>
+<h3 id="4-2-源码深度-Spring-Cloud-Gateway-的灰度路由"><a href="#4-2-源码深度-Spring-Cloud-Gateway-的灰度路由" class="headerlink" title="4.2 源码深度：Spring Cloud Gateway 的灰度路由"></a>4.2 源码深度：Spring Cloud Gateway 的灰度路由</h3>
+<p>Spring Cloud Gateway 的灰度核心是自定义 <code>GatewayFilter</code>，通过 <code>LoadBalancerClientFilter</code> 的 <code>GATEWAY_REQUEST_URL_ATTR</code> 属性改写目标服务实例。下面是一个完整的按用户灰度实现：</p>
+<figure class="highlight java"><pre><code class="language-java">@Component
+public class GrayReleaseFilter implements GlobalFilter, Ordered {
+
+    private final DiscoveryClient discoveryClient;
+    // 灰度版本权重：1% 流量走新版本
+    private static final int GRAY_PERCENT = 1;
+
+    public GrayReleaseFilter(DiscoveryClient discoveryClient) {
+        this.discoveryClient = discoveryClient;
+    }
+
+    @Override
+    public Mono&lt;Void&gt; filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        ServerHttpRequest request = exchange.getRequest();
+        String serviceId = exchange.getAttribute(
+                ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR) != null
+                ? exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR).getHost()
+                : null;
+
+        // 1. 判断是否走灰度
+        boolean gray = shouldGray(request);
+
+        // 2. 获取对应版本的服务实例列表
+        List&lt;ServiceInstance&gt; instances = discoveryClient.getInstances(serviceId);
+        List&lt;ServiceInstance&gt; candidates = instances.stream()
+                .filter(i -&gt; gray
+                        ? &quot;v2&quot;.equals(i.getMetadata().get(&quot;version&quot;))
+                        : &quot;v1&quot;.equals(i.getMetadata().get(&quot;version&quot;)))
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) {
+            // 灰度版本无实例，回退到稳定版本
+            candidates = instances.stream()
+                    .filter(i -&gt; &quot;v1&quot;.equals(i.getMetadata().get(&quot;version&quot;)))
+                    .collect(Collectors.toList());
+        }
+
+        // 3. 负载均衡选出一个实例
+        ServiceInstance target = loadBalance(candidates);
+        URI uri = UriComponentsBuilder.fromUri(target.getUri())
+                .path(request.getURI().getPath())
+                .query(request.getURI().getQuery())
+                .build(true).toUri();
+
+        exchange.getAttributes().put(
+                ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR, uri);
+        return chain.filter(exchange);
+    }
+
+    /**
+     * 灰度判定：多种策略组合
+     * 1. 白名单用户直接走灰度（内部测试）
+     * 2. Header 显式指定走灰度
+     * 3. 按 userId 哈希取模，稳定命中同一版本
+     */
+    private boolean shouldGray(ServerHttpRequest request) {
+        // 策略 1：白名单
+        String userId = request.getHeaders().getFirst(&quot;x-user-id&quot;);
+        if (userId != null &amp;&amp; isGrayWhitelist(userId)) {
+            return true;
+        }
+        // 策略 2：Header 显式指定
+        if (&quot;true&quot;.equals(request.getHeaders().getFirst(&quot;x-gray-enabled&quot;))) {
+            return true;
+        }
+        // 策略 3：按 userId 哈希取模（保证同一用户稳定走同一版本）
+        if (userId != null) {
+            int hash = Math.abs(userId.hashCode());
+            return hash % 100 &lt; GRAY_PERCENT;
+        }
+        // 无 userId 时按比例随机
+        return ThreadLocalRandom.current().nextInt(100) &lt; GRAY_PERCENT;
+    }
+
+    private ServiceInstance loadBalance(List&lt;ServiceInstance&gt; instances) {
+        return instances.get(ThreadLocalRandom.current().nextInt(instances.size()));
+    }
+
+    @Override
+    public int getOrder() {
+        // 必须在 LoadBalancerClientFilter 之前执行
+        return Ordered.LOWEST_PRECEDENCE - 1;
+    }
+}</code></pre></figure>
+<p><strong>灰度发布的完整流程</strong>：</p>
+<div class="mermaid">
+graph TD
+    A[客户端请求] --> B{灰度判定}
+    B -->|白名单/Header| C[路由到 v2 新版本]
+    B -->|userId 取模 < 1| C
+    B -->|其他| D[路由到 v1 稳定版本]
+    C --> E{异常率/RT 监控}
+    E -->|异常率 > 1%| F[自动回滚<br/>权重降为 0]
+    E -->|正常| G[逐步扩大灰度比例<br/>1% → 5% → 50% → 100%]
+    D --> H[稳定服务]
+</div>
+<p><strong>灰度的关键坑</strong>：</p>
+<ol>
+<li><strong>同一用户必须稳定命中同一版本</strong>：如果用户刷新一次就看到不同版本，体验会很差，也可能导致数据不一致。所以按 userId 哈希取模比随机更合适。</li>
+<li><strong>数据库兼容性</strong>：新版本如果改了表结构，必须保证旧版本也能读（通常是<strong>加字段不加约束</strong>，双写过渡）。</li>
+<li><strong>灰度回滚要快</strong>：通过配置中心动态调整灰度权重，从 1% 到 0% 应该秒级生效，不要靠重启。</li>
+<li><strong>监控要跟上</strong>：灰度版本必须有独立的监控面板，对比 v1 和 v2 的异常率、RT、业务指标。</li>
+</ol>
+<hr>
+<h2 id="五-方案对比-自研-vs-开源-vs-云原生"><a href="#五-方案对比-自研-vs-开源-vs-云原生" class="headerlink" title="五、方案对比：自研 vs 开源 vs 云原生"></a>五、方案对比：自研 vs 开源 vs 云原生</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>代表产品</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>自研网关</strong></td>
+<td>基于 Netty 手写</td>
+<td>完全可控，可深度定制</td>
+<td>开发成本高，稳定性风险大</td>
+<td>超大规模、有特殊需求</td>
+</tr><tr>
+<td><strong>Java 生态</strong></td>
+<td>Spring Cloud Gateway + Sentinel</td>
+<td>生态成熟，注解式接入</td>
+<td>性能一般，JVM 内存占用高</td>
+<td>中小规模 Java 体系</td>
+</tr><tr>
+<td><strong>Go 生态</strong></td>
+<td>APISIX、Kong</td>
+<td>高性能，插件丰富</td>
+<td>生态偏弱，二次开发门槛高</td>
+<td>高性能、多语言体系</td>
+</tr><tr>
+<td><strong>Service Mesh</strong></td>
+<td>Istio + Envoy</td>
+<td>与业务解耦，Sidecar 模式</td>
+<td>运维复杂，延迟增加</td>
+<td>大型企业、K8s 深度使用</td>
+</tr><tr>
+<td><strong>云厂商网关</strong></td>
+<td>阿里云 API 网关、AWS API Gateway</td>
+<td>免运维，弹性伸缩</td>
+<td>成本高，厂商锁定</td>
+<td>快速上线、中小团队</td>
+</tr></tbody></table>
+<p><strong>选型建议</strong>：</p>
+<ul>
+<li><strong>10 个服务以内</strong>：Spring Cloud Gateway 足够，配合 Sentinel 一站式解决。</li>
+</ul>
+<ul>
+<li><strong>50+ 服务、多语言</strong>：APISIX 或 Istio，前者轻量，后者功能全。</li>
+</ul>
+<ul>
+<li><strong>已有 K8s 且有专职 SRE</strong>：Istio + Envoy，把流量治理下沉到基础设施层。</li>
+</ul>
+<ul>
+<li><strong>追求极致性能</strong>：APISIX（基于 OpenResty，单机可达 10 万 QPS）或自研。</li>
+</ul>
+<p><strong>一个常见误区</strong>：很多团队一开始就上 Istio，结果发现运维成本远超收益。<strong>从简单方案起步，遇到瓶颈再演进</strong>才是正道。</p>
+<hr>
+<h2 id="六-最佳实践与避坑指南"><a href="#六-最佳实践与避坑指南" class="headerlink" title="六、最佳实践与避坑指南"></a>六、最佳实践与避坑指南</h2>
+<h3 id="6-1-限流的坑"><a href="#6-1-限流的坑" class="headerlink" title="6.1 限流的坑"></a>6.1 限流的坑</h3>
+<ol>
+<li><strong>限流阈值拍脑袋定</strong>：必须基于压测数据。用 JMeter/Gatling 压出 P99 RT 拐点，取拐点的 80% 作为阈值。</li>
+<li><strong>只做单机限流</strong>：集群总量失控。生产环境必须用 Redis 或 Sentinel 集群流控。</li>
+<li><strong>限流维度太粗</strong>：只按接口限流，导致某个恶意用户打满配额。应该按 <code>IP + userId + 接口</code> 多维度组合。</li>
+<li><strong>被限流后返回 500</strong>：应该是 429 Too Many Requests，并带上 <code>Retry-After</code> 头告诉客户端何时重试。</li>
+</ol>
+<h3 id="6-2-熔断的坑"><a href="#6-2-熔断的坑" class="headerlink" title="6.2 熔断的坑"></a>6.2 熔断的坑</h3>
+<ol>
+<li><strong>最小请求数设太小</strong>：20 个请求里有 1 个失败就是 5% 失败率，容易误熔断。生产建议最小 50~100。</li>
+<li><strong>忽略慢调用</strong>：只看异常率，不看 RT。下游"不报错但很慢"同样会拖垮系统，必须把慢调用纳入熔断统计。</li>
+<li><strong>熔断时长设太短</strong>：下游还没恢复就重新放量，导致反复熔断。建议 10~30s 起步。</li>
+<li><strong>没有降级配合</strong>：熔断后直接返回错误，用户体验差。应该配合降级返回缓存数据。</li>
+</ol>
+<h3 id="6-3-降级的坑"><a href="#6-3-降级的坑" class="headerlink" title="6.3 降级的坑"></a>6.3 降级的坑</h3>
+<ol>
+<li><strong>降级逻辑本身有 bug</strong>：降级代码路径平时不走，一旦触发才发现有 NPE。<strong>降级逻辑必须定期演练</strong>。</li>
+<li><strong>降级数据过期</strong>：缓存兜底数据没有 TTL，返回的是几小时前的脏数据。必须设置合理的过期时间。</li>
+<li><strong>降级没有开关</strong>：出问题时无法快速关闭某个降级逻辑，只能重启。必须动态可配。</li>
+</ol>
+<h3 id="6-4-灰度的坑"><a href="#6-4-灰度的坑" class="headerlink" title="6.4 灰度的坑"></a>6.4 灰度的坑</h3>
+<ol>
+<li><strong>灰度实例和稳定实例共用数据库连接池</strong>：新版本慢查询会拖垮整个池。建议灰度实例使用独立的资源池。</li>
+<li><strong>灰度期间改配置</strong>：灰度发布时配置中心推错配置，会导致灰度版本异常，误判为代码问题。灰度期间配置变更要审批。</li>
+<li><strong>灰度没有回滚预案</strong>：出问题手忙脚乱。必须提前准备好"一键切回 v1"的脚本或配置。</li>
+</ol>
+<h3 id="6-5-综合最佳实践"><a href="#6-5-综合最佳实践" class="headerlink" title="6.5 综合最佳实践"></a>6.5 综合最佳实践</h3>
+<div class="mermaid">
+graph TD
+    A[入口流量] --> B[第一层：全局限流<br/>系统 Load/线程数]
+    B --> C[第二层：接口限流<br/>QPS/并发数]
+    C --> D[第三层：熔断<br/>异常率/慢调用率]
+    D --> E[第四层：降级<br/>缓存/兜底]
+    E --> F[第五层：灰度路由<br/>按用户/比例]
+    F --> G[后端服务]
+    G --> H[监控告警<br/>Prometheus + Grafana]
+    H -.反馈.-> B
+</div>
+<p><strong>核心原则</strong>：</p>
+<ol>
+<li><strong>分层防御</strong>：不要指望单一手段，限流、熔断、降级、灰度层层配合。</li>
+<li><strong>动态可调</strong>：所有阈值必须能通过配置中心实时调整，不要硬编码。</li>
+<li><strong>可观测</strong>：每次限流、熔断、降级都要打点上报，否则你不知道系统在发生什么。</li>
+<li><strong>定期演练</strong>：混沌工程（Chaos Mesh）模拟下游故障，验证熔断降级是否生效。</li>
+<li><strong>渐进式灰度</strong>：1% → 5% → 20% → 50% → 100%，每一步观察至少 30 分钟。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那场事故。如果当时有这套体系：</p>
+<ul>
+<li><strong>限流</strong>会在流量超过 8000 QPS 时直接拒绝多余请求，数据库连接池不会被打满；</li>
+</ul>
+<ul>
+<li><strong>熔断</strong>会在订单服务 RT 超过 500ms 时快速失败，不再拖垮商品、购物车服务；</li>
+</ul>
+<ul>
+<li><strong>降级</strong>会让被拒绝的用户看到"当前排队人数较多"的友好提示，而不是 500 错误页；</li>
+</ul>
+<ul>
+<li><strong>灰度发布</strong>甚至能让大促前的新版本只承接 1% 流量，提前发现问题。</li>
+</ul>
+<p>API 网关的这四种能力，本质上是<strong>用工程手段把"不确定性"变成"确定性"</strong>。流量是不确定的，限流让它确定；下游故障是不确定的，熔断让它确定；业务异常是不确定的，降级让它确定；版本变更是不确定的，灰度让它确定。</p>
+<p><strong>延伸思考</strong>：</p>
+<ul>
+<li>当服务规模到几千个，集中式网关会成为瓶颈，此时需要考虑<strong>多级网关</strong>（边缘网关 + 服务网格 Sidecar）。</li>
+</ul>
+<ul>
+<li>限流、熔断的规则如果靠人工配置，规模大了根本管不过来，未来趋势是<strong>基于 AI 的自适应限流</strong>（如 Sentinel 的系统自适应保护）。</li>
+</ul>
+<ul>
+<li>Service Mesh 正在把网关能力下沉到 Sidecar，但网关作为"南北向流量"入口，仍有不可替代的价值（认证、协议转换、API 管理）。</li>
+</ul>
+<p>技术没有银弹，只有<strong>在正确的场景用正确的工具</strong>。希望这篇文章能帮你在设计网关时少踩几个坑。</p>
+<hr>
+<p><strong>参考资料</strong>：</p>
+<ul>
+<li>Guava RateLimiter 源码（<code>com.google.common.util.concurrent.SmoothRateLimiter</code>）</li>
+</ul>
+<ul>
+<li>Resilience4j CircuitBreaker 源码（<code>io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine</code>）</li>
+</ul>
+<ul>
+<li>Alibaba Sentinel 源码（<code>com.alibaba.csp.sentinel.slots.block.flow</code>）</li>
+</ul>
+<ul>
+<li>Spring Cloud Gateway 官方文档</li>
+</ul>
+<ul>
+<li>《分布式服务架构：原理、设计与实战》</li>
+</ul>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

@@ -1,5 +1,23 @@
 [
  {
+  "title": "API网关设计：限流、熔断、降级、灰度发布",
+  "url": "/2026/09/12/API%E7%BD%91%E5%85%B3%E8%AE%BE%E8%AE%A1%EF%BC%9A%E9%99%90%E6%B5%81%E3%80%81%E7%86%94%E6%96%AD%E3%80%81%E9%99%8D%E7%BA%A7%E3%80%81%E7%81%B0%E5%BA%A6%E5%8F%91%E5%B8%83/",
+  "date": "2026-09-12",
+  "year": 2026,
+  "month": 9,
+  "day": 12,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=5974",
+  "excerpt": "引言 凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的雪崩效应。 事后复盘发现：真正的问题不在于订"
+ },
+ {
   "title": "Python GIL的过去、现在与未来（Python 3.13自由线程）",
   "url": "/2026/09/11/Python%20GIL%E7%9A%84%E8%BF%87%E5%8E%BB%E3%80%81%E7%8E%B0%E5%9C%A8%E4%B8%8E%E6%9C%AA%E6%9D%A5%EF%BC%88Python%203.13%E8%87%AA%E7%94%B1%E7%BA%BF%E7%A8%8B%EF%BC%89/",
   "date": "2026-09-11",

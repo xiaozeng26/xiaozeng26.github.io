@@ -349,6 +349,13 @@
       "subtopic": "Python GIL的过去、现在与未来（Python 3.13自由线程）",
       "date": "2026-09-11",
       "url": "/2026/09/11/Python GIL的过去、现在与未来（Python 3.13自由线程）/"
+    },
+    {
+      "title": "API网关设计：限流、熔断、降级、灰度发布",
+      "category": "architecture",
+      "subtopic": "API网关设计：限流、熔断、降级、灰度发布",
+      "date": "2026-09-12",
+      "url": "/2026/09/12/API网关设计：限流、熔断、降级、灰度发布/"
     }
   ],
   "used_subtopics": {
@@ -389,7 +396,8 @@
       "最终一致性方案：本地消息表、事务消息、Saga模式",
       "微服务拆分策略：从单体到微服务的演进路径",
       "服务网格Service Mesh架构演进",
-      "数据库分库分表中间件ShardingSphere源码分析"
+      "数据库分库分表中间件ShardingSphere源码分析",
+      "API网关设计：限流、熔断、降级、灰度发布"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -464,6 +472,7 @@
     "Docker网络模式：bridge、host、overlay深入对比": "1795e043fd96a45f30ac83acd9e684b6d3078341dce4f62573d0181263cb2a48",
     "Seata分布式事务AT模式源码分析": "12e3336eec6bef808d3fe3dade2c992c12f2d179bc842497056e5c436d0eb93e",
     "LangChain核心架构：Chain、Agent、Tool三大组件剖析": "62117fb3052e6d77f81202f241507e09d1087fdfef6e72bd6068c148c99fe3e0",
-    "Python GIL的过去、现在与未来（Python 3.13自由线程）": "3b8d1086151381ec885355a4d52ae49b375497ef0105f0a598f4d452b64d872b"
+    "Python GIL的过去、现在与未来（Python 3.13自由线程）": "3b8d1086151381ec885355a4d52ae49b375497ef0105f0a598f4d452b64d872b",
+    "API网关设计：限流、熔断、降级、灰度发布": "440db75cda5707182098d6770728eb603886abc9a51d5411307b23926b3057c0"
   }
 }
