@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>K8s HPA与VPA自动扩缩容策略详解 | 小曾博客</title>
+  <meta name="description" content="K8s HPA与VPA自动扩缩容策略详解 引言 凌晨两点，告警群炸了。某电商核心订单服务在大促预热期间 QPS 从 800 飙升到 12000，Pod 数量却纹丝不动地停在 6 个，CPU 被打到 98%，接口 P99 从 120ms 涨到 8 秒，用户下单页面转圈转到了天亮。运维同学手忙脚乱地 kubectl scale 到 50 个副本，十分钟后流量回落，50 个 Pod 又白烧了一整晚的机器">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="K8s HPA与VPA自动扩缩容策略详解">
+  <meta name="twitter:description" content="K8s HPA与VPA自动扩缩容策略详解 引言 凌晨两点，告警群炸了。某电商核心订单服务在大促预热期间 QPS 从 800 飙升到 12000，Pod 数量却纹丝不动地停在 6 个，CPU 被打到 98%，接口 P99 从 120ms 涨到 8 秒，用户下单页面转圈转到了天亮。运维同学手忙脚乱地 kubectl scale 到 50 个副本，十分钟后流量回落，50 个 Pod 又白烧了一整晚的机器">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=4571">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="K8s HPA与VPA自动扩缩容策略详解">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="K8s HPA与VPA自动扩缩容策略详解 引言 凌晨两点，告警群炸了。某电商核心订单服务在大促预热期间 QPS 从 800 飙升到 12000，Pod 数量却纹丝不动地停在 6 个，CPU 被打到 98%，接口 P99 从 120ms 涨到 8 秒，用户下单页面转圈转到了天亮。运维同学手忙脚乱地 kubectl scale 到 50 个副本，十分钟后流量回落，50 个 Pod 又白烧了一整晚的机器">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=4571">
+  <meta property="article:published_time" content="2026-09-13T23:17:18.000Z">
+  <meta property="article:modified_time" content="2026-09-13T23:17:18.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#K8s-HPA与VPA自动扩缩容策略详解"><span class="toc-text">K8s HPA与VPA自动扩缩容策略详解</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-餐厅后厨的两种扩容哲学"><span class="toc-text">核心概念：餐厅后厨的两种扩容哲学</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码与原理深度分析"><span class="toc-text">源码与原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-HPA-控制循环-K8s-里最优雅的-负反馈系统"><span class="toc-text">1. HPA 控制循环：K8s 里最优雅的"负反馈系统"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-扩缩容行为策略-防止-抖动-的关键"><span class="toc-text">2. 扩缩容行为策略：防止"抖动"的关键</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-VPA-的三驾马车-Recommender-Updater-Admission-Controller"><span class="toc-text">3. VPA 的三驾马车：Recommender / Updater / Admission Controller</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可直接运行的示例"><span class="toc-text">实战代码：三个可直接运行的示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-生产级-HPA-基于-CPU-自定义-QPS-指标"><span class="toc-text">示例 1：生产级 HPA —— 基于 CPU + 自定义 QPS 指标</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-Prometheus-Adapter-配置-把业务指标喂给-HPA"><span class="toc-text">示例 2：Prometheus Adapter 配置 —— 把业务指标喂给 HPA</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-VPA-的两种安全用法-离线推荐-在线协同"><span class="toc-text">示例 3：VPA 的两种安全用法 —— 离线推荐 + 在线协同</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-HPA-VPA-Cluster-Autoscaler-KEDA-该选谁"><span class="toc-text">方案对比：HPA / VPA / Cluster Autoscaler / KEDA 该选谁</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=4571)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">K8s HPA与VPA自动扩缩容策略详解</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-13"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-13</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-13"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-13</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="K8s-HPA与VPA自动扩缩容策略详解"><a href="#K8s-HPA与VPA自动扩缩容策略详解" class="headerlink" title="K8s HPA与VPA自动扩缩容策略详解"></a>K8s HPA与VPA自动扩缩容策略详解</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>凌晨两点，告警群炸了。某电商核心订单服务在大促预热期间 QPS 从 800 飙升到 12000，Pod 数量却纹丝不动地停在 6 个，CPU 被打到 98%，接口 P99 从 120ms 涨到 8 秒，用户下单页面转圈转到了天亮。运维同学手忙脚乱地 <code>kubectl scale</code> 到 50 个副本，十分钟后流量回落，50 个 Pod 又白烧了一整晚的机器钱。</p>
+<p>这个场景几乎每个上过 K8s 的团队都经历过：<strong>要么扩容太慢，要么缩容太懒，要么根本不知道该扩 CPU 还是扩内存</strong>。而这正是 K8s 两个核心自动扩缩容组件要解决的问题——<strong>HPA（Horizontal Pod Autoscaler，水平扩缩容）</strong> 负责"多开几家分店"，<strong>VPA（Vertical Pod Autoscaler，垂直扩缩容）</strong> 负责"给现有店面加桌子"。</p>
+<p>但很多人对它们的理解停留在"配个 CPU 阈值就完事了"的层面，结果踩了一堆坑：HPA 抖动、VPA 重启 Pod、两者互相打架、自定义指标接不上……这篇文章我会从 <strong>控制循环源码、指标采集链路、算法细节</strong> 三个层面把 HPA 和 VPA 拆开讲透，并给出可直接落地的 YAML 和自定义指标适配器代码。</p>
+<hr>
+<h2 id="核心概念-餐厅后厨的两种扩容哲学"><a href="#核心概念-餐厅后厨的两种扩容哲学" class="headerlink" title="核心概念：餐厅后厨的两种扩容哲学"></a>核心概念：餐厅后厨的两种扩容哲学</h2>
+<p>想象你经营一家连锁餐厅：</p>
+<p><strong>HPA 就像"开分店"</strong>。当一家店门口排队的客人越来越多（QPS/CPU 上升），总部决定在隔壁再开一家分店分担客流。分店开张需要时间（Pod 调度、镜像拉取、就绪探针通过），所以 HPA 本质上是<strong>面向吞吐量的弹性</strong>——它增加的是"并行处理单元"的数量。</p>
+<p><strong>VPA 就像"给现有店加灶台"</strong>。当发现厨师们挤在一个小厨房里转不开身（内存不够、CPU 被限流），总部决定把厨房扩建，换更大的灶台。扩建期间这家店得停业改造（Pod 需要重建），所以 VPA 本质上是<strong>面向单实例资源规格的弹性</strong>——它调整的是"每个处理单元的大小"。</p>
+<p>用一句话总结区别：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>HPA</th>
+<th>VPA</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>调整对象</td>
+<td>副本数（Replicas）</td>
+<td>容器 resources.requests/limits</td>
+</tr><tr>
+<td>生效方式</td>
+<td>增减 Pod，无需重启</td>
+<td>重建 Pod（默认）</td>
+</tr><tr>
+<td>适用负载</td>
+<td>无状态、可水平扩展</td>
+<td>有状态、难水平扩展、资源画像不稳</td>
+</tr><tr>
+<td>响应速度</td>
+<td>秒级~分钟级</td>
+<td>分钟级~小时级</td>
+</tr><tr>
+<td>核心指标</td>
+<td>CPU/内存/自定义/外部</td>
+<td>CPU/内存历史用量</td>
+</tr></tbody></table>
+<p><strong>关键认知：HPA 和 VPA 不是二选一，而是可以协同的</strong>。比如一个 Java 服务，VPA 帮你找到"单 Pod 到底该给 2C4G 还是 4C8G"，HPA 负责"流量来了开几个 Pod"。但两者同时基于 CPU 指标时会打架，后面会专门讲怎么避免。</p>
+<hr>
+<h2 id="源码与原理深度分析"><a href="#源码与原理深度分析" class="headerlink" title="源码与原理深度分析"></a>源码与原理深度分析</h2>
+<h3 id="1-HPA-控制循环-K8s-里最优雅的-负反馈系统"><a href="#1-HPA-控制循环-K8s-里最优雅的-负反馈系统" class="headerlink" title="1. HPA 控制循环：K8s 里最优雅的"负反馈系统""></a>1. HPA 控制循环：K8s 里最优雅的"负反馈系统"</h3>
+<p>HPA 的核心代码在 <code>k8s.io/kubernetes/pkg/controller/podautoscaler</code>。它的本质是一个<strong>周期性调谐循环（Reconcile Loop）</strong>，默认每 15 秒跑一次（<code>--horizontal-pod-autoscaler-sync-period</code>）。核心逻辑在 <code>horizontal.go</code> 的 <code>reconcileAutoscaler</code> 方法里，我把它精简成伪代码：</p>
+<figure class="highlight go"><pre><code class="language-go">// 源码位置：pkg/controller/podautoscaler/horizontal.go
+func (a *HorizontalController) reconcileAutoscaler(hpa *autoscalingv2.HorizontalPodAutoscaler) error {
+    // 1. 拿到当前 scale 子资源（当前副本数）
+    scale, err := a.scaleNamespacer.Scales(hpa.Namespace).Get(...)
+
+    // 2. 计算期望副本数
+    desiredReplicas, metricStatuses, metricTimestamp, err :=
+        a.computeReplicasForMetrics(hpa, scale, hpa.Spec.Metrics)
+
+    // 3. 应用扩缩容行为策略（stabilization window 就在这里生效）
+    if a.replicaCalc != nil {
+        desiredReplicas = a.replicaCalc.CalculateReplicasForMetrics(...)
+    }
+
+    // 4. 写回 scale 子资源，触发 Deployment/RS 调整副本数
+    scale.Spec.Replicas = desiredReplicas
+    a.scaleNamespacer.Scales(hpa.Namespace).Update(ctx, scale, ...)
+}</code></pre></figure>
+<p>真正决定"扩到几个"的算法在 <code>replica_calculator.go</code> 的 <code>GetResourceReplicas</code> 里，核心公式朴素得让人意外：</p>
+<figure class="highlight "><pre><code>desiredReplicas = ceil[currentReplicas * (currentMetricValue / desiredMetricValue)]</code></pre></figure>
+<p>举个数：当前 6 个 Pod，平均 CPU 利用率 80%，目标 50%，那么：</p>
+<figure class="highlight "><pre><code>desired = ceil[6 * (80 / 50)] = ceil[9.6] = 10</code></pre></figure>
+<p><strong>看起来简单，难点全在细节里</strong>：</p>
+<ul>
+<li><strong>容忍度（Tolerance）</strong>：默认 0.1。如果 <code>currentMetricValue / desiredMetricValue</code> 落在 <code>[0.9, 1.1]</code> 之间，认为"已经够接近了"，不做任何扩缩容。这防止了副本数在目标值附近反复横跳。</li>
+</ul>
+<ul>
+<li><strong>未就绪 Pod 的处理</strong>：正在启动、未 Ready 的 Pod 会被特殊对待。源码里有 <code>groupPods</code> 函数，把 Pod 分成 <code>readyPods</code>、<code>unreadyPods</code>、<code>missingPods</code>、<code>ignoredPods</code> 四组。如果未就绪 Pod 比例过高（默认超过 10%），HPA 会<strong>跳过这次扩容决策</strong>，避免基于不完整数据误判。</li>
+</ul>
+<ul>
+<li><strong>缺失指标的处理</strong>：如果拉不到指标（比如 metrics-server 挂了），HPA 不会盲目缩容到 0，而是保持当前副本数并记录事件。</li>
+</ul>
+<h3 id="2-扩缩容行为策略-防止-抖动-的关键"><a href="#2-扩缩容行为策略-防止-抖动-的关键" class="headerlink" title="2. 扩缩容行为策略：防止"抖动"的关键"></a>2. 扩缩容行为策略：防止"抖动"的关键</h3>
+<p>从 K8s 1.18 起，HPA 引入了 <code>behavior</code> 字段，这是<strong>生产环境必配</strong>的东西。它分 <code>scaleUp</code> 和 <code>scaleDown</code> 两个方向，每个方向有 <code>stabilizationWindowSeconds</code>、<code>policies</code>、<code>selectPolicy</code>。</p>
+<p><strong>stabilizationWindow（稳定窗口）</strong> 的源码逻辑很巧妙：它会记录过去一段时间内所有的扩缩容建议，然后取<strong>最保守的那个</strong>。比如缩容稳定窗口设为 300 秒，过去 5 分钟里 HPA 建议过 10、8、6、5 个副本，那么它会选择 <strong>10</strong>（最大值），从而避免因为瞬时流量下降就急着缩容。</p>
+<div class="mermaid">
+graph TD
+    A[HPA Sync Loop 每15s] --> B[采集指标<br/>metrics-server/自定义适配器]
+    B --> C{指标是否可用}
+    C -->|否| D[保持当前副本数<br/>记录事件]
+    C -->|是| E[过滤未就绪Pod<br/>计算 currentMetricValue]
+    E --> F{比值在容忍度内?}
+    F -->|是| G[不做变更]
+    F -->|否| H[计算 desiredReplicas]
+    H --> I[查询 stabilizationWindow<br/>历史建议取最保守值]
+    I --> J[应用 policies 限速规则]
+    J --> K[写回 scale 子资源]
+    K --> L[Deployment 调整 ReplicaSet]
+</div>
+<h3 id="3-VPA-的三驾马车-Recommender-Updater-Admission-Controller"><a href="#3-VPA-的三驾马车-Recommender-Updater-Admission-Controller" class="headerlink" title="3. VPA 的三驾马车：Recommender / Updater / Admission Controller"></a>3. VPA 的三驾马车：Recommender / Updater / Admission Controller</h3>
+<p>VPA 不在 K8s 主仓库里，它是 <code>kubernetes/autoscaler</code> 项目下的独立组件（<code>vertical-pod-autoscaler</code>）。架构上由三个组件组成，这一点很多人搞不清：</p>
+<div class="mermaid">
+graph LR
+    subgraph VPA组件
+        R[Recommender<br/>计算推荐值]
+        U[Updater<br/>驱逐Pod触发重建]
+        AC[Admission Controller<br/>准入时改写requests]
+    end
+    M[metrics-server] --> R
+    R -->|写VPA对象status| API[K8s API Server]
+    API --> U
+    U -->|Evict Pod| API
+    API -->|Pod创建请求| AC
+    AC -->|Patch resources| API
+    API --> D[Pod重建]
+</div>
+<ul>
+<li><strong>Recommender</strong>：从 metrics-server 拉取历史用量（默认保留 8 天，<code>--history-length</code>），用<strong>滑动窗口 + 百分位</strong>算法算出推荐值。它默认用 P95 作为目标（<code>--target-cpu-percentile=0.95</code>），并且用 <code>--pod-minimum-memory-request</code> 等参数兜底。推荐值写入 VPA 对象的 <code>status.recommendation</code> 字段。</li>
+</ul>
+<ul>
+<li><strong>Updater</strong>：对比推荐值和当前 Pod 的实际 requests，如果偏离超过阈值（<code>--eviction-tolerance=0.5</code>），就<strong>驱逐</strong>这个 Pod。注意是 <code>Evict</code> 不是 <code>Delete</code>，会走 PDB（PodDisruptionBudget），尽量减少对可用性的影响。</li>
+</ul>
+<ul>
+<li><strong>Admission Controller</strong>：Pod 重建时，作为 MutatingWebhook 拦截创建请求，把容器里的 <code>resources.requests</code> 改写成推荐值。</li>
+</ul>
+<p><strong>VPA 最大的坑就在 Updater 的驱逐行为上</strong>。默认情况下它会对偏离的 Pod 执行驱逐重建，如果你的服务没有配 PDB、没有配 <code>updatePolicy</code>，一次推荐更新可能把所有副本全干掉。这就是为什么生产上 VPA 更适合配 <code>updateMode: "Initial"</code>（只在创建时生效）或 <code>"Off"</code>（只给推荐不执行）。</p>
+<hr>
+<h2 id="实战代码-三个可直接运行的示例"><a href="#实战代码-三个可直接运行的示例" class="headerlink" title="实战代码：三个可直接运行的示例"></a>实战代码：三个可直接运行的示例</h2>
+<h3 id="示例-1-生产级-HPA-基于-CPU-自定义-QPS-指标"><a href="#示例-1-生产级-HPA-基于-CPU-自定义-QPS-指标" class="headerlink" title="示例 1：生产级 HPA —— 基于 CPU + 自定义 QPS 指标"></a>示例 1：生产级 HPA —— 基于 CPU + 自定义 QPS 指标</h3>
+<p>先说结论：<strong>只基于 CPU 的 HPA 在生产环境几乎必然抖动</strong>，因为 CPU 是滞后指标，等它涨上来流量早就打满了。正确姿势是引入业务指标（QPS、队列长度）。下面是一个基于 Prometheus Adapter 的自定义指标 HPA：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># hpa-order-service.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: order-service-hpa
+  namespace: prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  minReplicas: 3
+  maxReplicas: 60
+  metrics:
+    # 指标1：业务 QPS，主扩缩容依据（权重最高）
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second   # 由 prometheus-adapter 暴露
+        target:
+          type: AverageValue
+          averageValue: &quot;300&quot;              # 每 Pod 目标 300 QPS
+    # 指标2：CPU 作为兜底，防止 QPS 指标异常时服务被拖垮
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+  behavior:
+    scaleUp:
+      # 扩容要快：稳定窗口短，允许翻倍
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Percent
+          value: 100          # 每 15s 最多翻倍
+          periodSeconds: 15
+        - type: Pods
+          value: 8            # 或每 15s 最多加 8 个
+          periodSeconds: 15
+      selectPolicy: Max       # 两个策略取更激进的
+    scaleDown:
+      # 缩容要稳：5 分钟稳定窗口 + 慢速策略
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10           # 每 60s 最多缩 10%
+          periodSeconds: 60
+      selectPolicy: Min       # 取更保守的</code></pre></figure>
+<p><strong>关键注释</strong>：</p>
+<ul>
+<li><code>type: Pods</code> 表示"每个 Pod 的平均指标值"，适合 QPS、并发数这类可以按 Pod 平摊的指标。</li>
+</ul>
+<ul>
+<li><code>selectPolicy: Max</code> 在扩容时取更激进的策略，<code>Min</code> 在缩容时取更保守的策略——这是"快上慢下"原则的代码化。</li>
+</ul>
+<ul>
+<li><code>stabilizationWindowSeconds: 0</code> 表示扩容不做延迟，因为流量来了必须立刻响应。</li>
+</ul>
+<h3 id="示例-2-Prometheus-Adapter-配置-把业务指标喂给-HPA"><a href="#示例-2-Prometheus-Adapter-配置-把业务指标喂给-HPA" class="headerlink" title="示例 2：Prometheus Adapter 配置 —— 把业务指标喂给 HPA"></a>示例 2：Prometheus Adapter 配置 —— 把业务指标喂给 HPA</h3>
+<p>自定义指标要能被 HPA 消费，需要部署 <code>prometheus-adapter</code>，它把 Prometheus 的查询结果转换成 K8s 的 <code>custom.metrics.k8s.io</code> API。核心是这段 ConfigMap：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># prometheus-adapter-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: adapter-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    rules:
+      # 规则1：把 Prometheus 的 QPS 指标映射成 K8s 自定义指标
+      - seriesQuery: &#x27;http_requests_total{namespace!=&quot;&quot;,pod!=&quot;&quot;}&#x27;
+        resources:
+          overrides:
+            namespace: {resource: &quot;namespace&quot;}
+            pod: {resource: &quot;pod&quot;}
+        name:
+          # 输出指标名：http_requests_per_second
+          matches: &quot;^(.*)_total$&quot;
+          as: &quot;${1}_per_second&quot;
+        metricsQuery: |
+          sum(rate(&lt;&lt;.Series&gt;&gt;{&lt;&lt;.LabelMatchers&gt;&gt;}[2m])) by (&lt;&lt;.GroupBy&gt;&gt;)
+      # 规则2：暴露队列积压深度，用于消费型服务扩缩容
+      - seriesQuery: &#x27;kafka_consumer_lag{namespace!=&quot;&quot;,pod!=&quot;&quot;}&#x27;
+        resources:
+          overrides:
+            namespace: {resource: &quot;namespace&quot;}
+            pod: {resource: &quot;pod&quot;}
+        name:
+          matches: &quot;^(.*)$&quot;
+          as: &quot;kafka_consumer_lag&quot;
+        metricsQuery: |
+          avg(&lt;&lt;.Series&gt;&gt;{&lt;&lt;.LabelMatchers&gt;&gt;}) by (&lt;&lt;.GroupBy&gt;&gt;)</code></pre></figure>
+<p><strong>踩坑提醒</strong>：<code>metricsQuery</code> 里的 <code><<.GroupBy>></code> 必须是 Pod 级别（<code>by (pod)</code>），否则 HPA 拿到的不是"每 Pod 平均值"，算法会算错。另外 <code>rate</code> 窗口用 <code>[2m]</code> 而不是 <code>[1m]</code>，是为了平滑掉瞬时抖动。</p>
+<p>验证是否生效：</p>
+<figure class="highlight bash"><pre><code class="language-bash"># 查看自定义指标是否注册成功
+kubectl get --raw &quot;/apis/custom.metrics.k8s.io/v1beta1/namespaces/prod/pods/*/http_requests_per_second&quot; | jq</code></pre></figure>
+<h3 id="示例-3-VPA-的两种安全用法-离线推荐-在线协同"><a href="#示例-3-VPA-的两种安全用法-离线推荐-在线协同" class="headerlink" title="示例 3：VPA 的两种安全用法 —— 离线推荐 + 在线协同"></a>示例 3：VPA 的两种安全用法 —— 离线推荐 + 在线协同</h3>
+<p><strong>用法 A：只推荐不执行（最安全，强烈推荐先跑这个）</strong></p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># vpa-order-service-off.yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: order-service-vpa
+  namespace: prod
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: order-service
+  updatePolicy:
+    updateMode: &quot;Off&quot;   # 只计算推荐值，绝不驱逐 Pod
+  resourcePolicy:
+    containerPolicies:
+      - containerName: &quot;*&quot;
+        minAllowed:
+          cpu: 100m
+          memory: 256Mi
+        maxAllowed:
+          cpu: 4
+          memory: 8Gi
+        controlledResources: [&quot;cpu&quot;, &quot;memory&quot;]</code></pre></figure>
+<p>跑上一周后查看推荐值：</p>
+<figure class="highlight bash"><pre><code class="language-bash">kubectl describe vpa order-service-vpa -n prod
+# 关注 status.recommendation 里的 target / lowerBound / upperBound</code></pre></figure>
+<p>然后<strong>手动</strong>把推荐值填进 Deployment 的 requests，这样既拿到了 VPA 的智能画像，又避免了它自动驱逐 Pod 的风险。</p>
+<p><strong>用法 B：与 HPA 协同 —— 用 VPA 调 requests，HPA 调副本数</strong></p>
+<p>两者同时用 CPU 会打架（VPA 改了 requests 会改变 HPA 看到的利用率分母）。正确做法是：<strong>VPA 只控制 memory，HPA 只控制 CPU</strong>，从维度上彻底解耦：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># VPA 只管内存，把 CPU 排除在外
+spec:
+  resourcePolicy:
+    containerPolicies:
+      - containerName: &quot;*&quot;
+        controlledResources: [&quot;memory&quot;]   # 关键：不碰 CPU
+        mode: &quot;Auto&quot;</code></pre></figure>
+<figure class="highlight yaml"><pre><code class="language-yaml"># HPA 只管 CPU 副本数
+spec:
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70</code></pre></figure>
+<p>这样 HPA 的分母（CPU requests）不会被 VPA 改动，两者各管一摊，互不干扰。</p>
+<hr>
+<h2 id="方案对比-HPA-VPA-Cluster-Autoscaler-KEDA-该选谁"><a href="#方案对比-HPA-VPA-Cluster-Autoscaler-KEDA-该选谁" class="headerlink" title="方案对比：HPA / VPA / Cluster Autoscaler / KEDA 该选谁"></a>方案对比：HPA / VPA / Cluster Autoscaler / KEDA 该选谁</h2>
+<p>很多人只盯着 HPA 和 VPA，其实完整的弹性体系有四层，各管一段：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>调整层级</th>
+<th>触发条件</th>
+<th>响应速度</th>
+<th>典型场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>HPA</strong></td>
+<td>Pod 副本数</td>
+<td>CPU/内存/自定义/外部指标</td>
+<td>秒~分钟</td>
+<td>无状态服务、突发流量</td>
+</tr><tr>
+<td><strong>VPA</strong></td>
+<td>Pod 资源规格</td>
+<td>历史用量 P95</td>
+<td>分钟~小时</td>
+<td>有状态服务、资源画像不稳</td>
+</tr><tr>
+<td><strong>Cluster Autoscaler</strong></td>
+<td>Node 节点数</td>
+<td>Pod 因资源不足 Pending</td>
+<td>分钟级</td>
+<td>云上动态节点池</td>
+</tr><tr>
+<td><strong>KEDA</strong></td>
+<td>Pod 副本数（事件驱动）</td>
+<td>Kafka lag / MQ 深度 / Cron</td>
+<td>秒级</td>
+<td>事件驱动、缩到 0</td>
+</tr></tbody></table>
+<p><strong>核心区别与选型建议</strong>：</p>
+<ul>
+<li><strong>HPA vs KEDA</strong>：HPA 是 K8s 原生，指标来自 metrics-server/自定义适配器；KEDA 是 CNCF 项目，内置 60+ 种 Scaler（Kafka、RabbitMQ、Redis、Cron），最大优势是<strong>支持缩容到 0 副本</strong>（HPA 的 minReplicas 最小是 1）。事件驱动型服务（消费 Kafka 的任务处理）首选 KEDA。</li>
+</ul>
+<ul>
+<li><strong>HPA vs VPA</strong>：前面说过，无状态可水平扩展用 HPA，有状态/难扩展用 VPA，两者按维度协同。</li>
+</ul>
+<ul>
+<li><strong>Cluster Autoscaler 是底座</strong>：HPA 把副本数扩到 60，结果节点资源不够，Pod 全 Pending 了——这时候需要 CA 扩容节点。所以 HPA 必须和 CA 配合，否则扩容会卡在调度层。</li>
+</ul>
+<p>一个典型的多层协同架构：</p>
+<div class="mermaid">
+graph TD
+    T[流量突增] --> HPA[HPA: 副本 6→30]
+    HPA --> S{节点资源够吗?}
+    S -->|不够| CA[Cluster Autoscaler: 加节点]
+    S -->|够| RUN[Pod 正常运行]
+    CA --> RUN
+    RUN --> VPA[VPA: 持续优化单Pod规格]
+    VPA -->|推荐值| HPA
+    KEDA[KEDA: 事件驱动缩到0] --> HPA
+</div>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>坑 1：HPA 抖动 —— 副本数像心电图一样上下跳</strong></p>
+<p>根因通常是没配 <code>behavior</code> 或 <code>stabilizationWindowSeconds</code> 太短。解决方案：缩容稳定窗口至少 300 秒，缩容策略用 <code>Percent: 10</code> 慢速爬坡。另外 CPU 目标利用率别设太高（建议 60%~70%），留出应对突发的缓冲。</p>
+<p><strong>坑 2：VPA 自动驱逐导致服务雪崩</strong></p>
+<p>默认 <code>updateMode: "Auto"</code> 会驱逐 Pod。生产上要么用 <code>"Off"</code> 只拿推荐值，要么用 <code>"Initial"</code> 只在 Pod 创建时生效。如果非要用 Auto，<strong>必须配 PDB</strong>：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: order-service-pdb
+spec:
+  minAvailable: 80%
+  selector:
+    matchLabels:
+      app: order-service</code></pre></figure>
+<p><strong>坑 3：HPA 和 VPA 同时控制 CPU，互相打架</strong></p>
+<p>VPA 改了 CPU requests，HPA 的利用率分母就变了，导致 HPA 误判。<strong>必须从维度解耦</strong>：VPA 管内存，HPA 管 CPU。</p>
+<p><strong>坑 4：metrics-server 挂了，HPA 静默失效</strong></p>
+<p>HPA 拉不到指标时会保持当前副本数，但<strong>不会告警</strong>。必须监控 HPA 的 <code>status.conditions</code> 里 <code>ScalingActive</code> 是否为 <code>True</code>，以及 <code>FailedGetResourceMetric</code> 事件。</p>
+<p><strong>坑 5：扩容速度跟不上流量洪峰</strong></p>
+<p>Pod 从创建到 Ready 要经历调度、拉镜像、启动、就绪探针，Java 应用动辄 30~60 秒。解决方案：① 用 <code>startupProbe</code> 加速就绪判断；② 配置 <code>minReplicas</code> 保底；③ 大促前预热镜像到节点；④ 极端场景用 KEDA 提前基于 Cron 扩容。</p>
+<p><strong>坑 6：忽略 requests 设置，HPA 算出来的值是错的</strong></p>
+<p>HPA 的 CPU 利用率 = 实际用量 / requests。如果 requests 设成 100m 但实际用 500m，利用率直接爆到 500%，HPA 会疯狂扩容。<strong>requests 必须贴近真实用量</strong>——这正是 VPA 的价值所在。</p>
+<p><strong>最佳实践清单</strong>：</p>
+<ol>
+<li>HPA 必配 <code>behavior</code>，遵循"快上慢下"</li>
+<li>优先用业务指标（QPS/队列深度）而非纯 CPU</li>
+<li>VPA 先跑 <code>Off</code> 模式观察一周，再决定是否自动化</li>
+<li>HPA 与 VPA 按维度解耦，永不争抢同一指标</li>
+<li>全链路监控 HPA 事件、VPA 推荐值、CA 扩容日志</li>
+<li>所有自动扩缩容服务必须配 PDB</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个凌晨两点的告警。如果当时团队配置了基于 QPS 的 HPA（示例 1）+ Prometheus Adapter（示例 2）+ 合理的 behavior 策略，流量从 800 涨到 12000 时，HPA 会在 1~2 分钟内把副本从 6 扩到 40，配合 Cluster Autoscaler 补节点，接口 P99 能稳在 200ms 以内——而不是靠人肉 <code>kubectl scale</code>。</p>
+<p>这篇文章的核心要点：</p>
+<ul>
+<li><strong>HPA 是负反馈控制循环</strong>，核心公式 <code>desired = ceil(current * currentMetric / desiredMetric)</code>，难点在容忍度、未就绪 Pod 过滤、stabilizationWindow 三个细节。</li>
+</ul>
+<ul>
+<li><strong>VPA 是三组件协作</strong>（Recommender/Updater/Admission Controller），最大风险是 Updater 的驱逐行为，生产上优先用 <code>Off</code> 或 <code>Initial</code> 模式。</li>
+</ul>
+<ul>
+<li><strong>弹性是分层的</strong>：HPA 调副本、VPA 调规格、CA 调节点、KEDA 做事件驱动，四者协同才是完整方案。</li>
+</ul>
+<ul>
+<li><strong>快上慢下、按维度解耦、必配 PDB</strong> 是三条铁律。</li>
+</ul>
+<p><strong>延伸思考</strong>：随着 K8s 1.30+ 对 <code>ContainerResource</code> 类型指标的支持，HPA 已经能基于<strong>单个容器</strong>的指标扩缩容，这对 sidecar 泛滥的 Service Mesh 场景是重大利好。另外，预测式扩缩容（基于时序预测提前扩容）正在成为新的研究方向，KEDA 和部分商业方案已经在探索。弹性扩缩容的终局，可能不是"响应式"而是"预测式"——在流量到达之前就把资源准备好。</p>
+<p>如果你的团队还在用固定副本数硬扛流量，从今天开始，先把 HPA 的 <code>behavior</code> 配上吧。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
