@@ -370,6 +370,13 @@
       "subtopic": "Channel底层实现与select多路复用",
       "date": "2026-09-14",
       "url": "/2026/09/15/Channel底层实现与select多路复用/"
+    },
+    {
+      "title": "Spring Boot自动配置原理与自定义Starter",
+      "category": "java",
+      "subtopic": "Spring Boot自动配置原理与自定义Starter",
+      "date": "2026-09-15",
+      "url": "/2026/09/15/Spring Boot自动配置原理与自定义Starter/"
     }
   ],
   "used_subtopics": {
@@ -382,7 +389,8 @@
       "RocketMQ消息存储与高可用架构",
       "Redis分布式锁的演进：从setnx到Redisson",
       "Spring事务传播行为与失效场景分析",
-      "Seata分布式事务AT模式源码分析"
+      "Seata分布式事务AT模式源码分析",
+      "Spring Boot自动配置原理与自定义Starter"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -491,6 +499,7 @@
     "Python GIL的过去、现在与未来（Python 3.13自由线程）": "3b8d1086151381ec885355a4d52ae49b375497ef0105f0a598f4d452b64d872b",
     "API网关设计：限流、熔断、降级、灰度发布": "440db75cda5707182098d6770728eb603886abc9a51d5411307b23926b3057c0",
     "K8s HPA与VPA自动扩缩容策略详解": "dc054c1f0afd43f5af2d4f2754b3abab09c1b06eb6683cd3d5543060ae3d6430",
-    "Channel底层实现与select多路复用": "16dc4213e0f778d70a18919187105eee63cad7de7fde932feb00dc15f0eed66d"
+    "Channel底层实现与select多路复用": "16dc4213e0f778d70a18919187105eee63cad7de7fde932feb00dc15f0eed66d",
+    "Spring Boot自动配置原理与自定义Starter": "6f9ec0d8b24a0baf96a47150e262104cb154bb764d59dca735320a2052070486"
   }
 }

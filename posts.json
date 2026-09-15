@@ -1,5 +1,23 @@
 [
  {
+  "title": "Spring Boot自动配置原理与自定义Starter",
+  "url": "/2026/09/15/Spring%20Boot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89Starter/",
+  "date": "2026-09-15",
+  "year": 2026,
+  "month": 9,
+  "day": 15,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=4340",
+  "excerpt": "引言 先讲一个我亲身经历的线上事故。 三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 pom.xml 里引入了公司内部的 trace-log-starter，但忘了在 application.yml 里配置 trace.sample-rate。结果这个 "
+ },
+ {
   "title": "Channel底层实现与select多路复用",
   "url": "/2026/09/15/Channel%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0%E4%B8%8Eselect%E5%A4%9A%E8%B7%AF%E5%A4%8D%E7%94%A8/",
   "date": "2026-09-15",

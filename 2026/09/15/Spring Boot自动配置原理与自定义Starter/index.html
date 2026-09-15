@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Spring Boot自动配置原理与自定义Starter | 小曾博客</title>
+  <meta name="description" content="Spring Boot自动配置原理与自定义Starter 引言 先讲一个我亲身经历的线上事故。 三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 pom.xml 里引入了公司内部的 trace-log-starter，但忘了在 application.yml 里配置 trace.sample-rate。结果这个 Starter 内部默">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Spring Boot自动配置原理与自定义Starter">
+  <meta name="twitter:description" content="Spring Boot自动配置原理与自定义Starter 引言 先讲一个我亲身经历的线上事故。 三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 pom.xml 里引入了公司内部的 trace-log-starter，但忘了在 application.yml 里配置 trace.sample-rate。结果这个 Starter 内部默">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=4340">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Spring Boot自动配置原理与自定义Starter">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Spring Boot自动配置原理与自定义Starter 引言 先讲一个我亲身经历的线上事故。 三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 pom.xml 里引入了公司内部的 trace-log-starter，但忘了在 application.yml 里配置 trace.sample-rate。结果这个 Starter 内部默">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=4340">
+  <meta property="article:published_time" content="2026-09-15T23:54:22.000Z">
+  <meta property="article:modified_time" content="2026-09-15T23:54:22.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Spring-Boot自动配置原理与自定义Starter"><span class="toc-text">Spring Boot自动配置原理与自定义Starter</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-餐厅后厨-说起"><span class="toc-text">核心概念：从"餐厅后厨"说起</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-自动配置就像一家-预制菜中央厨房"><span class="toc-text">生活类比：自动配置就像一家"预制菜中央厨房"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度剖析-一次启动到底发生了什么"><span class="toc-text">源码深度剖析：一次启动到底发生了什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#关键入口-EnableAutoConfiguration"><span class="toc-text">关键入口：@EnableAutoConfiguration</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心方法-getAutoConfigurationEntry"><span class="toc-text">核心方法：getAutoConfigurationEntry</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#条件注解的判定时机"><span class="toc-text">条件注解的判定时机</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#整体流程"><span class="toc-text">整体流程</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个容易被忽视的细节-自动配置的加载顺序"><span class="toc-text">一个容易被忽视的细节：自动配置的加载顺序</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个完整示例"><span class="toc-text">实战代码：三个完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-手写一个最小可用的-Starter-限流组件"><span class="toc-text">示例一：手写一个最小可用的 Starter（限流组件）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-自定义条件注解-判断是否在-Kubernetes-环境"><span class="toc-text">示例二：自定义条件注解（判断是否在 Kubernetes 环境）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-让自动配置可观测-自定义-FailureAnalyzer"><span class="toc-text">示例三：让自动配置可观测——自定义 FailureAnalyzer</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-自动配置-vs-其他装配方案"><span class="toc-text">方案对比：自动配置 vs 其他装配方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-永远不要用-ComponentScan-扫自动配置类"><span class="toc-text">@ComponentScan 扫自动配置类">1. 永远不要用 @ComponentScan 扫自动配置类</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-ConditionalOnMissingBean-要慎用类型"><span class="toc-text">@ConditionalOnMissingBean 要慎用类型">2. @ConditionalOnMissingBean 要慎用类型</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-配置类用-Configuration-proxyBeanMethods-false"><span class="toc-text">@Configuration(proxyBeanMethods = false)">3. 配置类用 @Configuration(proxyBeanMethods = false)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-spring-factories-vs-imports-的迁移"><span class="toc-text">spring.factories vs .imports 的迁移">4. spring.factories vs .imports 的迁移</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-用-debug-或-Actuator-排查"><span class="toc-text">--debug 或 Actuator 排查">5. 用 --debug 或 Actuator 排查</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-常见坑-配置属性绑定失败静默"><span class="toc-text">6. 常见坑：配置属性绑定失败静默</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=4340)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Spring Boot自动配置原理与自定义Starter</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-15"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-15</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-15"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-15</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Spring-Boot自动配置原理与自定义Starter"><a href="#Spring-Boot自动配置原理与自定义Starter" class="headerlink" title="Spring Boot自动配置原理与自定义Starter"></a>Spring Boot自动配置原理与自定义Starter</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先讲一个我亲身经历的线上事故。</p>
+<p>三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 <code>pom.xml</code> 里引入了公司内部的 <code>trace-log-starter</code>，但忘了在 <code>application.yml</code> 里配置 <code>trace.sample-rate</code>。结果这个 Starter 内部默认采样率是 100%，每个请求都往远端日志服务打全量 Trace，把日志服务打挂了，进而拖垮了整个调用链路。</p>
+<p>问题不在代码，而在于——<strong>这个 Starter 的默认配置和行为，对使用者完全是个黑盒</strong>。他不知道自己引入了一个"默认全量采样"的东西。</p>
+<p>这件事让我重新思考：Spring Boot 的自动配置（Auto-Configuration）和 Starter 机制，是 Java 生态里最成功的"约定优于配置"实践，也是最容易被误用的地方。绝大多数人会用 <code>@SpringBootApplication</code>，能写 <code>@Configuration</code>，但真正理解"为什么我什么都没配，DataSource 就自动有了"的人，其实不多。</p>
+<p>这篇文章，我想把自动配置这件事从<strong>源码层面</strong>讲透，然后手把手带你写一个生产级可用的 Starter。目标读者是已经写了 3-5 年 Spring Boot、但没深挖过自动配置源码的工程师。</p>
+<hr>
+<h2 id="核心概念-从-餐厅后厨-说起"><a href="#核心概念-从-餐厅后厨-说起" class="headerlink" title="核心概念：从"餐厅后厨"说起"></a>核心概念：从"餐厅后厨"说起</h2>
+<h3 id="生活类比-自动配置就像一家-预制菜中央厨房"><a href="#生活类比-自动配置就像一家-预制菜中央厨房" class="headerlink" title="生活类比：自动配置就像一家"预制菜中央厨房""></a>生活类比：自动配置就像一家"预制菜中央厨房"</h3>
+<p>传统 Spring 开发，就像你开一家餐厅，从买菜、洗菜、切菜、调酱汁全部自己来。每开一家新店，都得把这些流程重走一遍，哪怕两家店卖的是同样的菜。</p>
+<p>Spring Boot 的自动配置，相当于引入了一个<strong>中央厨房</strong>：</p>
+<ul>
+<li>你只需要告诉中央厨房"我要做川菜"（引入 <code>spring-boot-starter-web</code>）；</li>
+</ul>
+<ul>
+<li>中央厨房会预判你需要什么（Tomcat、Jackson、DispatcherServlet），把这些"半成品"送到你店里；</li>
+</ul>
+<ul>
+<li>如果你自己店里已经有某个半成品（比如你自己配了一个 <code>ObjectMapper</code>），中央厨房送来的那份就自动作废——这叫 <code>@ConditionalOnMissingBean</code>；</li>
+</ul>
+<ul>
+<li>如果你明确说"我不要某样东西"（<code>@ConditionalOnProperty</code>），它也不会硬塞给你。</li>
+</ul>
+<p>这个"预判"的能力，靠的是 Spring Boot 在启动时扫描所有 jar 包里的一个约定文件，然后根据一堆 <code>@Conditional</code> 注解决定"这批货要不要送、送哪几样"。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>Spring Boot 自动配置的本质是：</p>
+<ol>
+<li>启动时，通过 <code>@EnableAutoConfiguration</code> 触发 <code>AutoConfigurationImportSelector</code>；</li>
+<li>该 Selector 从所有依赖 jar 的 <code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code>（Spring Boot 2.7+）文件中，读取出候选配置类全限定名列表；</li>
+<li>经过去重、排除（<code>@SpringBootApplication(exclude=...)</code>）、条件过滤后，注册为普通的 <code>@Configuration</code> 类；</li>
+<li>这些配置类内部通过 <code>@Bean</code> + <code>@ConditionalOnXxx</code> 决定每个 Bean 是否真正注册。</li>
+</ol>
+<p>一句话：<strong>自动配置 = 一堆带条件的 <code>@Configuration</code> 类的批量、按需加载机制。</strong></p>
+<hr>
+<h2 id="源码深度剖析-一次启动到底发生了什么"><a href="#源码深度剖析-一次启动到底发生了什么" class="headerlink" title="源码深度剖析：一次启动到底发生了什么"></a>源码深度剖析：一次启动到底发生了什么</h2>
+<h3 id="关键入口-EnableAutoConfiguration"><a href="#关键入口-EnableAutoConfiguration" class="headerlink" title="关键入口：@EnableAutoConfiguration"></a>关键入口：@EnableAutoConfiguration</h3>
+<figure class="highlight java"><pre><code class="language-java">@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Inherited
+@AutoConfigurationPackage
+@Import(AutoConfigurationImportSelector.class)
+public @interface EnableAutoConfiguration {
+    String ENABLED_OVERRIDE_PROPERTY = &quot;spring.boot.enableautoconfiguration&quot;;
+    Class&lt;?&gt;[] exclude() default {};
+    String[] excludeName() default {};
+}</code></pre></figure>
+<p>注意 <code>@Import(AutoConfigurationImportSelector.class)</code>——这是整个机制的总开关。它把 <code>AutoConfigurationImportSelector</code> 注册为一个 <code>ImportSelector</code>，在配置类解析阶段被回调。</p>
+<h3 id="核心方法-getAutoConfigurationEntry"><a href="#核心方法-getAutoConfigurationEntry" class="headerlink" title="核心方法：getAutoConfigurationEntry"></a>核心方法：getAutoConfigurationEntry</h3>
+<p><code>AutoConfigurationImportSelector</code> 继承自 <code>AutoConfigurationImportSelector</code> → <code>ImportSelector</code>。真正干活的是 <code>getAutoConfigurationEntry</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">protected AutoConfigurationEntry getAutoConfigurationEntry(
+        AutoConfigurationMetadata autoConfigurationMetadata,
+        AnnotationMetadata annotationMetadata) {
+    if (!isEnabled(annotationMetadata)) {
+        return EMPTY_ENTRY;
+    }
+    // 1. 读取 @EnableAutoConfiguration 上的 exclude / excludeName 属性
+    AnnotationAttributes attributes = getAttributes(annotationMetadata);
+    // 2. 从所有 jar 的 imports 文件里加载候选配置类
+    List&lt;String&gt; configurations = getCandidateConfigurations(annotationMetadata, attributes);
+    // 3. 去重（多个 starter 可能引入同一个配置类）
+    configurations = removeDuplicates(configurations);
+    // 4. 去掉被 exclude 的
+    Set&lt;String&gt; exclusions = getExclusions(annotationMetadata, attributes);
+    checkExcludedClasses(configurations, exclusions);
+    configurations.removeAll(exclusions);
+    // 5. 关键：用 AutoConfigurationImportFilter 做粗粒度过滤（OnBeanCondition 等的快速版）
+    configurations = filter(configurations, autoConfigurationMetadata);
+    // 6. 广播事件，允许扩展
+    fireAutoConfigurationImportEvents(configurations, exclusions);
+    return new AutoConfigurationEntry(configurations, exclusions);
+}</code></pre></figure>
+<p>这里面最容易被忽略的是<strong>第 5 步 filter</strong>。Spring Boot 用 <code>AutoConfigurationImportFilter</code>（实现类有 <code>OnBeanCondition</code>、<code>OnClassCondition</code>、<code>OnWebApplicationCondition</code>）做了一次"预筛"。这一步不加载类，只读取配置类在 imports 文件旁生成的 <code>.imports</code> 元数据（编译期通过注解处理器生成），所以非常快。</p>
+<p><strong>为什么要有这一步？</strong> 因为一个大型项目可能引入几百个候选自动配置类，如果每个都真正加载字节码、解析注解，启动会非常慢。预筛把明显不满足条件的（比如 <code>@ConditionalOnClass</code> 里要求的类不存在）直接踢掉，剩下的才真正加载。</p>
+<h3 id="条件注解的判定时机"><a href="#条件注解的判定时机" class="headerlink" title="条件注解的判定时机"></a>条件注解的判定时机</h3>
+<p>真正的条件判定发生在 <code>ConfigurationClassParser</code> 解析配置类时。以 <code>@ConditionalOnClass</code> 为例：</p>
+<figure class="highlight java"><pre><code class="language-java">@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Conditional(OnClassCondition.class)
+public @interface ConditionalOnClass {
+    Class&lt;?&gt;[] value() default {};
+    String[] name() default {};
+}</code></pre></figure>
+<p><code>OnClassCondition</code> 继承 <code>SpringBootCondition</code>，其 <code>getMatchOutcome</code> 里用 <code>ClassNameFilter.MISSING</code> 判断类是否在 classpath。注意它<strong>优先用 <code>name</code> 字符串</strong>而不是 <code>value</code> 的 <code>Class</code> 对象——因为用 <code>Class</code> 会在注解解析时触发类加载，如果类不存在会直接抛 <code>NoClassDefFoundError</code>。这是 Spring Boot 里非常经典的一个设计细节。</p>
+<h3 id="整体流程"><a href="#整体流程" class="headerlink" title="整体流程"></a>整体流程</h3>
+<div class="mermaid">
+graph TD
+    A[SpringApplication.run] --> B[刷新 ApplicationContext]
+    B --> C[解析 @SpringBootApplication]
+    C --> D[遇到 @EnableAutoConfiguration]
+    D --> E[ImportSelector: AutoConfigurationImportSelector]
+    E --> F[加载所有 jar 的 AutoConfiguration.imports]
+    F --> G[去重 + 排除 exclude]
+    G --> H[AutoConfigurationImportFilter 预筛]
+    H --> I[加载剩余配置类字节码]
+    I --> J[ConfigurationClassParser 解析]
+    J --> K{每个 @Bean 条件判定}
+    K -->|匹配| L[注册 BeanDefinition]
+    K -->|不匹配| M[跳过]
+    L --> N[实例化并注入容器]
+</div>
+<h3 id="一个容易被忽视的细节-自动配置的加载顺序"><a href="#一个容易被忽视的细节-自动配置的加载顺序" class="headerlink" title="一个容易被忽视的细节：自动配置的加载顺序"></a>一个容易被忽视的细节：自动配置的加载顺序</h3>
+<p>自动配置类之间是有顺序的，靠 <code>@AutoConfigureBefore</code> / <code>@AutoConfigureAfter</code> / <code>@AutoConfigureOrder</code> 控制。比如 <code>DataSourceAutoConfiguration</code> 必须在 <code>MybatisAutoConfiguration</code> 之前，因为后者依赖前者产出的 <code>DataSource</code>。</p>
+<p>Spring Boot 在 <code>AutoConfigurationSorter</code> 里用拓扑排序处理这些依赖。如果你自己写 Starter，涉及多配置类时<strong>一定要显式声明顺序</strong>，否则在某些 classpath 组合下会出现"Bean 找不到"的诡异问题。</p>
+<hr>
+<h2 id="实战代码-三个完整示例"><a href="#实战代码-三个完整示例" class="headerlink" title="实战代码：三个完整示例"></a>实战代码：三个完整示例</h2>
+<h3 id="示例一-手写一个最小可用的-Starter-限流组件"><a href="#示例一-手写一个最小可用的-Starter-限流组件" class="headerlink" title="示例一：手写一个最小可用的 Starter（限流组件）"></a>示例一：手写一个最小可用的 Starter（限流组件）</h3>
+<p>我们做一个 <code>rate-limit-spring-boot-starter</code>，提供基于令牌桶的接口限流，自动配置限流器并暴露 <code>@RateLimit</code> 注解。</p>
+<p><strong>步骤 1：Starter 的模块结构</strong></p>
+<p>生产级 Starter 通常拆成两个模块：</p>
+<ul>
+<li><code>rate-limit-spring-boot-autoconfigure</code>：放自动配置逻辑；</li>
+</ul>
+<ul>
+<li><code>rate-limit-spring-boot-starter</code>：只放依赖，把 autoconfigure 和第三方库都引进来。</li>
+</ul>
+<p>这是 Spring 官方推荐的"autoconfigure + starter"分离模式，好处是使用者可以只引 autoconfigure，自己控制依赖版本。</p>
+<p><strong>步骤 2：配置属性类</strong></p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.ratelimit.autoconfigure;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * 限流配置属性。
+ * 前缀为 rate-limit，对应 application.yml 中的 rate-limit.*
+ * 使用构造器绑定（Spring Boot 2.2+ 推荐），保证不可变性和线程安全。
+ */
+@ConfigurationProperties(prefix = &quot;rate-limit&quot;)
+public class RateLimitProperties {
+
+    /** 是否启用限流，默认开启。对应 rate-limit.enabled */
+    private boolean enabled = true;
+
+    /** 默认每秒允许的请求数（令牌桶容量） */
+    private int defaultPermitsPerSecond = 100;
+
+    /** 获取令牌的超时时间（毫秒），超时则拒绝请求 */
+    private long timeoutMillis = 0;
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public int getDefaultPermitsPerSecond() { return defaultPermitsPerSecond; }
+    public void setDefaultPermitsPerSecond(int v) { this.defaultPermitsPerSecond = v; }
+    public long getTimeoutMillis() { return timeoutMillis; }
+    public void setTimeoutMillis(long timeoutMillis) { this.timeoutMillis = timeoutMillis; }
+}</code></pre></figure>
+<p><strong>步骤 3：核心限流器</strong></p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.ratelimit.autoconfigure;
+
+import com.google.common.util.concurrent.RateLimiter;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * 基于 Guava RateLimiter 的限流器。
+ * 每个资源名（key）维护一个独立的令牌桶。
+ */
+public class RateLimitExecutor {
+
+    private final RateLimitProperties properties;
+    private final ConcurrentHashMap&lt;String, RateLimiter&gt; limiters = new ConcurrentHashMap&lt;&gt;();
+
+    public RateLimitExecutor(RateLimitProperties properties) {
+        this.properties = properties;
+    }
+
+    /**
+     * 尝试获取令牌。
+     * @param key 资源标识，通常是 &quot;类名#方法名&quot;
+     * @return true 表示放行，false 表示被限流
+     */
+    public boolean tryAcquire(String key) {
+        RateLimiter limiter = limiters.computeIfAbsent(key,
+                k -&gt; RateLimiter.create(properties.getDefaultPermitsPerSecond()));
+        // timeoutMillis=0 表示不等待，拿不到令牌立即返回 false
+        return limiter.tryAcquire(properties.getTimeoutMillis(),
+                java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+}</code></pre></figure>
+<p><strong>步骤 4：自动配置类</strong></p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.ratelimit.autoconfigure;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * 限流自动配置。
+ * 加载条件：
+ *  1. classpath 上存在 Guava RateLimiter（@ConditionalOnClass）
+ *  2. 配置 rate-limit.enabled 不为 false（@ConditionalOnProperty）
+ */
+@Configuration(proxyBeanMethods = false)
+@ConditionalOnClass(RateLimiter.class)
+@ConditionalOnProperty(prefix = &quot;rate-limit&quot;, name = &quot;enabled&quot;,
+        havingValue = &quot;true&quot;, matchIfMissing = true)
+@EnableConfigurationProperties(RateLimitProperties.class)
+public class RateLimitAutoConfiguration {
+
+    /**
+     * 只有当容器里没有用户自定义的 RateLimitExecutor 时才注册。
+     * 这就是&quot;用户配置优先于自动配置&quot;的体现。
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public RateLimitExecutor rateLimitExecutor(RateLimitProperties properties) {
+        return new RateLimitExecutor(properties);
+    }
+}</code></pre></figure>
+<p><strong>步骤 5：注册自动配置类</strong></p>
+<p>在 <code>src/main/resources/META-INF/spring/</code> 下创建 <code>org.springframework.boot.autoconfigure.AutoConfiguration.imports</code>：</p>
+<figure class="highlight "><pre><code>com.example.ratelimit.autoconfigure.RateLimitAutoConfiguration</code></pre></figure>
+<blockquote>
+<p>注意：Spring Boot 2.7 之前用的是 <code>META-INF/spring.factories</code> 里的 <code>org.springframework.boot.autoconfigure.EnableAutoConfiguration=...</code>。2.7 引入新文件并标记 <code>spring.factories</code> 方式为 deprecated，3.0 完全移除。<strong>写新 Starter 请一律用 <code>.imports</code> 文件。</strong></p>
+</blockquote>
+<p><strong>步骤 6：AOP 切面（可选，让注解生效）</strong></p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.ratelimit.autoconfigure;
+
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
+
+@Aspect
+public class RateLimitAspect {
+
+    private final RateLimitExecutor executor;
+
+    public RateLimitAspect(RateLimitExecutor executor) {
+        this.executor = executor;
+    }
+
+    @Around(&quot;@annotation(rateLimit)&quot;)
+    public Object around(ProceedingJoinPoint pjp, RateLimit rateLimit) throws Throwable {
+        MethodSignature sig = (MethodSignature) pjp.getSignature();
+        String key = sig.getDeclaringTypeName() + &quot;#&quot; + sig.getName();
+        if (!executor.tryAcquire(key)) {
+            throw new RateLimitExceededException(&quot;请求过于频繁，请稍后重试&quot;);
+        }
+        return pjp.proceed();
+    }
+}</code></pre></figure>
+<p>配置类里再补一个 <code>@Bean @ConditionalOnMissingBean</code> 注册切面，并加 <code>@ConditionalOnClass(Aspect.class)</code>。这样当用户没引 AOP 依赖时，整个切面自动不生效——这就是条件装配的威力。</p>
+<hr>
+<h3 id="示例二-自定义条件注解-判断是否在-Kubernetes-环境"><a href="#示例二-自定义条件注解-判断是否在-Kubernetes-环境" class="headerlink" title="示例二：自定义条件注解（判断是否在 Kubernetes 环境）"></a>示例二：自定义条件注解（判断是否在 Kubernetes 环境）</h3>
+<p>自动配置的强大之处在于 <code>@Conditional</code>。我们实现一个 <code>@ConditionalOnKubernetes</code>，只有检测到 K8s 环境时才装配某个 Bean。</p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.condition;
+
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.core.type.AnnotatedTypeMetadata;
+
+/**
+ * 判断当前是否运行在 Kubernetes 环境。
+ * 依据：存在 KUBERNETES_SERVICE_HOST 环境变量，
+ * 或存在 /var/run/secrets/kubernetes.io/serviceaccount 目录。
+ */
+public class OnKubernetesCondition implements Condition {
+
+    @Override
+    public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+        String host = context.getEnvironment().getProperty(&quot;KUBERNETES_SERVICE_HOST&quot;);
+        if (host != null &amp;&amp; !host.isEmpty()) {
+            return true;
+        }
+        return new java.io.File(&quot;/var/run/secrets/kubernetes.io/serviceaccount&quot;).exists();
+    }
+}</code></pre></figure>
+<figure class="highlight java"><pre><code class="language-java">package com.example.condition;
+
+import org.springframework.context.annotation.Conditional;
+import java.lang.annotation.*;
+
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Conditional(OnKubernetesCondition.class)
+public @interface ConditionalOnKubernetes {
+}</code></pre></figure>
+<p>使用：</p>
+<figure class="highlight java"><pre><code class="language-java">@Configuration(proxyBeanMethods = false)
+public class K8sHealthAutoConfiguration {
+
+    @Bean
+    @ConditionalOnKubernetes
+    public K8sReadinessIndicator readinessIndicator() {
+        return new K8sReadinessIndicator();
+    }
+}</code></pre></figure>
+<p>这里有个<strong>关键坑</strong>：<code>Condition</code> 接口的 <code>matches</code> 会被调用非常多次（每个条件、每次刷新），所以实现里<strong>绝不能做耗时操作</strong>（比如发起网络请求探测）。上面读环境变量和文件是否存在，是最安全的做法。如果你需要缓存结果，用 <code>SpringBootCondition</code> 而不是裸 <code>Condition</code>，它提供了 <code>getMatchOutcome</code> 和日志支持。</p>
+<hr>
+<h3 id="示例三-让自动配置可观测-自定义-FailureAnalyzer"><a href="#示例三-让自动配置可观测-自定义-FailureAnalyzer" class="headerlink" title="示例三：让自动配置可观测——自定义 FailureAnalyzer"></a>示例三：让自动配置可观测——自定义 FailureAnalyzer</h3>
+<p>生产级 Starter 应该"报错友好"。如果用户配置错了，应该给出清晰的错误提示，而不是一堆堆栈。Spring Boot 提供了 <code>FailureAnalyzer</code> 机制。</p>
+<figure class="highlight java"><pre><code class="language-java">package com.example.ratelimit.autoconfigure;
+
+import org.springframework.boot.diagnostics.AbstractFailureAnalyzer;
+import org.springframework.boot.diagnostics.FailureAnalysis;
+
+/**
+ * 当限流配置非法（如每秒令牌数 &lt;= 0）时，给出可读的错误提示。
+ */
+public class InvalidRateLimitConfigFailureAnalyzer
+        extends AbstractFailureAnalyzer&lt;IllegalArgumentException&gt; {
+
+    @Override
+    protected FailureAnalysis analyze(Throwable rootFailure, IllegalArgumentException cause) {
+        if (!cause.getMessage().contains(&quot;permitsPerSecond&quot;)) {
+            return null;
+        }
+        return new FailureAnalysis(
+                &quot;限流配置非法：&quot; + cause.getMessage(),
+                &quot;请检查 application.yml 中的 rate-limit.default-permits-per-second，&quot;
+                        + &quot;该值必须大于 0。&quot;,
+                cause
+        );
+    }
+}</code></pre></figure>
+<p>在 <code>META-INF/spring.factories</code> 中注册（<code>FailureAnalyzer</code> 至今仍走 <code>spring.factories</code>，不走 <code>.imports</code>）：</p>
+<figure class="highlight "><pre><code>org.springframework.boot.diagnostics.FailureAnalyzer=\
+com.example.ratelimit.autoconfigure.InvalidRateLimitConfigFailureAnalyzer</code></pre></figure>
+<p>这样当用户把 <code>default-permits-per-second</code> 配成 0 时，控制台会打印一段人话提示，而不是 <code>IllegalArgumentException</code> 堆栈。<strong>这个细节是区分"能用的 Starter"和"好用的 Starter"的分水岭。</strong></p>
+<hr>
+<h2 id="方案对比-自动配置-vs-其他装配方案"><a href="#方案对比-自动配置-vs-其他装配方案" class="headerlink" title="方案对比：自动配置 vs 其他装配方案"></a>方案对比：自动配置 vs 其他装配方案</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Spring Boot 自动配置</th>
+<th>传统 XML/Java Config</th>
+<th>SPI（ServiceLoader）</th>
+<th>Spring Cloud 的 Bootstrap</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>装配时机</td>
+<td>容器启动，条件驱动</td>
+<td>手动声明</td>
+<td>运行时按需</td>
+<td>容器启动前（Bootstrap 阶段）</td>
+</tr><tr>
+<td>是否可覆盖</td>
+<td>是（<code>@ConditionalOnMissingBean</code>）</td>
+<td>完全手动</td>
+<td>否</td>
+<td>是</td>
+</tr><tr>
+<td>启动开销</td>
+<td>有预筛，较快</td>
+<td>无</td>
+<td>极低</td>
+<td>额外一次上下文</td>
+</tr><tr>
+<td>适用场景</td>
+<td>通用组件、中间件集成</td>
+<td>业务配置</td>
+<td>插件化</td>
+<td>分布式配置</td>
+</tr><tr>
+<td>调试难度</td>
+<td>高（需 <code>--debug</code> 看报告）</td>
+<td>低</td>
+<td>中</td>
+<td>高</td>
+</tr></tbody></table>
+<p><strong>核心结论</strong>：自动配置适合"框架/中间件向业务提供默认能力"的场景。业务代码<strong>不应该</strong>滥用自动配置——你的业务 Service 用 <code>@Component</code> 就够了，别搞个 <code>BizAutoConfiguration</code>，那是杀鸡用牛刀，还会让依赖关系变隐晦。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="1-永远不要用-ComponentScan-扫自动配置类"><a href="#1-永远不要用-ComponentScan-扫自动配置类" class="headerlink" title="1. 永远不要用 <code>@ComponentScan</code> 扫自动配置类"></a>1. 永远不要用 <code>@ComponentScan</code> 扫自动配置类</h3>
+<p>自动配置类必须通过 <code>.imports</code> 文件注册，<strong>不要</strong>把它放在你的业务包下被 <code>@ComponentScan</code> 扫到。否则条件判定时机可能不对，还会导致重复注册。</p>
+<h3 id="2-ConditionalOnMissingBean-要慎用类型"><a href="#2-ConditionalOnMissingBean-要慎用类型" class="headerlink" title="2. <code>@ConditionalOnMissingBean</code> 要慎用类型"></a>2. <code>@ConditionalOnMissingBean</code> 要慎用类型</h3>
+<figure class="highlight java"><pre><code class="language-java">@Bean
+@ConditionalOnMissingBean  // 默认按返回类型判断
+public RateLimitExecutor rateLimitExecutor(...) { ... }</code></pre></figure>
+<p>如果用户定义了 <code>RateLimitExecutor</code> 的子类，<code>@ConditionalOnMissingBean</code> 默认按<strong>类型匹配</strong>，子类也会被认为"已存在"，从而跳过。如果你的意图是"用户没定义任何实现就注册默认的"，这没问题；但如果想更精确，用 <code>@ConditionalOnMissingBean(value = RateLimitExecutor.class)</code>。</p>
+<h3 id="3-配置类用-Configuration-proxyBeanMethods-false"><a href="#3-配置类用-Configuration-proxyBeanMethods-false" class="headerlink" title="3. 配置类用 <code>@Configuration(proxyBeanMethods = false)</code>"></a>3. 配置类用 <code>@Configuration(proxyBeanMethods = false)</code></h3>
+<p>从 Spring Boot 2.2 起官方推荐自动配置类都加 <code>proxyBeanMethods = false</code>。因为自动配置类里的 <code>@Bean</code> 方法之间<strong>不应该</strong>互相调用（那会绕过容器，破坏单例），关掉 CGLIB 代理能显著减少启动时的类增强开销。</p>
+<h3 id="4-spring-factories-vs-imports-的迁移"><a href="#4-spring-factories-vs-imports-的迁移" class="headerlink" title="4. <code>spring.factories</code> vs <code>.imports</code> 的迁移"></a>4. <code>spring.factories</code> vs <code>.imports</code> 的迁移</h3>
+<ul>
+<li>Spring Boot ≤ 2.6：<code>META-INF/spring.factories</code>；</li>
+</ul>
+<ul>
+<li>Spring Boot 2.7+：<code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code>；</li>
+</ul>
+<ul>
+<li>Spring Boot 3.0+：只认 <code>.imports</code>。</li>
+</ul>
+<p>如果你维护的 Starter 要同时兼容 2.x 和 3.x，可以两个文件都放。但注意 <code>FailureAnalyzer</code>、<code>EnvironmentPostProcessor</code> 等非自动配置的扩展点，<strong>仍然走 <code>spring.factories</code></strong>，别搞混。</p>
+<h3 id="5-用-debug-或-Actuator-排查"><a href="#5-用-debug-或-Actuator-排查" class="headerlink" title="5. 用 <code>--debug</code> 或 Actuator 排查"></a>5. 用 <code>--debug</code> 或 Actuator 排查</h3>
+<p>启动加 <code>--debug</code> 参数，Spring Boot 会打印 <code>ConditionEvaluationReport</code>，清楚列出每个自动配置类为什么生效/没生效：</p>
+<figure class="highlight "><pre><code>RateLimitAutoConfiguration matched:
+  - @ConditionalOnClass found required class &#x27;com.google.common.util.concurrent.RateLimiter&#x27;
+  - @ConditionalOnProperty (rate-limit.enabled) matched</code></pre></figure>
+<p>生产环境可以用 <code>spring-boot-actuator</code> 的 <code>/actuator/conditions</code> 端点在线查看。</p>
+<h3 id="6-常见坑-配置属性绑定失败静默"><a href="#6-常见坑-配置属性绑定失败静默" class="headerlink" title="6. 常见坑：配置属性绑定失败静默"></a>6. 常见坑：配置属性绑定失败静默</h3>
+<p><code>@ConfigurationProperties</code> 绑定时，如果类型不匹配（比如 yml 里写了字符串，字段是 int），默认会<strong>静默忽略</strong>。务必加 <code>@Validated</code> + JSR-303 注解，让非法配置在启动时就 fail-fast。</p>
+<figure class="highlight java"><pre><code class="language-java">@ConfigurationProperties(prefix = &quot;rate-limit&quot;)
+@Validated
+public class RateLimitProperties {
+    @Min(1)
+    private int defaultPermitsPerSecond = 100;
+    // ...
+}</code></pre></figure>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头的那个事故。如果那个 <code>trace-log-starter</code> 的作者做到了三点，事故就不会发生：</p>
+<ol>
+<li><strong>默认值保守</strong>：采样率默认 10% 而不是 100%；</li>
+<li><strong>条件清晰</strong>：用 <code>@ConditionalOnProperty</code> 明确要求用户配置采样率；</li>
+<li><strong>可观测</strong>：用 <code>FailureAnalyzer</code> 在配置缺失时给出友好提示。</li>
+</ol>
+<p>Spring Boot 自动配置的精髓，是<strong>用条件装配把"默认行为"和"用户覆盖"优雅地统一起来</strong>。它不是什么魔法，本质就是：</p>
+<blockquote>
+<p>启动时扫描 <code>.imports</code> 文件 → 预筛 → 加载 → 条件判定 → 注册 Bean。</p>
+</blockquote>
+<p>理解这五个步骤，你就能：</p>
+<ul>
+<li>写出对使用者友好的 Starter；</li>
+</ul>
+<ul>
+<li>排查"为什么我的 Bean 没生效"这类问题；</li>
+</ul>
+<ul>
+<li>在阅读 Spring Cloud、MyBatis、Dubbo 等框架源码时，一眼看穿它们的装配逻辑。</li>
+</ul>
+<p><strong>延伸思考</strong>：Spring Boot 3.x 引入了 AOT（Ahead-Of-Time）编译和 GraalVM Native Image 支持。在 AOT 模式下，条件判定发生在<strong>构建期</strong>而非运行期，这意味着运行时动态变化的条件（比如读环境变量决定是否装配）会失效。这是自动配置机制在云原生时代面临的新挑战，也是理解 Spring Boot 未来演进的关键方向。如果你在做 Native Image 迁移，这块一定要提前踩点。</p>
+<p>自动配置写得好，是"润物细无声"；写得不好，就是"薛定谔的 Bean"——你不启动看日志，永远不知道它在不在。愿你的 Starter 都能被温柔以待。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
