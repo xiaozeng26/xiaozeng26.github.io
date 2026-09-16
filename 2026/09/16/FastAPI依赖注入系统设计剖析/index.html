@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FastAPI依赖注入系统设计剖析 | 小曾博客</title>
+  <meta name="description" content="FastAPI依赖注入系统设计剖析 引言 去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。 排查了两天，最终定位到问题根源：一个使用了Depends的依赖函数内部持有可变状态，在高并发下被多个请求共享。这个坑让我意识到，">
+  <meta name="keywords" content="python,fastapi,async,django,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="FastAPI依赖注入系统设计剖析">
+  <meta name="twitter:description" content="FastAPI依赖注入系统设计剖析 引言 去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。 排查了两天，最终定位到问题根源：一个使用了Depends的依赖函数内部持有可变状态，在高并发下被多个请求共享。这个坑让我意识到，">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=1339">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="FastAPI依赖注入系统设计剖析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="FastAPI依赖注入系统设计剖析 引言 去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。 排查了两天，最终定位到问题根源：一个使用了Depends的依赖函数内部持有可变状态，在高并发下被多个请求共享。这个坑让我意识到，">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=1339">
+  <meta property="article:published_time" content="2026-09-16T23:45:51.000Z">
+  <meta property="article:modified_time" content="2026-09-16T23:45:51.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#FastAPI依赖注入系统设计剖析"><span class="toc-text">FastAPI依赖注入系统设计剖析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从餐厅后厨说起"><span class="toc-text">核心概念：从餐厅后厨说起</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#依赖树的形态"><span class="toc-text">依赖树的形态</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析"><span class="toc-text">源码深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Depends-的极简本质"><span class="toc-text">Depends 的极简本质">Depends 的极简本质</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#依赖树构建-get-dependant"><span class="toc-text">get_dependant()">依赖树构建：get_dependant()</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#请求时求解-solve-dependencies"><span class="toc-text">solve_dependencies()">请求时求解：solve_dependencies()</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#yield-依赖的生命周期"><span class="toc-text">yield 依赖的生命周期">yield 依赖的生命周期</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-带请求级缓存的依赖链"><span class="toc-text">示例1：带请求级缓存的依赖链</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-yield依赖的资源管理"><span class="toc-text">yield依赖的资源管理">示例2：yield依赖的资源管理</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-多租户场景下的上下文隔离-踩坑示范"><span class="toc-text">示例3：多租户场景下的上下文隔离（踩坑示范）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-FastAPI-DI-vs-其他框架"><span class="toc-text">方案对比：FastAPI DI vs 其他框架</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑1-yield依赖的清理异常会污染响应"><span class="toc-text">yield依赖的清理异常会污染响应">坑1：yield依赖的清理异常会污染响应</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑2-误用-use-cache-False-导致资源爆炸"><span class="toc-text">use_cache=False 导致资源爆炸">坑2：误用 use_cache=False 导致资源爆炸</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑3-依赖函数签名里的参数被误当成Query参数"><span class="toc-text">坑3：依赖函数签名里的参数被误当成Query参数</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑4-循环依赖导致栈溢出"><span class="toc-text">坑4：循环依赖导致栈溢出</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑5-在依赖里做重量级初始化"><span class="toc-text">坑5：在依赖里做重量级初始化</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=1339)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">FastAPI依赖注入系统设计剖析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-16"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-16</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-16"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-16</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">python</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="FastAPI依赖注入系统设计剖析"><a href="#FastAPI依赖注入系统设计剖析" class="headerlink" title="FastAPI依赖注入系统设计剖析"></a>FastAPI依赖注入系统设计剖析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。</p>
+<p>排查了两天，最终定位到问题根源：<strong>一个使用了<code>Depends</code>的依赖函数内部持有可变状态，在高并发下被多个请求共享</strong>。这个坑让我意识到，很多开发者（包括当时的我）对FastAPI依赖注入系统的理解，还停留在"写个函数加个Depends就完事"的层面，对其底层的缓存机制、作用域、生命周期一无所知。</p>
+<p>FastAPI的依赖注入（Dependency Injection，DI）系统是整个框架最精华也最容易被低估的部分。它不像Spring那样通过注解和反射在启动时构建Bean容器，而是走了一条<strong>基于函数签名的运行时解析</strong>路线——轻量、灵活，但也暗藏陷阱。</p>
+<p>这篇文章，我会带你从源码层面彻底搞懂FastAPI的DI系统：它如何解析依赖树？缓存是怎么工作的？<code>yield</code>依赖的生命周期边界在哪？以及如何在生产环境中避免我踩过的那些坑。</p>
+<hr>
+<h2 id="核心概念-从餐厅后厨说起"><a href="#核心概念-从餐厅后厨说起" class="headerlink" title="核心概念：从餐厅后厨说起"></a>核心概念：从餐厅后厨说起</h2>
+<p>先打个比方。想象你经营一家餐厅，顾客点了一道"宫保鸡丁"：</p>
+<ul>
+<li><strong>传统方式（不用DI）</strong>：厨师做菜时，需要自己跑去仓库拿鸡肉、去菜地摘辣椒、去调料架找酱油。每个厨师都要重复这些动作，仓库和菜地还可能被同时争抢。</li>
+</ul>
+<ul>
+<li><strong>依赖注入方式</strong>：厨师只负责炒菜，食材由"备菜员"统一准备好放在灶台边。厨师说"我需要鸡肉和辣椒"，备菜员就送过来；如果两个厨师都需要同一批鸡肉，备菜员<strong>只准备一次</strong>，共享给他们。</li>
+</ul>
+<p>FastAPI的DI系统就是这位"备菜员"。它的核心工作流程是：</p>
+<ol>
+<li><strong>声明依赖</strong>：通过<code>Depends(callable)</code>在函数参数上声明"我需要什么"</li>
+<li><strong>解析依赖树</strong>：运行时分析函数签名，递归构建依赖关系图</li>
+<li><strong>执行与缓存</strong>：按拓扑顺序执行依赖函数，同一请求内默认缓存结果</li>
+<li><strong>注入参数</strong>：把解析结果作为参数传给目标路由函数</li>
+</ol>
+<p>用技术语言定义：<strong>FastAPI的DI是一个基于Python函数签名内省的、请求级别的依赖解析与缓存系统</strong>。它支持同步/异步混合、支持嵌套依赖、支持生成器（<code>yield</code>）形式的资源管理。</p>
+<h3 id="依赖树的形态"><a href="#依赖树的形态" class="headerlink" title="依赖树的形态"></a>依赖树的形态</h3>
+<div class="mermaid">
+graph TD
+    A[HTTP Request] --> B[路由处理函数 handler]
+    B --> C[Depends: get_current_user]
+    B --> D[Depends: get_db_session]
+    C --> E[Depends: verify_token]
+    C --> F[Depends: get_user_from_db]
+    F --> D
+    D --> G[Depends: get_engine]
+    E --> H[Depends: get_settings]
+    F --> H
+    G --> H
+    
+    style B fill:#f9f,stroke:#333
+    style H fill:#bbf,stroke:#333
+    style D fill:#bfb,stroke:#333
+</div>
+<p>注意图中 <code>get_settings</code> 被三个依赖同时需要，<code>get_db_session</code> 被两个依赖需要。<strong>如果没有缓存，同一个请求内这些函数会被重复执行多次</strong>——这就是FastAPI DI缓存机制存在的意义，也是很多坑的来源。</p>
+<hr>
+<h2 id="源码深度分析"><a href="#源码深度分析" class="headerlink" title="源码深度分析"></a>源码深度分析</h2>
+<p>要真正理解FastAPI的DI，必须读三个文件：</p>
+<ul>
+<li><code>fastapi/dependencies/utils.py</code>：依赖解析的核心</li>
+</ul>
+<ul>
+<li><code>fastapi/routing.py</code>：请求处理时如何触发依赖求解</li>
+</ul>
+<ul>
+<li><code>fastapi/params.py</code>：<code>Depends</code>类的定义</li>
+</ul>
+<h3 id="Depends-的极简本质"><a href="#Depends-的极简本质" class="headerlink" title="<code>Depends</code> 的极简本质"></a><code>Depends</code> 的极简本质</h3>
+<p>先看<code>Depends</code>的定义（<code>fastapi/params.py</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python">class Depends:
+    def __init__(
+        self,
+        dependency: Optional[Callable[..., Any]] = None,
+        *,
+        use_cache: bool = True,
+        scope: Optional[Literal[&quot;function&quot;, &quot;request&quot;]] = None,
+    ) -&gt; None:
+        self.dependency = dependency
+        self.use_cache = use_cache
+        self.scope = scope
+
+    def __repr__(self) -&gt; str:
+        attr = getattr(self.dependency, &quot;__name__&quot;, type(self.dependency).__name__)
+        cache = &quot;&quot; if self.use_cache else &quot;, use_cache=False&quot;
+        return f&quot;{type(self).__name__}({attr}{cache})&quot;</code></pre></figure>
+<p>是不是简单到令人失望？<code>Depends</code>只是一个<strong>数据载体（marker）</strong>，它本身不做任何解析工作。真正的魔法发生在 <code>get_dependant()</code> 和 <code>solve_dependencies()</code> 这两个函数里。</p>
+<p>这是一个非常关键的设计哲学：<strong>声明与执行分离</strong>。<code>Depends</code>只是声明"这里有依赖"，具体的解析逻辑在路由构建阶段和请求处理阶段分别完成。</p>
+<h3 id="依赖树构建-get-dependant"><a href="#依赖树构建-get-dependant" class="headerlink" title="依赖树构建：<code>get_dependant()</code>"></a>依赖树构建：<code>get_dependant()</code></h3>
+<p>当一个路由被注册时，FastAPI会对路由函数调用 <code>get_dependant()</code>，把它的签名"翻译"成一棵 <code>Dependant</code> 对象树。</p>
+<figure class="highlight python"><pre><code class="language-python"># fastapi/dependencies/utils.py (简化版)
+def get_dependant(
+    *,
+    path: str,
+    call: Callable[..., Any],
+    name: Optional[str] = None,
+    security_scopes: Optional[List[str]] = None,
+    use_cache: bool = True,
+) -&gt; Dependant:
+    path_param_names = get_path_param_names(path)
+    endpoint_signature = get_typed_signature(call)
+    signature_params = endpoint_signature.parameters
+    
+    dependant = Dependant(
+        call=call,
+        name=name,
+        path=path,
+        security_scopes=security_scopes,
+        use_cache=use_cache,
+    )
+    
+    for param_name, param in signature_params.items():
+        # 递归解析：如果参数默认值是 Depends 实例
+        if isinstance(param.default, params.Depends):
+            sub_dependant = get_param_sub_dependant(
+                param=param, path=path, security_scopes=security_scopes
+            )
+            dependant.dependencies.append(sub_dependant)
+            continue
+        # ... 处理 Path/Query/Body 等其他参数
+    
+    return dependant</code></pre></figure>
+<p>这里有个<strong>递归</strong>：<code>get_param_sub_dependant</code> 会再次调用 <code>get_dependant</code>，从而把嵌套依赖也构建成树。注意，这个构建过程<strong>只在应用启动时发生一次</strong>，请求处理时直接复用这棵树。</p>
+<p><code>Dependant</code> 对象长这样：</p>
+<figure class="highlight python"><pre><code class="language-python">@dataclass
+class Dependant:
+    path_params: List[ModelField] = field(default_factory=list)
+    query_params: List[ModelField] = field(default_factory=list)
+    header_params: List[ModelField] = field(default_factory=list)
+    cookie_params: List[ModelField] = field(default_factory=list)
+    body_params: List[ModelField] = field(default_factory=list)
+    dependencies: List[&quot;Dependant&quot;] = field(default_factory=list)
+    name: Optional[str] = None
+    call: Optional[Callable[..., Any]] = None
+    use_cache: bool = True
+    cache_key: Optional[Tuple[str, ...]] = None</code></pre></figure>
+<p><code>cache_key</code> 是理解缓存机制的关键，后面会讲。</p>
+<h3 id="请求时求解-solve-dependencies"><a href="#请求时求解-solve-dependencies" class="headerlink" title="请求时求解：<code>solve_dependencies()</code>"></a>请求时求解：<code>solve_dependencies()</code></h3>
+<p>请求进来后，FastAPI调用 <code>solve_dependencies()</code> 来实际执行依赖树：</p>
+<figure class="highlight python"><pre><code class="language-python">async def solve_dependencies(
+    *,
+    request: Request,
+    dependant: Dependant,
+    body: Optional[Union[Dict[str, Any], FormData]] = None,
+    dependency_overrides_provider: Optional[Any] = None,
+    dependency_cache: Optional[Dict[Tuple[Callable[..., Any], Tuple[str]], Any]] = None,
+) -&gt; Tuple[Dict[str, Any], List[ErrorWrapper], Optional[Request]]:
+    
+    values: Dict[str, Any] = {}
+    errors: List[ErrorWrapper] = []
+    if dependency_cache is None:
+        dependency_cache = {}   # ★ 每个请求独立的缓存字典
+    
+    # 1. 先递归求解所有子依赖
+    for sub_dependant in dependant.dependencies:
+        # 检查是否被 override
+        use_sub_dependant = sub_dependant
+        if dependency_overrides_provider and dependency_overrides_provider.dependency_overrides:
+            dependency_overrides = dependency_overrides_provider.dependency_overrides
+            if sub_dependant.call in dependency_overrides:
+                call = dependency_overrides[sub_dependant.call]
+                use_sub_dependant = get_dependant(path=sub_dependant.path, call=call)
+        
+        solved_result = await solve_dependencies(
+            request=request,
+            dependant=use_sub_dependant,
+            body=body,
+            dependency_overrides_provider=dependency_overrides_provider,
+            dependency_cache=dependency_cache,   # ★ 缓存向下传递
+        )
+        sub_values, sub_errors, _ = solved_result
+        
+        # 2. 缓存命中则直接跳过执行
+        if (
+            use_sub_dependant.use_cache
+            and use_sub_dependant.cache_key
+            and use_sub_dependant.cache_key in dependency_cache
+        ):
+            solved = dependency_cache[use_sub_dependant.cache_key]
+        else:
+            # 3. 执行依赖函数
+            solved = await call(**sub_values)
+            if sub_dependant.cache_key and use_sub_dependant.use_cache:
+                dependency_cache[sub_dependant.cache_key] = solved
+        
+        values[sub_dependant.name] = solved
+    
+    # 4. 求解当前节点自己的参数（path/query/header等）
+    # ...
+    
+    return values, errors, request</code></pre></figure>
+<p>这段代码有<strong>三个关键点</strong>：</p>
+<p><strong>（1）<code>dependency_cache</code> 是请求级别的</strong></p>
+<p>每次请求进来，<code>solve_dependencies</code> 都会新建一个 <code>dependency_cache = {}</code>。这意味着：<strong>同一个请求内，相同依赖只执行一次；不同请求之间，完全隔离</strong>。这解决了请求间的状态污染问题——但我开头提到的线上事故，恰恰是因为某个依赖函数内部持有的是<strong>模块级或类级的可变状态</strong>，绕过了这个请求级缓存。</p>
+<p><strong>（2）<code>cache_key</code> 的构造</strong></p>
+<p><code>cache_key</code> 在 <code>get_dependant</code> 中通过 <code>get_dependant_cache_key</code> 生成，逻辑大致是：把依赖函数的完整限定名 + 路径参数名列表拼成一个元组。这意味着：</p>
+<ul>
+<li><strong>同一个依赖函数，被两个不同的路由使用，缓存键不同</strong>（因为路径不同）</li>
+</ul>
+<ul>
+<li><strong>路径参数名不同，缓存键也不同</strong></li>
+</ul>
+<p><strong>（3）缓存判断的顺序陷阱</strong></p>
+<p>注意代码里先判断 <code>use_cache</code>，再判断 <code>cache_key in dependency_cache</code>。如果有人把 <code>Depends(get_db, use_cache=False)</code> 写在两个位置，那么这两个位置会<strong>各执行一次</strong> <code>get_db</code>。这在需要"每次都要新连接"的场景下是必要的，但也容易被误用。</p>
+<h3 id="yield-依赖的生命周期"><a href="#yield-依赖的生命周期" class="headerlink" title="<code>yield</code> 依赖的生命周期"></a><code>yield</code> 依赖的生命周期</h3>
+<p>FastAPI的生成器依赖（<code>yield</code>形式）是它的一大特色，用于管理资源（DB会话、文件句柄等）：</p>
+<figure class="highlight python"><pre><code class="language-python">async def get_db():
+    db = SessionLocal()
+    try:
+        yield db          # ← 请求处理函数在这里执行
+    finally:
+        db.close()        # ← 请求处理完后执行清理</code></pre></figure>
+<p>这个<code>yield</code>的时机控制，藏在 <code>fastapi/routing.py</code> 的 <code>run_endpoint_function</code> 和依赖求解的 <code>AsyncExitStack</code> 中：</p>
+<figure class="highlight python"><pre><code class="language-python"># fastapi/routing.py (简化)
+async with AsyncExitStack() as async_exit_stack:
+    solved_result = await solve_dependencies(
+        request=request,
+        dependant=dependant,
+        body=body,
+        dependency_overrides_provider=self.dependency_overrides_provider,
+        async_exit_stack=async_exit_stack,   # ★ 关键
+    )
+    values, errors, background_tasks, sub_response, _ = solved_result
+    
+    # 执行路由处理函数
+    raw_response = await run_endpoint_function(
+        dependant=dependant, values=values, is_coroutine=is_coroutine
+    )
+    
+    # 响应发送完毕后，AsyncExitStack 退出，触发所有 yield 依赖的 finally</code></pre></figure>
+<p><code>AsyncExitStack</code> 是Python标准库 <code>contextlib</code> 里的工具，它像一个<strong>栈式上下文管理器</strong>：所有<code>yield</code>依赖被压入栈，请求处理完成后按<strong>后进先出（LIFO）</strong>顺序退出。</p>
+<p>这带来一个重要结论：<strong><code>yield</code>依赖的清理代码（<code>finally</code>块）在响应返回给客户端之后才执行</strong>。如果你在<code>finally</code>里做了耗时操作（比如写日志到远程服务器），会拖慢响应。这是很多性能问题的隐形来源。</p>
+<p>用餐厅类比：备菜员准备的食材，要等顾客<strong>吃完离店</strong>后才收拾，而不是菜一上桌就收拾。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>理论讲完，上三个可运行的例子，逐层加深。</p>
+<h3 id="示例1-带请求级缓存的依赖链"><a href="#示例1-带请求级缓存的依赖链" class="headerlink" title="示例1：带请求级缓存的依赖链"></a>示例1：带请求级缓存的依赖链</h3>
+<figure class="highlight python"><pre><code class="language-python"># demo1.py
+from fastapi import FastAPI, Depends, Request
+from typing import Annotated
+import time
+
+app = FastAPI()
+
+# 模拟一个&quot;昂贵&quot;的配置加载
+def get_settings():
+    print(f&quot;[get_settings] 执行了！时间戳={time.time():.6f}&quot;)
+    time.sleep(0.1)  # 模拟耗时
+    return {&quot;db_url&quot;: &quot;postgresql://localhost/app&quot;, &quot;debug&quot;: False}
+
+def get_db(settings: Annotated[dict, Depends(get_settings)]):
+    print(f&quot;[get_db] 执行了！settings={settings[&#x27;db_url&#x27;]}&quot;)
+    return {&quot;connection&quot;: &quot;fake_conn&quot;, &quot;settings&quot;: settings}
+
+def get_current_user(
+    db: Annotated[dict, Depends(get_db)],
+    settings: Annotated[dict, Depends(get_settings)],  # ← 与 get_db 依赖同一个 settings
+):
+    print(f&quot;[get_current_user] 执行了！&quot;)
+    return {&quot;user_id&quot;: 42, &quot;role&quot;: &quot;admin&quot;}
+
+@app.get(&quot;/profile&quot;)
+def read_profile(
+    user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[dict, Depends(get_db)],  # ← 又一次依赖 get_db
+):
+    return {&quot;user&quot;: user, &quot;db_conn&quot;: db[&quot;connection&quot;]}
+
+if __name__ == &quot;__main__&quot;:
+    import uvicorn
+    uvicorn.run(app, port=8000)</code></pre></figure>
+<p>启动后访问 <code>http://localhost:8000/profile</code>，控制台输出：</p>
+<figure class="highlight "><pre><code>[get_settings] 执行了！时间戳=...
+[get_db] 执行了！settings=postgresql://localhost/app
+[get_current_user] 执行了！</code></pre></figure>
+<p><strong>注意：<code>get_settings</code> 只执行了一次，<code>get_db</code> 也只执行了一次！</strong> 尽管它们被多个地方依赖。这就是请求级缓存的威力。如果把 <code>Depends(get_settings)</code> 改成 <code>Depends(get_settings, use_cache=False)</code>，你会看到它被执行多次。</p>
+<p>验证一下：在同一请求中，<code>read_profile</code> 里的 <code>db</code> 和 <code>get_current_user</code> 里的 <code>db</code> 是<strong>同一个对象</strong>（内存地址相同）。这个特性在传递DB会话时至关重要。</p>
+<h3 id="示例2-yield依赖的资源管理"><a href="#示例2-yield依赖的资源管理" class="headerlink" title="示例2：<code>yield</code>依赖的资源管理"></a>示例2：<code>yield</code>依赖的资源管理</h3>
+<figure class="highlight python"><pre><code class="language-python"># demo2.py
+from fastapi import FastAPI, Depends, HTTPException
+from typing import Annotated, Generator
+import time
+
+app = FastAPI()
+
+class FakeSession:
+    def __init__(self):
+        self.closed = False
+        print(f&quot;[FakeSession] 创建，id={id(self)}&quot;)
+    def query(self, sql: str):
+        if self.closed:
+            raise RuntimeError(&quot;Session already closed!&quot;)
+        return f&quot;result of: {sql}&quot;
+    def close(self):
+        self.closed = True
+        print(f&quot;[FakeSession] 关闭，id={id(self)}&quot;)
+
+def get_session() -&gt; Generator[FakeSession, None, None]:
+    session = FakeSession()
+    try:
+        yield session            # 请求处理阶段
+    finally:
+        # 无论请求成功还是抛异常，都会执行
+        session.close()
+
+@app.get(&quot;/users/{user_id}&quot;)
+def get_user(user_id: int, session: Annotated[FakeSession, Depends(get_session)]):
+    data = session.query(f&quot;SELECT * FROM users WHERE id={user_id}&quot;)
+    return {&quot;data&quot;: data, &quot;session_id&quot;: id(session)}
+
+@app.get(&quot;/boom&quot;)
+def boom(session: Annotated[FakeSession, Depends(get_session)]):
+    # 故意抛异常，验证 finally 是否执行
+    raise HTTPException(status_code=500, detail=&quot;boom&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    import uvicorn
+    uvicorn.run(app, port=8000)</code></pre></figure>
+<p>访问 <code>/users/1</code>，输出：</p>
+<figure class="highlight "><pre><code>[FakeSession] 创建，id=140234...
+[FakeSession] 关闭，id=140234...</code></pre></figure>
+<p>访问 <code>/boom</code>：</p>
+<figure class="highlight "><pre><code>[FakeSession] 创建，id=140234...
+[FakeSession] 关闭，id=140234...</code></pre></figure>
+<p><strong>即使路由函数抛异常，<code>finally</code> 依然执行</strong>。这是<code>AsyncExitStack</code>的保证。很多开发者担心"异常时DB连接会不会泄漏"，答案是：只要你在<code>yield</code>依赖里用<code>try/finally</code>，就不会。</p>
+<p><strong>但是</strong>：如果 <code>yield</code> 之后的清理代码本身抛异常，会覆盖掉原来的响应。这是个大坑，后面会讲。</p>
+<h3 id="示例3-多租户场景下的上下文隔离-踩坑示范"><a href="#示例3-多租户场景下的上下文隔离-踩坑示范" class="headerlink" title="示例3：多租户场景下的上下文隔离（踩坑示范）"></a>示例3：多租户场景下的上下文隔离（踩坑示范）</h3>
+<p>这个例子复现我开头提到的线上事故，并给出正确解法。</p>
+<figure class="highlight python"><pre><code class="language-python"># demo3.py — 反例：模块级可变状态
+from fastapi import FastAPI, Depends, Header
+from typing import Annotated
+import asyncio
+
+app = FastAPI()
+
+# ❌ 错误示范：模块级可变状态
+_current_tenant = {&quot;id&quot;: None}
+
+def get_tenant(tenant_id: Annotated[str, Header(alias=&quot;X-Tenant-Id&quot;)]):
+    # 高并发下，多个协程会互相覆盖这个全局字典
+    _current_tenant[&quot;id&quot;] = tenant_id
+    return _current_tenant
+
+@app.get(&quot;/bad/data&quot;)
+async def bad_data(tenant: Annotated[dict, Depends(get_tenant)]):
+    await asyncio.sleep(0.05)  # 模拟IO等待，期间其他请求会修改 _current_tenant
+    return {&quot;tenant_seen&quot;: tenant[&quot;id&quot;]}</code></pre></figure>
+<p>测试一下：并发发送两个请求，Header 分别是 <code>X-Tenant-Id: A</code> 和 <code>X-Tenant-Id: B</code>。你会看到响应里的 <code>tenant_seen</code> 可能都是 <code>B</code>——<strong>串号了</strong>。</p>
+<p>正确解法有三种：</p>
+<figure class="highlight python"><pre><code class="language-python"># ✅ 解法1：返回不可变的、请求级的数据副本
+def get_tenant_v1(tenant_id: Annotated[str, Header(alias=&quot;X-Tenant-Id&quot;)]):
+    return {&quot;id&quot;: tenant_id}  # 每次返回新字典，天然隔离
+
+# ✅ 解法2：用 contextvars 保证协程级隔离
+import contextvars
+_tenant_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(&quot;tenant&quot;)
+
+def get_tenant_v2(tenant_id: Annotated[str, Header(alias=&quot;X-Tenant-Id&quot;)]):
+    token = _tenant_ctx.set(tenant_id)
+    # 注意：这里没地方 reset，需要 yield 依赖
+    return tenant_id
+
+# ✅ 解法3（推荐）：yield 依赖 + contextvars，保证清理
+def get_tenant_v3(tenant_id: Annotated[str, Header(alias=&quot;X-Tenant-Id&quot;)]):
+    token = _tenant_ctx.set(tenant_id)
+    try:
+        yield tenant_id
+    finally:
+        _tenant_ctx.reset(token)  # 请求结束，还原上下文
+
+@app.get(&quot;/good/data&quot;)
+async def good_data(tenant: Annotated[str, Depends(get_tenant_v3)]):
+    await asyncio.sleep(0.05)
+    return {&quot;tenant_seen&quot;: _tenant_ctx.get()}</code></pre></figure>
+<p><strong>核心原则：依赖函数要么返回不可变数据，要么用<code>contextvars</code>做协程隔离，要么用<code>yield</code>管理生命周期。永远不要在依赖里写模块级的可变状态。</strong></p>
+<hr>
+<h2 id="方案对比-FastAPI-DI-vs-其他框架"><a href="#方案对比-FastAPI-DI-vs-其他框架" class="headerlink" title="方案对比：FastAPI DI vs 其他框架"></a>方案对比：FastAPI DI vs 其他框架</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>FastAPI</th>
+<th>Spring (Java)</th>
+<th>Django</th>
+<th>Flask</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>DI核心机制</strong></td>
+<td>函数签名内省 + 运行时解析</td>
+<td>注解 + 反射 + 启动时构建容器</td>
+<td>无内置DI（靠中间件/装饰器）</td>
+<td>无内置DI（靠扩展）</td>
+</tr><tr>
+<td><strong>容器构建时机</strong></td>
+<td>应用启动时构建依赖树</td>
+<td>应用启动时构建Bean容器</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr><tr>
+<td><strong>依赖解析时机</strong></td>
+<td>请求时按需执行</td>
+<td>单例启动即创建 / Prototype按需</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr><tr>
+<td><strong>作用域</strong></td>
+<td>请求级（默认）+ 可关闭缓存</td>
+<td>Singleton/Prototype/Request/Session</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr><tr>
+<td><strong>缓存粒度</strong></td>
+<td>请求内 + 每个依赖函数</td>
+<td>全局单例或每次新建</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr><tr>
+<td><strong>异步支持</strong></td>
+<td>原生async/await</td>
+<td>需Reactor/WebFlux</td>
+<td>3.1+支持async视图</td>
+<td>弱</td>
+</tr><tr>
+<td><strong>学习曲线</strong></td>
+<td>低（声明即用）</td>
+<td>高（注解体系庞大）</td>
+<td>中</td>
+<td>低</td>
+</tr><tr>
+<td><strong>循环依赖检测</strong></td>
+<td>无显式检测（会栈溢出）</td>
+<td>启动时报错</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr></tbody></table>
+<p><strong>FastAPI DI的独特之处</strong>：</p>
+<ol>
+<li><strong>轻量到极致</strong>：没有Bean容器，没有XML配置，没有代理对象。依赖就是普通函数。</li>
+<li><strong>请求级缓存是默认行为</strong>：Spring默认单例，容易造成状态污染；FastAPI默认请求级，更安全。</li>
+<li><strong>没有循环依赖检测</strong>：这是FastAPI的一个短板。如果A依赖B、B依赖A，你会在启动时收到<code>RecursionError</code>而不是友好的错误信息。Spring会明确告诉你循环依赖的路径。</li>
+<li><strong>依赖覆盖（dependency_overrides）</strong>：这是FastAPI测试友好性的关键，可以轻松mock掉任何依赖。</li>
+</ol>
+<figure class="highlight python"><pre><code class="language-python"># 测试时覆盖依赖
+app.dependency_overrides[get_db] = lambda: {&quot;connection&quot;: &quot;mock_conn&quot;}</code></pre></figure>
+<p>相比Django的中间件方案，FastAPI的DI更显式、更可组合；相比Spring，它牺牲了一些企业级特性（AOP、事务传播等）换取了开发效率。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑1-yield依赖的清理异常会污染响应"><a href="#坑1-yield依赖的清理异常会污染响应" class="headerlink" title="坑1：<code>yield</code>依赖的清理异常会污染响应"></a>坑1：<code>yield</code>依赖的清理异常会污染响应</h3>
+<figure class="highlight python"><pre><code class="language-python">def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()   # 如果这里抛异常，客户端会收到500，即使路由函数成功了</code></pre></figure>
+<p><strong>解法</strong>：清理逻辑用 <code>try/except</code> 包住，异常只记日志不抛出。</p>
+<figure class="highlight python"><pre><code class="language-python">def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        try:
+            db.close()
+        except Exception:
+            logger.exception(&quot;关闭DB连接失败&quot;)</code></pre></figure>
+<h3 id="坑2-误用-use-cache-False-导致资源爆炸"><a href="#坑2-误用-use-cache-False-导致资源爆炸" class="headerlink" title="坑2：误用 <code>use_cache=False</code> 导致资源爆炸"></a>坑2：误用 <code>use_cache=False</code> 导致资源爆炸</h3>
+<figure class="highlight python"><pre><code class="language-python"># ❌ 每个依赖它的地方都会新建一个连接
+def get_db():
+    ...
+    return SessionLocal()
+
+@app.get(&quot;/a&quot;)
+def a(db1 = Depends(get_db, use_cache=False), db2 = Depends(get_db, use_cache=False)):
+    ...  # db1 和 db2 是两个不同的连接！</code></pre></figure>
+<p><strong>实践</strong>：除非你明确需要"每次调用都是新实例"（比如生成随机数、记录调用次数），否则<strong>永远用默认的<code>use_cache=True</code></strong>。</p>
+<h3 id="坑3-依赖函数签名里的参数被误当成Query参数"><a href="#坑3-依赖函数签名里的参数被误当成Query参数" class="headerlink" title="坑3：依赖函数签名里的参数被误当成Query参数"></a>坑3：依赖函数签名里的参数被误当成Query参数</h3>
+<figure class="highlight python"><pre><code class="language-python">def get_user(user_id: str):   # FastAPI会把 user_id 当成 query 参数！
+    ...</code></pre></figure>
+<p>FastAPI会尝试从请求的query string里解析<code>user_id</code>。如果你的本意是"这是个内部参数"，必须显式声明：</p>
+<figure class="highlight python"><pre><code class="language-python">def get_user(user_id: str = Depends(get_user_id_from_token)):
+    ...</code></pre></figure>
+<h3 id="坑4-循环依赖导致栈溢出"><a href="#坑4-循环依赖导致栈溢出" class="headerlink" title="坑4：循环依赖导致栈溢出"></a>坑4：循环依赖导致栈溢出</h3>
+<figure class="highlight python"><pre><code class="language-python">def a(b = Depends(lambda: None)): ...
+# A依赖B，B依赖A → 启动时 RecursionError</code></pre></figure>
+<p><strong>实践</strong>：依赖关系保持单向。如果确实需要互相引用，提取公共部分到第三个依赖，或者用<code>Request</code>对象直接传递状态。</p>
+<h3 id="坑5-在依赖里做重量级初始化"><a href="#坑5-在依赖里做重量级初始化" class="headerlink" title="坑5：在依赖里做重量级初始化"></a>坑5：在依赖里做重量级初始化</h3>
+<figure class="highlight python"><pre><code class="language-python"># ❌ 每次请求都重新加载ML模型
+def get_model():
+    return load_heavy_model()  # 耗时2秒</code></pre></figure>
+<p><strong>解法</strong>：用应用启动事件加载到<code>app.state</code>，依赖里只取引用：</p>
+<figure class="highlight python"><pre><code class="language-python">@app.on_event(&quot;startup&quot;)
+async def startup():
+    app.state.model = load_heavy_model()
+
+def get_model(request: Request):
+    return request.app.state.model</code></pre></figure>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>依赖函数保持纯粹</strong>：输入输出明确，不持有可变状态</li>
+<li><strong>资源管理用<code>yield</code></strong>：DB会话、文件、锁，都用生成器依赖</li>
+<li><strong>测试用<code>dependency_overrides</code></strong>：不要在业务代码里写if-else判断环境</li>
+<li><strong>依赖分层</strong>：底层（配置/连接）→ 中层（业务服务）→ 顶层（路由）</li>
+<li><strong>善用<code>Annotated</code></strong>：<code>UserId = Annotated[str, Depends(get_user_id)]</code>，让签名更清晰</li>
+<li><strong>警惕<code>contextvars</code></strong>：跨协程的状态必须用它，且配合<code>yield</code>做reset</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>FastAPI的依赖注入系统用"函数签名内省 + 请求级缓存 + AsyncExitStack"三件套，实现了一个轻量但强大的DI框架。回顾本文要点：</p>
+<ul>
+<li><strong><code>Depends</code>只是声明载体</strong>，真正的解析在<code>get_dependant</code>（启动时构建树）和<code>solve_dependencies</code>（请求时执行）中完成</li>
+</ul>
+<ul>
+<li><strong>请求级缓存</strong>是默认行为，同一个请求内相同依赖只执行一次，<code>dependency_cache</code>字典在每次请求时新建</li>
+</ul>
+<ul>
+<li><strong><code>yield</code>依赖的生命周期</strong>由<code>AsyncExitStack</code>管理，清理在响应发送后按LIFO顺序执行</li>
+</ul>
+<ul>
+<li><strong>模块级可变状态是万恶之源</strong>，用<code>contextvars</code>或返回不可变数据做隔离</li>
+</ul>
+<ul>
+<li><strong>FastAPI没有循环依赖检测</strong>，设计依赖树时要保持单向</li>
+</ul>
+<p>延伸思考：FastAPI的DI设计哲学是"约定优于配置、显式优于隐式"，这与Spring的"配置驱动"路线截然不同。在微服务、Serverless等场景下，这种轻量设计更有优势；但在需要复杂事务管理、AOP切面的企业级应用中，你可能需要引入额外的库（如<code>dependency-injector</code>）来补充。</p>
+<p>最后送一句话给正在用FastAPI的同行：<strong>依赖注入不是为了少写代码，而是为了让状态边界清晰可见</strong>。当你理解了每个依赖的生命周期，你就掌握了FastAPI的半壁江山。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

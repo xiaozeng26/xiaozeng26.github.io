@@ -1,5 +1,23 @@
 [
  {
+  "title": "FastAPI依赖注入系统设计剖析",
+  "url": "/2026/09/16/FastAPI%E4%BE%9D%E8%B5%96%E6%B3%A8%E5%85%A5%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1%E5%89%96%E6%9E%90/",
+  "date": "2026-09-16",
+  "year": 2026,
+  "month": 9,
+  "day": 16,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=1339",
+  "excerpt": "引言 去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。 排查了两天，最终定位到问题根源：一个使用了Depends的依赖函数内部持有可变状态，"
+ },
+ {
   "title": "Spring Boot自动配置原理与自定义Starter",
   "url": "/2026/09/15/Spring%20Boot%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE%E5%8E%9F%E7%90%86%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89Starter/",
   "date": "2026-09-15",
