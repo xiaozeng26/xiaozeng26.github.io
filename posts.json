@@ -1,5 +1,23 @@
 [
  {
+  "title": "分布式配置中心架构设计",
+  "url": "/2026/09/17/%E5%88%86%E5%B8%83%E5%BC%8F%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/",
+  "date": "2026-09-17",
+  "year": 2026,
+  "month": 9,
+  "day": 17,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=2600",
+  "excerpt": "引言 凌晨两点，线上告警群炸了。某个核心服务的数据库连接池被打满，排查发现是一位同事把连接池上限从 200 改成了 20——他改的是配置文件，但忘了通知运维重新发布。更糟的是，这个配置分散在 12 个实例上，运维只能一台台登录机器去改，改完还得一台台重启。 这个场景几乎每个做微服务的团队都经历过。配置，这个看起来最不起"
+ },
+ {
   "title": "FastAPI依赖注入系统设计剖析",
   "url": "/2026/09/16/FastAPI%E4%BE%9D%E8%B5%96%E6%B3%A8%E5%85%A5%E7%B3%BB%E7%BB%9F%E8%AE%BE%E8%AE%A1%E5%89%96%E6%9E%90/",
   "date": "2026-09-16",

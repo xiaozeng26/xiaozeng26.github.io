@@ -384,6 +384,13 @@
       "subtopic": "FastAPI依赖注入系统设计剖析",
       "date": "2026-09-16",
       "url": "/2026/09/16/FastAPI依赖注入系统设计剖析/"
+    },
+    {
+      "title": "分布式配置中心架构设计",
+      "category": "architecture",
+      "subtopic": "分布式配置中心架构设计",
+      "date": "2026-09-17",
+      "url": "/2026/09/17/分布式配置中心架构设计/"
     }
   ],
   "used_subtopics": {
@@ -427,7 +434,8 @@
       "微服务拆分策略：从单体到微服务的演进路径",
       "服务网格Service Mesh架构演进",
       "数据库分库分表中间件ShardingSphere源码分析",
-      "API网关设计：限流、熔断、降级、灰度发布"
+      "API网关设计：限流、熔断、降级、灰度发布",
+      "分布式配置中心架构设计"
     ],
     "docker_kubernetes": [
       "K8s RBAC权限控制与安全上下文",
@@ -509,6 +517,7 @@
     "K8s HPA与VPA自动扩缩容策略详解": "dc054c1f0afd43f5af2d4f2754b3abab09c1b06eb6683cd3d5543060ae3d6430",
     "Channel底层实现与select多路复用": "16dc4213e0f778d70a18919187105eee63cad7de7fde932feb00dc15f0eed66d",
     "Spring Boot自动配置原理与自定义Starter": "6f9ec0d8b24a0baf96a47150e262104cb154bb764d59dca735320a2052070486",
-    "FastAPI依赖注入系统设计剖析": "c01a98f3ef2c9617e29f0399db981f7c7af56a25a454c0c431d1261d87463d25"
+    "FastAPI依赖注入系统设计剖析": "c01a98f3ef2c9617e29f0399db981f7c7af56a25a454c0c431d1261d87463d25",
+    "分布式配置中心架构设计": "0bbab732c3f6c2024faa41f36d4397e71f89d3f67e0ae614dd82d5b42eb593ab"
   }
 }
