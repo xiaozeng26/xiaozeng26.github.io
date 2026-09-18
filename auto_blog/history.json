@@ -391,6 +391,13 @@
       "subtopic": "分布式配置中心架构设计",
       "date": "2026-09-17",
       "url": "/2026/09/17/分布式配置中心架构设计/"
+    },
+    {
+      "title": "Prompt Engineering最佳实践与链式推理",
+      "category": "ai-ml",
+      "subtopic": "Prompt Engineering最佳实践与链式推理",
+      "date": "2026-09-18",
+      "url": "/2026/09/18/Prompt Engineering最佳实践与链式推理/"
     }
   ],
   "used_subtopics": {
@@ -424,7 +431,8 @@
       "LangSmith + LangFuse：LLM应用的可观测性全链路追踪",
       "Agent模式：ReAct、Plan-and-Execute、Multi-Agent协作",
       "LangGraph Checkpointing：持久化与Human-in-the-Loop模式",
-      "LangChain核心架构：Chain、Agent、Tool三大组件剖析"
+      "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
+      "Prompt Engineering最佳实践与链式推理"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -518,6 +526,7 @@
     "Channel底层实现与select多路复用": "16dc4213e0f778d70a18919187105eee63cad7de7fde932feb00dc15f0eed66d",
     "Spring Boot自动配置原理与自定义Starter": "6f9ec0d8b24a0baf96a47150e262104cb154bb764d59dca735320a2052070486",
     "FastAPI依赖注入系统设计剖析": "c01a98f3ef2c9617e29f0399db981f7c7af56a25a454c0c431d1261d87463d25",
-    "分布式配置中心架构设计": "0bbab732c3f6c2024faa41f36d4397e71f89d3f67e0ae614dd82d5b42eb593ab"
+    "分布式配置中心架构设计": "0bbab732c3f6c2024faa41f36d4397e71f89d3f67e0ae614dd82d5b42eb593ab",
+    "Prompt Engineering最佳实践与链式推理": "c9690e739dfa00bf97e629758257178636de5d7762b5fde15fa19d788ec7e6c1"
   }
 }

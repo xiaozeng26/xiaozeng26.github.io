@@ -1,5 +1,25 @@
 [
  {
+  "title": "Prompt Engineering最佳实践与链式推理",
+  "url": "/2026/09/18/Prompt%20Engineering%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5%E4%B8%8E%E9%93%BE%E5%BC%8F%E6%8E%A8%E7%90%86/",
+  "date": "2026-09-18",
+  "year": 2026,
+  "month": 9,
+  "day": 18,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=2831",
+  "excerpt": "引言 去年双十一大促前夜，我们的智能客服系统突然集体“降智”：同一个退款问题，上午还能给出准确的三步操作指引，晚上就开始胡编乱造，甚至建议用户“联系火星客服”。排查了半天，模型没换、温度没调、知识库没更新，唯一的变量是——我们在Prompt里加了一句“请尽量简洁地回答用户问题”。 这就是Prompt Engineeri"
+ },
+ {
   "title": "分布式配置中心架构设计",
   "url": "/2026/09/17/%E5%88%86%E5%B8%83%E5%BC%8F%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/",
   "date": "2026-09-17",
