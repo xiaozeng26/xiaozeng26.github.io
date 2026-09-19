@@ -1,5 +1,23 @@
 [
  {
+  "title": "protobuf + gRPC拦截器链实现",
+  "url": "/2026/09/19/protobuf%20%2B%20gRPC%E6%8B%A6%E6%88%AA%E5%99%A8%E9%93%BE%E5%AE%9E%E7%8E%B0/",
+  "date": "2026-09-19",
+  "year": 2026,
+  "month": 9,
+  "day": 19,
+  "category": "golang",
+  "tags": [
+   "go",
+   "golang",
+   "concurrency",
+   "microservices",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3560",
+  "excerpt": "引言 想象一下这样的场景：你负责的微服务系统有 30 多个服务，某天凌晨告警群炸了——某个服务的 P99 延迟从 20ms 飙升到 2s。你打开日志系统，发现每个服务的日志格式都不一样，有的用 logrus，有的用 zap，有的直接 fmt.Println；你想追踪一个请求的完整链路，却发现 trace ID 在跨服务"
+ },
+ {
   "title": "Prompt Engineering最佳实践与链式推理",
   "url": "/2026/09/18/Prompt%20Engineering%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5%E4%B8%8E%E9%93%BE%E5%BC%8F%E6%8E%A8%E7%90%86/",
   "date": "2026-09-18",

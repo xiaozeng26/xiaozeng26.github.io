@@ -398,6 +398,13 @@
       "subtopic": "Prompt Engineering最佳实践与链式推理",
       "date": "2026-09-18",
       "url": "/2026/09/18/Prompt Engineering最佳实践与链式推理/"
+    },
+    {
+      "title": "protobuf + gRPC拦截器链实现",
+      "category": "golang",
+      "subtopic": "protobuf + gRPC拦截器链实现",
+      "date": "2026-09-19",
+      "url": "/2026/09/19/protobuf + gRPC拦截器链实现/"
     }
   ],
   "used_subtopics": {
@@ -468,7 +475,8 @@
       "sync.Mutex源码解读与锁优化",
       "net/http包架构与中间件链实现",
       "Go GC的演进与调优策略",
-      "Channel底层实现与select多路复用"
+      "Channel底层实现与select多路复用",
+      "protobuf + gRPC拦截器链实现"
     ]
   },
   "content_hashes": {
@@ -527,6 +535,7 @@
     "Spring Boot自动配置原理与自定义Starter": "6f9ec0d8b24a0baf96a47150e262104cb154bb764d59dca735320a2052070486",
     "FastAPI依赖注入系统设计剖析": "c01a98f3ef2c9617e29f0399db981f7c7af56a25a454c0c431d1261d87463d25",
     "分布式配置中心架构设计": "0bbab732c3f6c2024faa41f36d4397e71f89d3f67e0ae614dd82d5b42eb593ab",
-    "Prompt Engineering最佳实践与链式推理": "c9690e739dfa00bf97e629758257178636de5d7762b5fde15fa19d788ec7e6c1"
+    "Prompt Engineering最佳实践与链式推理": "c9690e739dfa00bf97e629758257178636de5d7762b5fde15fa19d788ec7e6c1",
+    "protobuf + gRPC拦截器链实现": "937fcdaefc2025e4dbbbaf8823091936fa61622af60ca98c53e361484559a147"
   }
 }
