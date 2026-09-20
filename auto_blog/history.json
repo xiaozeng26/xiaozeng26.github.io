@@ -405,6 +405,13 @@
       "subtopic": "protobuf + gRPC拦截器链实现",
       "date": "2026-09-19",
       "url": "/2026/09/19/protobuf + gRPC拦截器链实现/"
+    },
+    {
+      "title": "Sentinel流控降级源码分析",
+      "category": "java",
+      "subtopic": "Sentinel流控降级源码分析",
+      "date": "2026-09-20",
+      "url": "/2026/09/20/Sentinel流控降级源码分析/"
     }
   ],
   "used_subtopics": {
@@ -418,7 +425,8 @@
       "Redis分布式锁的演进：从setnx到Redisson",
       "Spring事务传播行为与失效场景分析",
       "Seata分布式事务AT模式源码分析",
-      "Spring Boot自动配置原理与自定义Starter"
+      "Spring Boot自动配置原理与自定义Starter",
+      "Sentinel流控降级源码分析"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -536,6 +544,7 @@
     "FastAPI依赖注入系统设计剖析": "c01a98f3ef2c9617e29f0399db981f7c7af56a25a454c0c431d1261d87463d25",
     "分布式配置中心架构设计": "0bbab732c3f6c2024faa41f36d4397e71f89d3f67e0ae614dd82d5b42eb593ab",
     "Prompt Engineering最佳实践与链式推理": "c9690e739dfa00bf97e629758257178636de5d7762b5fde15fa19d788ec7e6c1",
-    "protobuf + gRPC拦截器链实现": "937fcdaefc2025e4dbbbaf8823091936fa61622af60ca98c53e361484559a147"
+    "protobuf + gRPC拦截器链实现": "937fcdaefc2025e4dbbbaf8823091936fa61622af60ca98c53e361484559a147",
+    "Sentinel流控降级源码分析": "758e6a654364b97bfef58e406350b9c7e8a211c45d1a23e4c75c89a36830cde4"
   }
 }

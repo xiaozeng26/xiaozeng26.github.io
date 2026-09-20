@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sentinel流控降级源码分析 | 小曾博客</title>
+  <meta name="description" content="Sentinel流控降级源码分析 引言 去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。 这就是流量治理要解决的核心问题：当系统的一部分开始不可用时，如何阻止">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Sentinel流控降级源码分析">
+  <meta name="twitter:description" content="Sentinel流控降级源码分析 引言 去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。 这就是流量治理要解决的核心问题：当系统的一部分开始不可用时，如何阻止">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=3236">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Sentinel流控降级源码分析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Sentinel流控降级源码分析 引言 去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。 这就是流量治理要解决的核心问题：当系统的一部分开始不可用时，如何阻止">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=3236">
+  <meta property="article:published_time" content="2026-09-20T23:05:16.000Z">
+  <meta property="article:modified_time" content="2026-09-20T23:05:16.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Sentinel流控降级源码分析"><span class="toc-text">Sentinel流控降级源码分析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把Sentinel想象成一家餐厅的-大堂经理"><span class="toc-text">核心概念：把Sentinel想象成一家餐厅的"大堂经理"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-入口-SphU-entry-做了什么"><span class="toc-text">1. 入口：SphU.entry 做了什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-默认责任链的构建顺序"><span class="toc-text">2. 默认责任链的构建顺序</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-StatisticSlot-滑动窗口统计的精髓"><span class="toc-text">3. StatisticSlot：滑动窗口统计的精髓</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-FlowSlot-限流的判定逻辑"><span class="toc-text">4. FlowSlot：限流的判定逻辑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-DegradeSlot-熔断器的状态机"><span class="toc-text">5. DegradeSlot：熔断器的状态机</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-手写一个基于SphU的限流-不依赖Spring"><span class="toc-text">示例1：手写一个基于SphU的限流（不依赖Spring）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-自定义-BlockExceptionHandler-熔断降级"><span class="toc-text">示例2：自定义 BlockExceptionHandler + 熔断降级</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-Spring-Cloud-Alibaba-集成-自定义-BlockHandler"><span class="toc-text">示例3：Spring Cloud Alibaba 集成 + 自定义 BlockHandler</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Sentinel-vs-Hystrix-vs-Resilience4j"><span class="toc-text">方案对比：Sentinel vs Hystrix vs Resilience4j</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=3236)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Sentinel流控降级源码分析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-20"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-20</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-20"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-20</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Sentinel流控降级源码分析"><a href="#Sentinel流控降级源码分析" class="headerlink" title="Sentinel流控降级源码分析"></a>Sentinel流控降级源码分析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。</p>
+<p>这就是流量治理要解决的核心问题：<strong>当系统的一部分开始不可用时，如何阻止故障向上游蔓延</strong>。Sentinel作为阿里开源的流量治理组件，正是为此而生。很多同学会用Sentinel的<code>@SentinelResource</code>注解和Dashboard配置规则，但一旦遇到"规则为什么没生效"、"SlotChain执行顺序到底是什么"这类问题就抓瞎。本文将从源码层面把Sentinel的核心机制彻底讲透。</p>
+<h2 id="核心概念-把Sentinel想象成一家餐厅的-大堂经理"><a href="#核心概念-把Sentinel想象成一家餐厅的-大堂经理" class="headerlink" title="核心概念：把Sentinel想象成一家餐厅的"大堂经理""></a>核心概念：把Sentinel想象成一家餐厅的"大堂经理"</h2>
+<p>先打个比方。想象你经营一家网红餐厅：</p>
+<ul>
+<li><strong>流量控制（Flow Control）</strong>：大堂经理站在门口，当店内座位（线程/资源）快满时，礼貌地让新来的客人排队或直接劝返（快速失败）。这就是QPS限流。</li>
+</ul>
+<ul>
+<li><strong>熔断降级（Circuit Breaking）</strong>：如果后厨（下游服务）连续做出几道糊掉的菜（异常/慢调用），经理会暂时挂出"后厨维修中"的牌子，让客人直接去隔壁（降级逻辑），避免客人越积越多。</li>
+</ul>
+<ul>
+<li><strong>系统自适应保护（System Adaptive）</strong>：当整个餐厅的CPU、负载、入口QPS达到阈值时，经理主动限流保命。</li>
+</ul>
+<ul>
+<li><strong>热点参数限流（Hot Spot）</strong>：某个爆款菜（热点参数）被疯狂下单，只针对这个菜限流，其他菜照常供应。</li>
+</ul>
+<p>技术定义上，Sentinel以<strong>资源（Resource）</strong>为最小治理单元，通过一条<strong>责任链（Slot Chain）</strong>对每次资源调用进行统计、检查、控制。核心抽象就两个：</p>
+<ol>
+<li><strong>Resource</strong>：被保护的代码块或接口，通过<code>SphU.entry("resourceName")</code>进入。</li>
+<li><strong>Slot Chain</strong>：处理链，每个Slot负责一类职责（统计、限流、熔断、日志等）。</li>
+</ol>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-入口-SphU-entry-做了什么"><a href="#1-入口-SphU-entry-做了什么" class="headerlink" title="1. 入口：SphU.entry 做了什么"></a>1. 入口：SphU.entry 做了什么</h3>
+<p>所有流控的起点都是<code>SphU.entry()</code>。我们看核心调用链：</p>
+<figure class="highlight java"><pre><code class="language-java">// SphU.java
+public static Entry entry(String name) throws BlockException {
+    return Env.sph.entry(name, EntryType.OUT, 1, OBJECTS0);
+}
+
+// CtSph.java
+public Entry entry(String name, EntryType type, int count, Object... args) throws BlockException {
+    StringResourceWrapper resource = new StringResourceWrapper(name, type);
+    return entry(resource, count, args);
+}
+
+public Entry entry(ResourceWrapper resourceWrapper, int count, Object... args) throws BlockException {
+    // 1. 根据资源获取或构建 ProcessorSlotChain
+    ProcessorSlot&lt;Object&gt; chain = lookProcessChain(resourceWrapper);
+    // 2. 构建 Entry
+    Entry e = new CtEntry(resourceWrapper, chain, context);
+    try {
+        // 3. 触发责任链的 entry 方法（核心！）
+        chain.entry(context, resourceWrapper, null, count, args);
+    } catch (BlockException e1) {
+        // 被拦截，退出并抛出
+        e.exit(count, args);
+        throw e1;
+    }
+    return e;
+}</code></pre></figure>
+<p>关键在<code>lookProcessChain</code>。它用<code>ConcurrentHashMap</code>缓存每个资源对应的SlotChain，保证<strong>同一资源全局只有一条链</strong>：</p>
+<figure class="highlight java"><pre><code class="language-java">ProcessorSlot&lt;Object&gt; lookProcessChain(ResourceWrapper resourceWrapper) {
+    ProcessorSlotChain chain = chainMap.get(resourceWrapper);
+    if (chain == null) {
+        synchronized (LOCK) {
+            chain = chainMap.get(resourceWrapper);
+            if (chain == null) {
+                // SPI 加载 SlotChainBuilder，默认 DefaultSlotChainBuilder
+                chain = SlotChainProvider.newSlotChain();
+                Map&lt;ResourceWrapper, ProcessorSlotChain&gt; newMap = 
+                    new HashMap&lt;&gt;(chainMap);
+                newMap.put(resourceWrapper, chain);
+                chainMap = newMap;
+            }
+        }
+    }
+    return chain;
+}</code></pre></figure>
+<h3 id="2-默认责任链的构建顺序"><a href="#2-默认责任链的构建顺序" class="headerlink" title="2. 默认责任链的构建顺序"></a>2. 默认责任链的构建顺序</h3>
+<p><code>DefaultSlotChainBuilder</code>按固定顺序组装Slot，这个顺序极其重要：</p>
+<figure class="highlight java"><pre><code class="language-java">public class DefaultSlotChainBuilder implements SlotChainBuilder {
+    @Override
+    public ProcessorSlotChain build() {
+        ProcessorSlotChain chain = new DefaultProcessorSlotChain();
+        // 1. NodeSelectorSlot：构建调用树，为每个资源创建 DefaultNode
+        chain.addLast(new NodeSelectorSlot());
+        // 2. ClusterBuilderSlot：构建 ClusterNode，聚合所有来源的统计
+        chain.addLast(new ClusterBuilderSlot());
+        // 3. LogSlot：记录被 block 的日志
+        chain.addLast(new LogSlot());
+        // 4. StatisticSlot：统计 RT、QPS、线程数（核心统计）
+        chain.addLast(new StatisticSlot());
+        // 5. AuthoritySlot：黑白名单
+        chain.addLast(new AuthoritySlot());
+        // 6. SystemSlot：系统自适应保护
+        chain.addLast(new SystemSlot());
+        // 7. FlowSlot：流控规则检查
+        chain.addLast(new FlowSlot());
+        // 8. DegradeSlot：熔断降级规则检查
+        chain.addLast(new DegradeSlot());
+        return chain;
+    }
+}</code></pre></figure>
+<p>用一张图展示完整链路：</p>
+<div class="mermaid">
+graph TD
+    A[SphU.entry] --> B[lookProcessChain 缓存]
+    B --> C[NodeSelectorSlot<br/>构建调用树]
+    C --> D[ClusterBuilderSlot<br/>聚合ClusterNode]
+    D --> E[LogSlot<br/>记录block日志]
+    E --> F[StatisticSlot<br/>核心统计]
+    F --> G[AuthoritySlot<br/>黑白名单]
+    G --> H[SystemSlot<br/>系统保护]
+    H --> I[FlowSlot<br/>流控检查]
+    I --> J[DegradeSlot<br/>熔断检查]
+    J --> K{是否通过}
+    K -->|通过| L[执行业务逻辑]
+    K -->|拒绝| M[抛BlockException]
+    L --> N[entry.exit 更新统计]
+</div>
+<p><strong>注意</strong>：<code>StatisticSlot</code>在<code>FlowSlot</code>之前，意味着<strong>每次请求都是先统计后判断</strong>。这是Sentinel的一个设计取舍——统计的是"已经进入"的请求，所以QPS限流是"近似"的，存在短暂的统计误差窗口。</p>
+<h3 id="3-StatisticSlot-滑动窗口统计的精髓"><a href="#3-StatisticSlot-滑动窗口统计的精髓" class="headerlink" title="3. StatisticSlot：滑动窗口统计的精髓"></a>3. StatisticSlot：滑动窗口统计的精髓</h3>
+<p><code>StatisticSlot</code>是理解Sentinel的钥匙。它使用<strong>滑动时间窗口</strong>统计QPS和RT，而不是简单的计数器。看核心代码：</p>
+<figure class="highlight java"><pre><code class="language-java">@Override
+public void entry(Context context, ResourceWrapper resourceWrapper, Object obj,
+                  int count, boolean prioritized, Object... args) throws Throwable {
+    try {
+        // 先放行，让后续Slot继续执行
+        fireEntry(context, resourceWrapper, obj, count, prioritized, args);
+        // 走到这里说明没有被 block，统计通过数
+        DefaultNode node = (DefaultNode) context.getCurNode();
+        // 增加线程数
+        node.increaseThreadNum();
+        // 更新统计：passQps、rt、successQps
+        node.addPassRequest(count);
+        
+        if (context.getCurEntry().getBlockError() == null) {
+            // 没有block，记录成功
+            node.increaseExceptionQps(count); // 视情况
+        }
+    } catch (PriorityWaitException ex) {
+        // 优先级等待，也算通过
+        node.increaseThreadNum();
+        node.addPassRequest(count);
+        throw ex;
+    } catch (BlockException e) {
+        // 被 block，记录 block 数
+        context.getCurEntry().setBlockError(e);
+        node.increaseBlockQps(count);
+        throw e;
+    } catch (Throwable e) {
+        // 业务异常
+        node.increaseExceptionQps(count);
+        throw e;
+    }
+}</code></pre></figure>
+<p>真正干活的统计器是<code>ArrayMetric</code>，底层是<code>LeapArray</code>（跳跃数组）：</p>
+<figure class="highlight java"><pre><code class="language-java">public class ArrayMetric implements Metric {
+    private final LeapArray&lt;MetricBucket&gt; data;
+
+    public ArrayMetric(int sampleCount, int intervalInMs) {
+        // sampleCount=2, intervalInMs=1000 表示1秒分2个窗口，每个500ms
+        this.data = new BucketLeapArray(sampleCount, intervalInMs);
+    }
+
+    @Override
+    public long pass() {
+        // 获取当前时间窗口，累加pass计数
+        data.currentWindow().value().add(MetricEvent.PASS, 1);
+        return 0;
+    }
+}</code></pre></figure>
+<p><code>LeapArray</code>是Sentinel性能的关键。它用<strong>环形数组 + 时间戳校验</strong>实现无锁滑动窗口：</p>
+<figure class="highlight java"><pre><code class="language-java">public abstract class LeapArray&lt;T&gt; {
+    protected int windowLengthInMs;   // 每个窗口长度，如500ms
+    protected int sampleCount;        // 窗口数量，如2
+    protected int intervalInMs;       // 总时间跨度，如1000ms
+    protected final AtomicReferenceArray&lt;WindowWrap&lt;T&gt;&gt; array;
+
+    public WindowWrap&lt;T&gt; currentWindow(long timeMillis) {
+        if (timeMillis &lt; 0) return null;
+        // 计算时间点落在数组哪个位置
+        int idx = calculateTimeIdx(timeMillis);
+        // 计算该窗口的起始时间
+        long windowStart = calculateWindowStart(timeMillis);
+
+        while (true) {
+            WindowWrap&lt;T&gt; old = array.get(idx);
+            if (old == null) {
+                // 窗口不存在，CAS创建
+                WindowWrap&lt;T&gt; window = new WindowWrap&lt;&gt;(windowLengthInMs, windowStart, newEmptyBucket());
+                if (array.compareAndSet(idx, null, window)) {
+                    return window;
+                } else {
+                    Thread.yield();
+                }
+            } else if (windowStart == old.windowStart()) {
+                // 命中当前窗口
+                return old;
+            } else if (windowStart &gt; old.windowStart()) {
+                // 窗口过期，需要重置（复用旧对象，避免GC）
+                if (updateLock.tryLock()) {
+                    try {
+                        return resetWindowTo(old, windowStart);
+                    } finally {
+                        updateLock.unlock();
+                    }
+                } else {
+                    Thread.yield();
+                }
+            } else if (windowStart &lt; old.windowStart()) {
+                // 时间回拨，返回新窗口兜底
+                return new WindowWrap&lt;&gt;(windowLengthInMs, windowStart, newEmptyBucket());
+            }
+        }
+    }
+
+    private int calculateTimeIdx(long timeMillis) {
+        long timeId = timeMillis / windowLengthInMs;
+        // 取模，映射到数组索引
+        return (int)(timeId % array.length());
+    }
+}</code></pre></figure>
+<p><strong>为什么要用滑动窗口而不是固定窗口？</strong> 固定窗口（如每整秒清零）存在"临界问题"：在0.9s和1.1s各来100个请求，虽然限流100 QPS，但瞬时可能承受200个。滑动窗口把1秒切成2个500ms窗口，任意时刻统计的是"过去1秒"，有效缓解临界突刺。</p>
+<h3 id="4-FlowSlot-限流的判定逻辑"><a href="#4-FlowSlot-限流的判定逻辑" class="headerlink" title="4. FlowSlot：限流的判定逻辑"></a>4. FlowSlot：限流的判定逻辑</h3>
+<p><code>FlowSlot</code>根据规则选择不同的<code>TrafficShapingController</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">@Override
+public void entry(...) throws Throwable {
+    // 根据资源名获取所有流控规则
+    Collection&lt;FlowRule&gt; rules = ruleProvider.apply(resource.getName());
+    if (rules != null) {
+        for (FlowRule rule : rules) {
+            // 逐个检查，任一不通过就抛 FlowException
+            if (!canPassCheck(rule, context, node, count)) {
+                if (rule.isClusterMode()) {
+                    // 集群模式特殊处理
+                    if (!passClusterCheck(rule, context, node, count)) {
+                        throw new FlowException(rule.getLimitApp(), rule);
+                    }
+                } else {
+                    throw new FlowException(rule.getLimitApp(), rule);
+                }
+            }
+        }
+    }
+    fireEntry(context, resourceWrapper, node, count, prioritized, args);
+}
+
+private boolean canPassCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount) {
+    // 根据 grade 选择控制器
+    TrafficShapingController controller = rule.getRater();
+    return controller.canPass(node, acquireCount, prioritized);
+}</code></pre></figure>
+<p>限流控制器的四种策略：</p>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>实现类</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>快速失败</td>
+<td>DefaultController</td>
+<td>超过阈值直接抛异常</td>
+</tr><tr>
+<td>预热</td>
+<td>WarmUpController</td>
+<td>冷启动时阈值从低到高，防止冷系统被打挂</td>
+</tr><tr>
+<td>匀速排队</td>
+<td>RateLimiterController</td>
+<td>请求按固定间隔排队，类似漏桶</td>
+</tr><tr>
+<td>预热+排队</td>
+<td>WarmUpRateLimiterController</td>
+<td>组合策略</td>
+</tr></tbody></table>
+<p>看匀速排队的实现，它本质上是一个<strong>漏桶算法</strong>：</p>
+<figure class="highlight java"><pre><code class="language-java">public class RateLimiterController implements TrafficShapingController {
+    private final int maxQueueingTimeMs; // 最大排队时间
+    private final double count;          // 阈值 QPS
+    private final AtomicLong latestPassedTime = new AtomicLong(-1);
+
+    @Override
+    public boolean canPass(Node node, int acquireCount, boolean prioritized) {
+        if (acquireCount &lt;= 0) return true;
+        if (count &lt;= 0) return false;
+
+        long currentTime = TimeUtil.currentTimeMillis();
+        // 每个请求应该间隔的时间
+        long costTime = Math.round(1.0 * (acquireCount) / count * 1000);
+        // 预计可放行时间
+        long expectedTime = costTime + latestPassedTime.get();
+
+        if (expectedTime &lt;= currentTime) {
+            // 无需排队，直接放行
+            latestPassedTime.set(currentTime);
+            return true;
+        } else {
+            // 需要排队，计算等待时间
+            long waitTime = costTime + latestPassedTime.get() - currentTime;
+            if (waitTime &gt; maxQueueingTimeMs) {
+                // 超过最大排队时间，拒绝
+                return false;
+            } else {
+                // 尝试更新 latestPassedTime，模拟排队
+                long oldTime = latestPassedTime.addAndGet(costTime);
+                try {
+                    waitTime = oldTime - currentTime;
+                    if (waitTime &gt; maxQueueingTimeMs) {
+                        latestPassedTime.addAndGet(-costTime);
+                        return false;
+                    }
+                    if (waitTime &gt; 0) {
+                        Thread.sleep(waitTime);
+                    }
+                    return true;
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+        }
+    }
+}</code></pre></figure>
+<h3 id="5-DegradeSlot-熔断器的状态机"><a href="#5-DegradeSlot-熔断器的状态机" class="headerlink" title="5. DegradeSlot：熔断器的状态机"></a>5. DegradeSlot：熔断器的状态机</h3>
+<p>Sentinel的熔断器基于<strong>状态机</strong>，有三个状态：CLOSED（关闭，正常放行）、OPEN（打开，拒绝请求）、HALF_OPEN（半开，探测恢复）。</p>
+<figure class="highlight java"><pre><code class="language-java">public class DegradeSlot extends AbstractLinkedProcessorSlot&lt;DefaultNode&gt; {
+    @Override
+    public void entry(...) throws Throwable {
+        performChecking(context, resourceWrapper);
+        fireEntry(context, resourceWrapper, node, count, prioritized, args);
+    }
+
+    void performChecking(Context context, ResourceWrapper r) throws BlockException {
+        for (CircuitBreaker cb : circuitBreakers) {
+            if (!cb.tryPass(context)) {
+                throw new DegradeException(cb.getRule().getLimitApp(), cb.getRule());
+            }
+        }
+    }
+}</code></pre></figure>
+<p>核心在<code>ResponseTimeCircuitBreaker</code>（慢调用比例）和<code>ExceptionCircuitBreaker</code>（异常比例/异常数）。以慢调用比例为例：</p>
+<figure class="highlight java"><pre><code class="language-java">public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
+    // 统计窗口，默认1秒（滑动窗口）
+    private final LeapArray&lt;SlowRequestCounter&gt; slidingCounter;
+    private final double maxSlowRequestRatio; // 慢调用比例阈值
+    private final long maxRt;                 // 慢调用RT阈值(ms)
+    private final int minRequestAmount;       // 最小请求数
+
+    @Override
+    public boolean tryPass(Context context) {
+        // CLOSED 状态直接放行
+        if (currentState.get() == State.CLOSED) {
+            return true;
+        }
+        // OPEN 状态需要判断是否到时间进入 HALF_OPEN
+        if (currentState.get() == State.OPEN) {
+            if (retryTimeoutArrived()) {
+                // 尝试 CAS 切换到 HALF_OPEN
+                if (fromOpenToHalfOpen(context)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        // HALF_OPEN 状态放行探测请求
+        return true;
+    }
+
+    @Override
+    protected void handleStateChangeWhenThresholdExceeded(Throwable e) {
+        // 由 StatisticSlot 在 exit 时调用，统计一次调用结果
+        SlowRequestCounter counter = slidingCounter.currentWindow().value();
+        long completeStatTime = TimeUtil.currentTimeMillis();
+        // 累加总请求数
+        counter.totalCount.add(1L);
+        // 判断本次调用是否&quot;慢&quot;
+        if (e == null) {
+            long rt = completeStatTime - context.getCurEntry().createTime();
+            if (rt &gt; maxRt) {
+                counter.slowCount.add(1L);
+            } else {
+                // 这里还处理了 RT 的 P99 等情况
+            }
+        } else if (e instanceof BlockException) {
+            return;
+        } else {
+            // 异常也算慢调用
+            counter.slowCount.add(1L);
+        }
+        // 判断是否达到熔断条件
+        doCheck();
+    }
+
+    private void doCheck() {
+        long totalCount = 0, slowCount = 0;
+        for (WindowWrap&lt;SlowRequestCounter&gt; w : slidingCounter.list()) {
+            SlowRequestCounter c = w.value();
+            totalCount += c.totalCount.sum();
+            slowCount += c.slowCount.sum();
+        }
+        // 请求数不够，不熔断
+        if (totalCount &lt; minRequestAmount) {
+            return;
+        }
+        // 慢调用比例超过阈值，触发熔断
+        if (1.0 * slowCount / totalCount &gt; maxSlowRequestRatio) {
+            // 切换到 OPEN
+            if (currentState.compareAndSet(State.CLOSED, State.OPEN)) {
+                // 记录熔断时间，用于后续 HALF_OPEN 判断
+                resetStat();
+                // 发布事件
+                CircuitBreakerStateChangeObserver...
+            }
+        }
+    }
+}</code></pre></figure>
+<p>熔断器状态流转可以用图表示：</p>
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> CLOSED
+    CLOSED --> OPEN: 慢调用比例/异常比例<br/>超过阈值
+    OPEN --> HALF_OPEN: 熔断时长到期<br/>探测请求到达
+    HALF_OPEN --> CLOSED: 探测请求成功
+    HALF_OPEN --> OPEN: 探测请求失败
+</div>
+<p><strong>一个容易踩的坑</strong>：Sentinel的熔断是<strong>基于统计窗口的</strong>，窗口默认1秒。如果你的<code>minRequestAmount</code>设成10，而实际QPS只有2，那永远凑不够最小请求数，熔断器永远不会触发。这就是"规则配了但没生效"的常见原因。</p>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例1-手写一个基于SphU的限流-不依赖Spring"><a href="#示例1-手写一个基于SphU的限流-不依赖Spring" class="headerlink" title="示例1：手写一个基于SphU的限流（不依赖Spring）"></a>示例1：手写一个基于SphU的限流（不依赖Spring）</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * 演示：手工定义流控规则 + SphU.entry 手动埋点
+ * 依赖：com.alibaba.csp:sentinel-core:1.8.6
+ */
+public class ManualFlowDemo {
+
+    private static final String RESOURCE = &quot;queryOrder&quot;;
+    private static final AtomicInteger passCount = new AtomicInteger();
+    private static final AtomicInteger blockCount = new AtomicInteger();
+
+    public static void main(String[] args) throws InterruptedException {
+        initFlowRules();
+
+        // 模拟 20 个并发线程，每个请求 10 次
+        int threads = 20;
+        int perThread = 10;
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        CountDownLatch latch = new CountDownLatch(threads);
+
+        for (int i = 0; i &lt; threads; i++) {
+            pool.submit(() -&gt; {
+                for (int j = 0; j &lt; perThread; j++) {
+                    queryOrder();
+                }
+                latch.countDown();
+            });
+        }
+        latch.await();
+        pool.shutdown();
+
+        System.out.println(&quot;通过: &quot; + passCount.get() + &quot;, 被限流: &quot; + blockCount.get());
+        // 预期：QPS 阈值 10，1 秒内通过数约 10，其余被限流
+    }
+
+    /** 定义流控规则：QPS 阈值=10，快速失败 */
+    private static void initFlowRules() {
+        List&lt;FlowRule&gt; rules = new ArrayList&lt;&gt;();
+        FlowRule rule = new FlowRule();
+        rule.setResource(RESOURCE);
+        rule.setGrade(RuleConstant.FLOW_GRADE_QPS); // QPS 模式
+        rule.setCount(10);                          // 阈值 10
+        rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_DEFAULT); // 快速失败
+        rules.add(rule);
+        FlowRuleManager.loadRules(rules);           // 加载规则（可动态刷新）
+    }
+
+    private static void queryOrder() {
+        Entry entry = null;
+        try {
+            // 进入资源，被限流会抛 BlockException
+            entry = SphU.entry(RESOURCE);
+            // 业务逻辑
+            passCount.incrementAndGet();
+        } catch (BlockException e) {
+            // 被限流，执行降级逻辑
+            blockCount.incrementAndGet();
+            // 真实场景：返回缓存、默认值、友好提示
+        } finally {
+            if (entry != null) {
+                // 必须 exit，否则统计不准、线程数不释放
+                entry.exit();
+            }
+        }
+    }
+}</code></pre></figure>
+<h3 id="示例2-自定义-BlockExceptionHandler-熔断降级"><a href="#示例2-自定义-BlockExceptionHandler-熔断降级" class="headerlink" title="示例2：自定义 BlockExceptionHandler + 熔断降级"></a>示例2：自定义 BlockExceptionHandler + 熔断降级</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.Tracer;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
+import com.alibaba.csp.sentinel.slots.block.degrade.circuitbreaker.CircuitBreakerStrategy;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * 演示：慢调用比例熔断 + 业务异常统计 + 降级兜底
+ */
+public class DegradeDemo {
+
+    private static final String RESOURCE = &quot;callInventory&quot;;
+
+    public static void main(String[] args) throws Exception {
+        initDegradeRules();
+
+        // 持续调用 30 秒，观察熔断触发
+        long end = System.currentTimeMillis() + 30_000;
+        int total = 0, degraded = 0;
+        while (System.currentTimeMillis() &lt; end) {
+            String result = callInventory();
+            total++;
+            if (&quot;DEGRADED&quot;.equals(result)) degraded++;
+            Thread.sleep(50); // 约 20 QPS
+        }
+        System.out.println(&quot;总调用: &quot; + total + &quot;, 降级次数: &quot; + degraded);
+    }
+
+    /** 慢调用比例熔断：RT&gt;200ms 算慢，比例&gt;50% 且请求数&gt;=5 触发，熔断 5 秒 */
+    private static void initDegradeRules() {
+        List&lt;DegradeRule&gt; rules = new ArrayList&lt;&gt;();
+        DegradeRule rule = new DegradeRule(RESOURCE)
+                .setGrade(CircuitBreakerStrategy.SLOW_REQUEST_RATIO.getType())
+                .setCount(0.5)          // 慢调用比例阈值 0.5
+                .setSlowRatioThreshold(0.5) // 慢调用比例阈值（部分版本用此字段）
+                .setTimeWindow(5)       // 熔断时长 5 秒
+                .setMinRequestAmount(5) // 最小请求数
+                .setStatIntervalMs(1000);// 统计窗口 1 秒
+        // 注意：慢调用RT阈值通过 count 或 maxRt 设置，视版本而定
+        rule.setCount(200);         // 慢调用 RT 阈值 200ms
+        rules.add(rule);
+        DegradeRuleManager.loadRules(rules);
+    }
+
+    private static String callInventory() {
+        Entry entry = null;
+        try {
+            entry = SphU.entry(RESOURCE);
+            // 模拟下游库存服务：30% 概率慢调用（300ms），10% 概率抛异常
+            int r = ThreadLocalRandom.current().nextInt(100);
+            if (r &lt; 30) {
+                Thread.sleep(300); // 慢调用
+            } else if (r &lt; 40) {
+                throw new RuntimeException(&quot;inventory service error&quot;);
+            }
+            return &quot;OK&quot;;
+        } catch (BlockException e) {
+            // 熔断/限流触发，走降级
+            return &quot;DEGRADED&quot;;
+        } catch (Throwable t) {
+            // 业务异常必须用 Tracer 记录，否则熔断器统计不到异常
+            Tracer.traceEntry(t, entry);
+            return &quot;ERROR&quot;;
+        } finally {
+            if (entry != null) {
+                entry.exit();
+            }
+        }
+    }
+}</code></pre></figure>
+<h3 id="示例3-Spring-Cloud-Alibaba-集成-自定义-BlockHandler"><a href="#示例3-Spring-Cloud-Alibaba-集成-自定义-BlockHandler" class="headerlink" title="示例3：Spring Cloud Alibaba 集成 + 自定义 BlockHandler"></a>示例3：Spring Cloud Alibaba 集成 + 自定义 BlockHandler</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 演示：@SentinelResource 注解 + blockHandler + fallback
+ * 依赖：spring-cloud-starter-alibaba-sentinel
+ *
+ * 注意：blockHandler 只处理 BlockException（限流/熔断），
+ *       fallback 处理方法签名要匹配原方法（可多一个 Throwable 参数）
+ */
+@SpringBootApplication
+@RestController
+public class SentinelSpringDemo {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SentinelSpringDemo.class, args);
+    }
+
+    /**
+     * blockHandler：被限流/熔断时调用
+     * fallback：业务异常时调用
+     * exceptionsToIgnore：指定不进入 fallback 的异常
+     */
+    @SentinelResource(
+            value = &quot;getUserInfo&quot;,
+            blockHandler = &quot;handleBlock&quot;,
+            fallback = &quot;handleFallback&quot;,
+            exceptionsToIgnore = {IllegalArgumentException.class}
+    )
+    @GetMapping(&quot;/user&quot;)
+    public String getUserInfo(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException(&quot;userId 不能为空&quot;); // 不触发 fallback
+        }
+        if (userId &lt; 0) {
+            throw new RuntimeException(&quot;非法 userId&quot;); // 触发 fallback
+        }
+        return &quot;user-&quot; + userId;
+    }
+
+    /** blockHandler：方法签名 = 原方法 + BlockException，且必须同类型返回 */
+    public String handleBlock(Long userId, BlockException ex) {
+        return &quot;被限流啦，请稍后重试。原因: &quot; + ex.getClass().getSimpleName();
+    }
+
+    /** fallback：方法签名 = 原方法 + Throwable */
+    public String handleFallback(Long userId, Throwable t) {
+        return &quot;服务降级，返回默认值。异常: &quot; + t.getMessage();
+    }
+}</code></pre></figure>
+<p>对应的<code>application.yml</code>：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">server:
+  port: 8080
+spring:
+  cloud:
+    sentinel:
+      transport:
+        dashboard: localhost:8858   # Sentinel Dashboard 地址
+      eager: true                   # 启动即建立心跳，避免首次请求延迟
+      web-context-unify: false      # 关闭 URL 收敛，否则所有接口统计到同一 context</code></pre></figure>
+<h2 id="方案对比-Sentinel-vs-Hystrix-vs-Resilience4j"><a href="#方案对比-Sentinel-vs-Hystrix-vs-Resilience4j" class="headerlink" title="方案对比：Sentinel vs Hystrix vs Resilience4j"></a>方案对比：Sentinel vs Hystrix vs Resilience4j</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Sentinel</th>
+<th>Hystrix</th>
+<th>Resilience4j</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>隔离策略</td>
+<td>信号量（默认）+ 并发线程数</td>
+<td>线程池/信号量</td>
+<td>信号量 + 装饰器</td>
+</tr><tr>
+<td>熔断统计</td>
+<td>滑动窗口（LeapArray）</td>
+<td>滑动窗口（RxJava）</td>
+<td>环形缓冲区</td>
+</tr><tr>
+<td>限流</td>
+<td>内置丰富（QPS/线程/热点/集群）</td>
+<td>无</td>
+<td>内置 RateLimiter</td>
+</tr><tr>
+<td>规则动态</td>
+<td>Dashboard 实时推送</td>
+<td>需配合 Archaius</td>
+<td>需自行集成</td>
+</tr><tr>
+<td>维护状态</td>
+<td>活跃</td>
+<td>已停止维护</td>
+<td>活跃</td>
+</tr><tr>
+<td>性能开销</td>
+<td>极低（无额外线程）</td>
+<td>线程池隔离开销大</td>
+<td>低</td>
+</tr></tbody></table>
+<p><strong>选型建议</strong>：</p>
+<ul>
+<li>已有阿里技术栈、需要Dashboard可视化、要热点/集群流控 → Sentinel</li>
+</ul>
+<ul>
+<li>纯熔断降级、想避免线程池开销、轻量级 → Resilience4j</li>
+</ul>
+<ul>
+<li>老项目已用 → 逐步迁移，不要新项目再上Hystrix</li>
+</ul>
+<p>一个关键差异：Hystrix默认<strong>线程池隔离</strong>，每个依赖一个线程池，虽然隔离彻底但线程上下文切换开销大、线程数膨胀。Sentinel采用<strong>信号量隔离</strong>（通过并发线程数限流），零额外线程，但要求下游有超时控制，否则慢调用会拖垮调用线程。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 入口埋点用注解，出口埋点别漏 exit</strong></p>
+<p><code>SphU.entry()</code>和<code>entry.exit()</code>必须成对出现，且<code>exit()</code>放<code>finally</code>。漏掉<code>exit()</code>会导致线程数统计虚高，最终触发"线程数限流"误判。</p>
+<p><strong>2. 业务异常必须用 Tracer.traceEntry 记录</strong></p>
+<figure class="highlight java"><pre><code class="language-java">try {
+    entry = SphU.entry(&quot;res&quot;);
+    doSomething(); // 抛业务异常
+} catch (Throwable t) {
+    Tracer.traceEntry(t, entry); // 关键！否则熔断器统计不到异常
+    throw t;
+} finally {
+    if (entry != null) entry.exit();
+}</code></pre></figure>
+<p><strong>3. 熔断规则的最小请求数是隐形门槛</strong></p>
+<p><code>minRequestAmount</code>默认5。低QPS接口设太大，永远不熔断。建议 <code>minRequestAmount ≈ 阈值QPS × 统计窗口秒数 × 0.5</code>。</p>
+<p><strong>4. 资源命名要区分层级</strong></p>
+<p>不要所有接口都叫<code>api</code>。建议<code>服务名:方法名</code>或直接用接口全路径，避免统计互相污染。热点参数限流要配合<code>@SentinelResource</code>的<code>blockHandler</code>。</p>
+<p><strong>5. 规则持久化不能只放内存</strong></p>
+<p><code>FlowRuleManager.loadRules()</code>加载的规则重启即丢。生产必须接入Nacos/Apollo/ZK，通过<code>DynamicRuleDataSource</code>持久化。Dashboard改的规则默认只在内存，重启丢失。</p>
+<p><strong>6. 预热模式别用在有状态服务上</strong></p>
+<p><code>WarmUpController</code>假设冷系统处理能力弱，阈值从<code>count/3</code>线性升到<code>count</code>。若你的服务本身无状态、启动即满血，用预热反而误伤。</p>
+<p><strong>7. 集群流控需要 Token Server</strong></p>
+<p>集群模式依赖独立的token-server分配令牌，单点故障会导致整个集群失效。务必部署token-server集群，并设置<code>fallbackToLocalWhenFail=true</code>兜底。</p>
+<p><strong>8. 注意 Sentinel 的 Context 传播</strong></p>
+<p>异步调用、线程池切换时，Context 不会自动传播。需要用<code>ContextUtil.runOnContext()</code>或<code>SphU.asyncEntry()</code>，否则异步逻辑的统计会挂到错误节点。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>Sentinel 的核心可以浓缩为一句话：<strong>以资源为单元，用一条责任链在请求进入前完成统计与判定，用滑动窗口保证统计的实时性与准确性</strong>。</p>
+<p>回顾几个关键点：</p>
+<ol>
+<li><code>SphU.entry</code> → <code>lookProcessChain</code>（缓存）→ <code>SlotChain.entry</code> 是主流程；</li>
+<li>Slot 顺序中 <code>StatisticSlot</code> 在 <code>FlowSlot</code>/<code>DegradeSlot</code> 之前，先统计后判定；</li>
+<li><code>LeapArray</code> 用环形数组 + 时间戳校验实现无锁滑动窗口，是性能基石；</li>
+<li>熔断器是 CLOSED/OPEN/HALF_OPEN 三态机，<code>minRequestAmount</code> 是隐形门槛；</li>
+<li>业务异常必须 <code>Tracer.traceEntry</code>，否则熔断统计失真。</li>
+</ol>
+<p><strong>延伸思考</strong>：Sentinel 的滑动窗口统计的是"已进入"的请求，天然存在一个窗口的统计延迟。在高并发场景下，这个延迟可能导致瞬时超发。如果要做到严格精确的限流，需要结合令牌桶（Guava RateLimiter）或分布式限流（Redis + Lua）。而 Sentinel 的定位是"高吞吐下的近似精确 + 丰富治理能力"，这个取舍值得每个架构师在选型时权衡。</p>
+<p>下次再遇到"规则配了不生效"，请顺着这条链排查：规则加载了吗 → Slot顺序对吗 → 统计窗口够吗 → minRequestAmount达标吗 → 异常用Tracer记录了吗。五步走完，问题基本现形。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

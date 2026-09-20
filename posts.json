@@ -1,5 +1,23 @@
 [
  {
+  "title": "Sentinel流控降级源码分析",
+  "url": "/2026/09/20/Sentinel%E6%B5%81%E6%8E%A7%E9%99%8D%E7%BA%A7%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/",
+  "date": "2026-09-20",
+  "year": 2026,
+  "month": 9,
+  "day": 20,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3236",
+  "excerpt": "引言 去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。 这就是流量治理要解决的"
+ },
+ {
   "title": "protobuf + gRPC拦截器链实现",
   "url": "/2026/09/19/protobuf%20%2B%20gRPC%E6%8B%A6%E6%88%AA%E5%99%A8%E9%93%BE%E5%AE%9E%E7%8E%B0/",
   "date": "2026-09-19",
