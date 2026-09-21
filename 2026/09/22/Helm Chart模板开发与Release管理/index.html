@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Helm Chart模板开发与Release管理 | 小曾博客</title>
+  <meta name="description" content="Helm Chart模板开发与Release管理 引言 先说一个我亲身经历过的生产事故。 2023年，我负责的一个微服务集群要从中东机房扩展到欧洲机房。运维同学兴高采烈地跑来说：“Chart 都写好了，改个 values.yaml 就能上。” 结果上线当天，Pod 全部 CrashLoopBackOff。排查了三个小时才发现——中东环境的 values-prod.yaml 里硬编码了一个 imag">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Helm Chart模板开发与Release管理">
+  <meta name="twitter:description" content="Helm Chart模板开发与Release管理 引言 先说一个我亲身经历过的生产事故。 2023年，我负责的一个微服务集群要从中东机房扩展到欧洲机房。运维同学兴高采烈地跑来说：“Chart 都写好了，改个 values.yaml 就能上。” 结果上线当天，Pod 全部 CrashLoopBackOff。排查了三个小时才发现——中东环境的 values-prod.yaml 里硬编码了一个 imag">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=9990">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Helm Chart模板开发与Release管理">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Helm Chart模板开发与Release管理 引言 先说一个我亲身经历过的生产事故。 2023年，我负责的一个微服务集群要从中东机房扩展到欧洲机房。运维同学兴高采烈地跑来说：“Chart 都写好了，改个 values.yaml 就能上。” 结果上线当天，Pod 全部 CrashLoopBackOff。排查了三个小时才发现——中东环境的 values-prod.yaml 里硬编码了一个 imag">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=9990">
+  <meta property="article:published_time" content="2026-09-22T01:24:39.000Z">
+  <meta property="article:modified_time" content="2026-09-22T01:24:39.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Helm-Chart模板开发与Release管理"><span class="toc-text">Helm Chart模板开发与Release管理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-Helm-到底在做什么"><span class="toc-text">核心概念：Helm 到底在做什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个生活化的类比-装修公司的-施工图纸-现场验收单"><span class="toc-text">一个生活化的类比：装修公司的“施工图纸 + 现场验收单”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-Go-Template-的渲染机制-为什么-Values-x-会渲染成空字符串"><span class="toc-text">{{ .Values.x }} 会渲染成空字符串">1. Go Template 的渲染机制：为什么 {{ .Values.x }} 会渲染成空字符串</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-Release-状态机-Helm-3-的-Secret-存储与三路合并"><span class="toc-text">2. Release 状态机：Helm 3 的 Secret 存储与三路合并</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-Template-的作用域与命名模板"><span class="toc-text">3. Template 的作用域与命名模板</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-一个生产级的-Deployment-模板"><span class="toc-text">示例 1：一个生产级的 Deployment 模板</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-多环境-Values-管理与模板校验"><span class="toc-text">示例 2：多环境 Values 管理与模板校验</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-用-Helm-Hook-做数据库迁移"><span class="toc-text">示例 3：用 Helm Hook 做数据库迁移</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Helm-vs-Kustomize-vs-Operator"><span class="toc-text">方案对比：Helm vs Kustomize vs Operator</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-永远不要在模板里硬编码环境相关的东西"><span class="toc-text">1. 永远不要在模板里硬编码环境相关的东西</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-用-helm-template-做本地校验"><span class="toc-text">helm template 做本地校验">2. 用 helm template 做本地校验</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-用-helm-lint-和-helm-unittest-做-CI-检查"><span class="toc-text">helm lint 和 helm unittest 做 CI 检查">3. 用 helm lint 和 helm unittest 做 CI 检查</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-避免在模板里做复杂逻辑"><span class="toc-text">4. 避免在模板里做复杂逻辑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-注意-helm-upgrade-的-reuse-values-陷阱"><span class="toc-text">helm upgrade 的 --reuse-values 陷阱">5. 注意 helm upgrade 的 --reuse-values 陷阱</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-Release-名称不要用随机字符串"><span class="toc-text">6. Release 名称不要用随机字符串</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#7-处理-CRD-的升级"><span class="toc-text">7. 处理 CRD 的升级</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#8-监控-Release-状态"><span class="toc-text">8. 监控 Release 状态</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=9990)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Helm Chart模板开发与Release管理</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-22"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-22</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-22"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-22</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Helm-Chart模板开发与Release管理"><a href="#Helm-Chart模板开发与Release管理" class="headerlink" title="Helm Chart模板开发与Release管理"></a>Helm Chart模板开发与Release管理</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先说一个我亲身经历过的生产事故。</p>
+<p>2023年，我负责的一个微服务集群要从中东机房扩展到欧洲机房。运维同学兴高采烈地跑来说：“Chart 都写好了，改个 <code>values.yaml</code> 就能上。” 结果上线当天，Pod 全部 CrashLoopBackOff。排查了三个小时才发现——中东环境的 <code>values-prod.yaml</code> 里硬编码了一个 <code>imagePullSecrets</code> 名字，而欧洲集群里这个 Secret 根本不存在；同时某个模板文件里用了 <code>{{ .Values.replicaCount | default 3 }}</code>，但另一个模板文件里直接写了 <code>{{ .Values.replicaCount }}</code>，导致某几个 Deployment 渲染出了空字符串，API Server 直接拒绝。</p>
+<p>这就是 Helm 用起来“爽”，但用不好就“炸”的典型场景。很多人把 Helm 当成“带变量的 kubectl apply”，写 Chart 的时候像写 Shell 脚本一样随意，最后 Chart 变成了一个没人敢碰的黑盒。</p>
+<p>这篇文章我们不谈“Helm 是什么”，而是从模板引擎的实现原理、Release 的状态机管理、到生产级 Chart 的组织方式，一层层拆开看。读完之后，你应该能写出那种“换一个集群、换一个环境，闭着眼睛也能上”的 Chart。</p>
+<hr>
+<h2 id="核心概念-Helm-到底在做什么"><a href="#核心概念-Helm-到底在做什么" class="headerlink" title="核心概念：Helm 到底在做什么"></a>核心概念：Helm 到底在做什么</h2>
+<h3 id="一个生活化的类比-装修公司的-施工图纸-现场验收单"><a href="#一个生活化的类比-装修公司的-施工图纸-现场验收单" class="headerlink" title="一个生活化的类比：装修公司的“施工图纸 + 现场验收单”"></a>一个生活化的类比：装修公司的“施工图纸 + 现场验收单”</h3>
+<p>想象你要装修三套房子（三个 K8s 集群）：北京的房子、上海的房子、深圳的房子。这三套房子的户型不同（集群配置不同），但你想装的风格是一样的（同一套微服务）。</p>
+<ul>
+<li><strong>Chart</strong> = 装修图纸 + 材料清单。它描述了“这套房子该怎么装”，但不包含“这次到底用多少块瓷砖”。</li>
+</ul>
+<ul>
+<li><strong>values.yaml</strong> = 这次的施工参数。比如“北京用大理石地砖，上海用木地板”。</li>
+</ul>
+<ul>
+<li><strong>Template</strong> = 图纸上的可替换区域。图纸上画的是“{{ 地砖材质 }}”，渲染的时候才填入具体材料。</li>
+</ul>
+<ul>
+<li><strong>Release</strong> = 一次具体的施工记录。北京那套房子用的是 Release <code>my-app-bj-v1</code>，上海那套是 <code>my-app-sh-v1</code>。每个 Release 都有独立的状态、历史版本、回滚记录。</li>
+</ul>
+<p>关键点在于：<strong>Helm 不是“模板 + kubectl apply”，而是“模板渲染 + 资源差异计算 + 状态持久化”的三位一体</strong>。很多人只看到了第一层。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>Helm 3 的架构里，核心组件有三个：</p>
+<ol>
+<li><strong>Chart</strong>：一个目录结构，包含 <code>Chart.yaml</code>（元数据）、<code>values.yaml</code>（默认值）、<code>templates/</code>（Go Template 文件）、<code>charts/</code>（子 Chart 依赖）。</li>
+<li><strong>Release</strong>：一次安装的实例。存储在 K8s 的 Secret 里（Helm 3 默认用 Secret，不再是 Helm 2 的 ConfigMap）。</li>
+<li><strong>Repository</strong>：Chart 的存储仓库，可以是 HTTP 服务器、OCI Registry（Helm 3.8+ 支持）。</li>
+</ol>
+<div class="mermaid">
+graph TD
+    A[开发者编写 Chart] --> B[helm install/upgrade]
+    B --> C{Helm 客户端}
+    C --> D[渲染 Templates + Values]
+    D --> E[生成 Manifest 列表]
+    E --> F[与集群中现有 Release 对比]
+    F --> G[计算 Diff]
+    G --> H[提交给 K8s API Server]
+    H --> I[K8s 创建/更新资源]
+    I --> J[Helm 将 Release 状态写入 Secret]
+    J --> K[Release 历史版本 N]
+    K --> L[helm rollback 可回退到 N-1]
+</div>
+<p>这张图里最关键的是 <strong>F 和 G 两步</strong>。Helm 3 不像 Helm 2 那样用 Tiller 做“全量 apply”，而是做了 <strong>三路合并（Three-way Strategic Merge Patch）</strong>。这也是很多“升级后资源被意外覆盖”问题的根源，后面会详细讲。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-Go-Template-的渲染机制-为什么-Values-x-会渲染成空字符串"><a href="#1-Go-Template-的渲染机制-为什么-Values-x-会渲染成空字符串" class="headerlink" title="1. Go Template 的渲染机制：为什么 <code>{{ .Values.x }}</code> 会渲染成空字符串"></a>1. Go Template 的渲染机制：为什么 <code>{{ .Values.x }}</code> 会渲染成空字符串</h3>
+<p>Helm 的模板引擎基于 Go 标准库的 <code>text/template</code>，加上 Sprig 函数库。当你写 <code>{{ .Values.replicaCount }}</code> 时，如果 <code>values.yaml</code> 里没有这个字段，Go Template 不会报错，而是渲染成 <code><no value></code> 或者空字符串（取决于上下文）。</p>
+<p>源码层面，Helm 在 <code>pkg/engine/engine.go</code> 里做了几件事：</p>
+<figure class="highlight go"><pre><code class="language-go">// 简化后的核心逻辑
+func (e Engine) Render(chrt *chart.Chart, values chartutil.Values) (map[string]string, error) {
+    // 1. 构建模板上下文
+    tmap := make(map[string]renderable)
+    // ... 把 Chart 的 templates/ 目录下所有文件读进来
+    
+    // 2. 合并 values（默认值 + 用户覆盖值）
+    vals, err := chartutil.CoalesceValues(chrt, values)
+    
+    // 3. 渲染每个模板文件
+    for _, filename := range tmap {
+        // 关键：这里用的是 text/template 的 Execute
+        if err := t.Execute(&amp;buf, vals); err != nil {
+            return nil, err
+        }
+    }
+}</code></pre></figure>
+<p><code>CoalesceValues</code> 是重点。它做的是<strong>深度合并</strong>：用户传入的 values 会覆盖 chart 默认的 values，但如果用户没传某个字段，就用默认值。问题在于——<strong>如果默认值里也没有这个字段，那就是真的没有</strong>。</p>
+<p>Go Template 的行为是：访问一个不存在的 map key，返回零值。对于 <code>string</code> 类型，零值是 <code>""</code>；对于 <code>int</code> 类型，零值是 <code>0</code>。所以 <code>{{ .Values.replicaCount }}</code> 会渲染成空字符串，最终生成的 YAML 里 <code>replicas:</code> 后面什么都没有，K8s 会报错。</p>
+<p><strong>解决方案</strong>：永远用 <code>default</code> 函数兜底，或者用 <code>required</code> 强制报错。</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># 好的写法
+replicas: {{ .Values.replicaCount | default 3 }}
+
+# 更好的写法：如果这个值必须由用户提供，用 required
+replicas: {{ required &quot;replicaCount is required!&quot; .Values.replicaCount }}</code></pre></figure>
+<h3 id="2-Release-状态机-Helm-3-的-Secret-存储与三路合并"><a href="#2-Release-状态机-Helm-3-的-Secret-存储与三路合并" class="headerlink" title="2. Release 状态机：Helm 3 的 Secret 存储与三路合并"></a>2. Release 状态机：Helm 3 的 Secret 存储与三路合并</h3>
+<p>Helm 3 把 Release 信息存在 <code>sh.helm.release.v1.<release-name>.v<version></code> 这个 Secret 里。这个 Secret 的内容是 <strong>gzip + base64 编码的 protobuf</strong>。你可以用下面的命令看：</p>
+<figure class="highlight bash"><pre><code class="language-bash">kubectl get secret sh.helm.release.v1.my-app.v1 -o jsonpath=&#x27;{.data.release}&#x27; | base64 -d | base64 -d | gzip -d | protoc --decode_raw</code></pre></figure>
+<p>每次 <code>helm upgrade</code>，Helm 会：</p>
+<ol>
+<li>从 Secret 里读出上一个版本的 Release 信息，包括<strong>上一次渲染出的 Manifest</strong>。</li>
+<li>用新的 values 渲染出<strong>新的 Manifest</strong>。</li>
+<li>从 K8s API Server 拉取<strong>当前集群里实际存在的资源状态</strong>。</li>
+<li>做<strong>三路合并</strong>：</li>
+</ol>
+<ul>
+<li><code>old manifest</code>（上次 Helm 渲染的）</li>
+</ul>
+<ul>
+<li><code>new manifest</code>（这次 Helm 渲染的）</li>
+</ul>
+<ul>
+<li><code>live state</code>（集群里实际跑的）</li>
+</ul>
+<p>三路合并的规则是：<strong>如果某个字段在 old manifest 里存在、在 live state 里被修改过、在 new manifest 里不存在，那么保留 live state 的值</strong>。这就是为什么你手动 <code>kubectl edit</code> 改了一个字段，下次 <code>helm upgrade</code> 不会把它覆盖掉——Helm 认为这是“集群侧的合法修改”。</p>
+<p>但反过来，如果你在 <code>values.yaml</code> 里删掉了一个字段，而 old manifest 里有、live state 里没改过，那么 Helm 会把这个字段删掉。这就是“为什么升级后某些配置消失了”的根源。</p>
+<div class="mermaid">
+graph LR
+    A[Old Manifest] --> D[三路合并]
+    B[New Manifest] --> D
+    C[Live State] --> D
+    D --> E{字段冲突判断}
+    E -->|Old有, Live改过, New没有| F[保留 Live 值]
+    E -->|Old有, Live没改, New没有| G[删除字段]
+    E -->|New有| H[使用 New 值]
+</div>
+<h3 id="3-Template-的作用域与命名模板"><a href="#3-Template-的作用域与命名模板" class="headerlink" title="3. Template 的作用域与命名模板"></a>3. Template 的作用域与命名模板</h3>
+<p>Helm 的模板里，<code>.</code> 代表当前作用域。在 <code>range</code> 循环里，<code>.</code> 会变成当前元素。很多人写嵌套循环时被这个坑过：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># 错误写法：内层 . 变成了 env 元素，访问不到 .Values
+{{- range .Values.env }}
+- name: {{ .name }}
+  value: {{ .Values.global.someValue }}  # 这里 . 已经不是根作用域了！
+{{- end }}
+
+# 正确写法：用 $ 引用根作用域
+{{- range .Values.env }}
+- name: {{ .name }}
+  value: {{ $.Values.global.someValue }}
+{{- end }}</code></pre></figure>
+<p><code>$</code> 是 Helm 在渲染时注入的根上下文变量。这个设计来自 Go Template 本身，但在 Helm 里特别容易踩坑。</p>
+<p>另外，<code>define</code> 和 <code>template</code> 是组织复用代码的关键：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># templates/_helpers.tpl
+{{- define &quot;my-app.fullname&quot; -}}
+{{- printf &quot;%s-%s&quot; .Release.Name .Chart.Name | trunc 63 | trimSuffix &quot;-&quot; -}}
+{{- end -}}
+
+{{- define &quot;my-app.labels&quot; -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end -}}</code></pre></figure>
+<p>注意 <code>_helpers.tpl</code> 以下划线开头，Helm 不会把它当成 K8s 资源渲染，只用来定义命名模板。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-一个生产级的-Deployment-模板"><a href="#示例-1-一个生产级的-Deployment-模板" class="headerlink" title="示例 1：一个生产级的 Deployment 模板"></a>示例 1：一个生产级的 Deployment 模板</h3>
+<p>这个模板涵盖了镜像、资源限制、健康检查、环境变量、配置挂载等常见需求，并且所有字段都有兜底。</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include &quot;my-app.fullname&quot; . }}
+  labels:
+    {{- include &quot;my-app.labels&quot; . | nindent 4 }}
+spec:
+  {{- /* 副本数：优先用 values，否则默认 3，且禁止为 0（除非显式允许） */}}
+  replicas: {{ .Values.replicaCount | default 3 }}
+  selector:
+    matchLabels:
+      {{- include &quot;my-app.selectorLabels&quot; . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include &quot;my-app.selectorLabels&quot; . | nindent 8 }}
+      {{- /* 只有当 podAnnotations 非空时才渲染，避免生成空 map */}}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- /* 镜像拉取密钥：如果没配置就完全不渲染这个字段，避免引用不存在的 Secret */}}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: &quot;{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}&quot;
+          imagePullPolicy: {{ .Values.image.pullPolicy | default &quot;IfNotPresent&quot; }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort | default 8080 }}
+              protocol: TCP
+          {{- /* 环境变量：支持直接值和 ConfigMap/Secret 引用两种形式 */}}
+          {{- with .Values.env }}
+          env:
+            {{- range . }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: {{ .value | quote }}
+              {{- else if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- /* 资源限制：如果没有配置，给一个保守的默认值 */}}
+          resources:
+            {{- toYaml (.Values.resources | default (dict 
+              &quot;limits&quot; (dict &quot;cpu&quot; &quot;500m&quot; &quot;memory&quot; &quot;512Mi&quot;)
+              &quot;requests&quot; (dict &quot;cpu&quot; &quot;100m&quot; &quot;memory&quot; &quot;128Mi&quot;)
+            )) | nindent 12 }}
+          {{- /* 健康检查：liveness 和 readiness 分开配置 */}}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- /* 挂载配置文件 */}}
+          {{- with .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}</code></pre></figure>
+<p><strong>关键设计点</strong>：</p>
+<ul>
+<li>所有可选字段都用 <code>{{- with ... }}</code> 包裹。如果值为空，整个字段不渲染，而不是渲染成 <code>field: null</code>。</li>
+</ul>
+<ul>
+<li><code>include</code> 配合 <code>nindent</code> 是 Helm 的标准缩进模式。<code>nindent</code> 会在前面加一个换行，并给每一行加指定数量的空格。</li>
+</ul>
+<ul>
+<li><code>resources</code> 用了 <code>dict</code> 构造默认值，避免用户不配置时 Pod 没有资源限制（这在生产环境是灾难）。</li>
+</ul>
+<h3 id="示例-2-多环境-Values-管理与模板校验"><a href="#示例-2-多环境-Values-管理与模板校验" class="headerlink" title="示例 2：多环境 Values 管理与模板校验"></a>示例 2：多环境 Values 管理与模板校验</h3>
+<p>生产环境通常需要 dev/staging/prod 三套 values。推荐的组织方式：</p>
+<figure class="highlight "><pre><code>my-app/
+├── Chart.yaml
+├── values.yaml              # 基础默认值
+├── values-dev.yaml          # dev 覆盖
+├── values-staging.yaml      # staging 覆盖
+├── values-prod.yaml         # prod 覆盖
+└── templates/
+    ├── _helpers.tpl
+    ├── deployment.yaml
+    ├── service.yaml
+    └── configmap.yaml</code></pre></figure>
+<p><code>values.yaml</code> 里定义所有字段的默认值和结构：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># values.yaml
+replicaCount: 3
+
+image:
+  repository: my-registry/my-app
+  tag: &quot;&quot;  # 空字符串，实际用 Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+env: []
+# 示例：
+# env:
+#   - name: LOG_LEVEL
+#     value: info
+#   - name: DB_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: db-secret
+#         key: password</code></pre></figure>
+<p><code>values-prod.yaml</code> 只覆盖需要变的字段：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># values-prod.yaml
+replicaCount: 10
+
+image:
+  tag: &quot;v2.3.1&quot;
+
+imagePullSecrets:
+  - name: prod-registry-secret
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  - name: LOG_LEVEL
+    value: warn
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: prod-db-secret
+        key: password</code></pre></figure>
+<p>部署命令：</p>
+<figure class="highlight bash"><pre><code class="language-bash">helm upgrade --install my-app-prod ./my-app \
+  -f values-prod.yaml \
+  --namespace prod \
+  --create-namespace \
+  --atomic \
+  --timeout 10m</code></pre></figure>
+<p><strong>注意 <code>--atomic</code></strong>：它会在升级失败时自动回滚。生产环境强烈建议加上。</p>
+<h3 id="示例-3-用-Helm-Hook-做数据库迁移"><a href="#示例-3-用-Helm-Hook-做数据库迁移" class="headerlink" title="示例 3：用 Helm Hook 做数据库迁移"></a>示例 3：用 Helm Hook 做数据库迁移</h3>
+<p>Helm Hook 是 Release 生命周期中的“钩子”，可以在资源安装前/后、升级前/后执行。最典型的用法是数据库迁移。</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># templates/migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include &quot;my-app.fullname&quot; . }}-migration
+  labels:
+    {{- include &quot;my-app.labels&quot; . | nindent 4 }}
+  annotations:
+    # 关键：定义 Hook 类型和删除策略
+    &quot;helm.sh/hook&quot;: pre-upgrade
+    &quot;helm.sh/hook-weight&quot;: &quot;-5&quot;       # 权重，越小越先执行
+    &quot;helm.sh/hook-delete-policy&quot;: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include &quot;my-app.selectorLabels&quot; . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migration
+          image: &quot;{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}&quot;
+          command: [&quot;/bin/sh&quot;, &quot;-c&quot;]
+          args:
+            - |
+              echo &quot;Running database migration...&quot;
+              ./migrate -path /migrations -database &quot;$DATABASE_URL&quot; up
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: url</code></pre></figure>
+<p><strong>Hook 的生命周期</strong>：</p>
+<div class="mermaid">
+graph TD
+    A[helm upgrade 开始] --> B[渲染所有模板]
+    B --> C[执行 pre-upgrade Hooks]
+    C --> D{Hook 成功?}
+    D -->|否| E[升级失败, 自动回滚]
+    D -->|是| F[应用普通资源]
+    F --> G[执行 post-upgrade Hooks]
+    G --> H[升级完成]
+</div>
+<p><strong>Hook 的坑</strong>：</p>
+<ul>
+<li>Hook 资源<strong>不会</strong>被 <code>helm uninstall</code> 自动删除，除非你配置了 <code>hook-delete-policy</code>。</li>
+</ul>
+<ul>
+<li>Hook 的权重（weight）决定执行顺序，但<strong>同权重的 Hook 是并行执行的</strong>，不要依赖顺序。</li>
+</ul>
+<ul>
+<li><code>pre-upgrade</code> Hook 失败会导致整个升级失败并回滚，但 <code>post-upgrade</code> Hook 失败<strong>不会</strong>回滚（因为资源已经应用了）。</li>
+</ul>
+<hr>
+<h2 id="方案对比-Helm-vs-Kustomize-vs-Operator"><a href="#方案对比-Helm-vs-Kustomize-vs-Operator" class="headerlink" title="方案对比：Helm vs Kustomize vs Operator"></a>方案对比：Helm vs Kustomize vs Operator</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Helm</th>
+<th>Kustomize</th>
+<th>Operator</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>核心思想</td>
+<td>模板 + 值注入</td>
+<td>叠加 + 补丁</td>
+<td>自定义控制器</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>中（Go Template 有坑）</td>
+<td>低（纯 YAML）</td>
+<td>高（要写 Go）</td>
+</tr><tr>
+<td>状态管理</td>
+<td>有 Release 概念，支持回滚</td>
+<td>无状态，靠 Git</td>
+<td>有 CRD 状态，支持 reconcile</td>
+</tr><tr>
+<td>多环境支持</td>
+<td>values 文件覆盖</td>
+<td>overlay 目录</td>
+<td>CR 实例</td>
+</tr><tr>
+<td>复杂逻辑</td>
+<td>支持（但容易写乱）</td>
+<td>不支持</td>
+<td>完全支持</td>
+</tr><tr>
+<td>适用场景</td>
+<td>通用应用分发</td>
+<td>K8s 原生配置管理</td>
+<td>有状态服务、复杂运维逻辑</td>
+</tr></tbody></table>
+<p><strong>我的建议</strong>：</p>
+<ul>
+<li>如果你的应用是<strong>无状态微服务</strong>，需要<strong>多环境部署 + 版本管理 + 回滚</strong>，选 Helm。</li>
+</ul>
+<ul>
+<li>如果你只是想把<strong>同一套 YAML 做少量差异化</strong>，且团队不想学模板语法，选 Kustomize。</li>
+</ul>
+<ul>
+<li>如果你要管理<strong>数据库、消息队列这类有状态服务</strong>，且需要<strong>自动化运维逻辑</strong>（如自动扩缩容、故障自愈），选 Operator。</li>
+</ul>
+<p><strong>混合方案</strong>：Helm 渲染出基础 Manifest，再用 Kustomize 做最后的集群特定补丁。这是很多大厂的做法，但会增加 CI/CD 的复杂度，小团队慎用。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="1-永远不要在模板里硬编码环境相关的东西"><a href="#1-永远不要在模板里硬编码环境相关的东西" class="headerlink" title="1. 永远不要在模板里硬编码环境相关的东西"></a>1. 永远不要在模板里硬编码环境相关的东西</h3>
+<p><strong>错误做法</strong>：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">image: my-registry.com/my-app:v1.2.3  # 硬编码</code></pre></figure>
+<p><strong>正确做法</strong>：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">image: &quot;{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}&quot;</code></pre></figure>
+<h3 id="2-用-helm-template-做本地校验"><a href="#2-用-helm-template-做本地校验" class="headerlink" title="2. 用 <code>helm template</code> 做本地校验"></a>2. 用 <code>helm template</code> 做本地校验</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 渲染出最终 YAML，肉眼检查
+helm template my-app ./my-app -f values-prod.yaml &gt; rendered.yaml
+
+# 用 kubeconform 做 schema 校验
+helm template my-app ./my-app -f values-prod.yaml | kubeconform -strict -summary</code></pre></figure>
+<h3 id="3-用-helm-lint-和-helm-unittest-做-CI-检查"><a href="#3-用-helm-lint-和-helm-unittest-做-CI-检查" class="headerlink" title="3. 用 <code>helm lint</code> 和 <code>helm unittest</code> 做 CI 检查"></a>3. 用 <code>helm lint</code> 和 <code>helm unittest</code> 做 CI 检查</h3>
+<figure class="highlight bash"><pre><code class="language-bash">helm lint ./my-app
+# 配合 helm-unittest 插件做单元测试
+helm unittest ./my-app</code></pre></figure>
+<h3 id="4-避免在模板里做复杂逻辑"><a href="#4-避免在模板里做复杂逻辑" class="headerlink" title="4. 避免在模板里做复杂逻辑"></a>4. 避免在模板里做复杂逻辑</h3>
+<p>Go Template 不是编程语言，写复杂逻辑会变成“模板里的意大利面条”。如果逻辑太复杂，考虑：</p>
+<ul>
+<li>拆成多个子 Chart。</li>
+</ul>
+<ul>
+<li>用 <code>tpl</code> 函数在 values 里做简单模板。</li>
+</ul>
+<ul>
+<li>实在不行，用 Operator 替代。</li>
+</ul>
+<h3 id="5-注意-helm-upgrade-的-reuse-values-陷阱"><a href="#5-注意-helm-upgrade-的-reuse-values-陷阱" class="headerlink" title="5. 注意 <code>helm upgrade</code> 的 <code>--reuse-values</code> 陷阱"></a>5. 注意 <code>helm upgrade</code> 的 <code>--reuse-values</code> 陷阱</h3>
+<p><code>--reuse-values</code> 会复用上一次的 values，而不是重新合并 <code>values.yaml</code>。这会导致你改了 <code>values.yaml</code> 但升级后没生效。<strong>建议永远不要用这个参数</strong>，而是显式传 <code>-f</code>。</p>
+<h3 id="6-Release-名称不要用随机字符串"><a href="#6-Release-名称不要用随机字符串" class="headerlink" title="6. Release 名称不要用随机字符串"></a>6. Release 名称不要用随机字符串</h3>
+<p>Release 名称会成为资源名称的一部分。如果你的 Release 叫 <code>my-app-20240101-abc123</code>，那所有资源名都会带这个后缀，非常难管理。<strong>用固定的、有意义的名字</strong>。</p>
+<h3 id="7-处理-CRD-的升级"><a href="#7-处理-CRD-的升级" class="headerlink" title="7. 处理 CRD 的升级"></a>7. 处理 CRD 的升级</h3>
+<p>Helm 对 CRD 的处理很特殊：<code>crds/</code> 目录下的 CRD 只在 <code>helm install</code> 时安装，<code>helm upgrade</code> 时<strong>不会</strong>更新。如果需要更新 CRD，要么手动 <code>kubectl apply</code>，要么把 CRD 放在 <code>templates/</code> 里（但这样 <code>helm uninstall</code> 会删掉 CRD，可能导致数据丢失）。</p>
+<h3 id="8-监控-Release-状态"><a href="#8-监控-Release-状态" class="headerlink" title="8. 监控 Release 状态"></a>8. 监控 Release 状态</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 查看 Release 历史
+helm history my-app -n prod
+
+# 查看某个 Release 的 Manifest
+helm get manifest my-app -n prod
+
+# 查看某个 Release 的 values
+helm get values my-app -n prod
+
+# 回滚到指定版本
+helm rollback my-app 3 -n prod</code></pre></figure>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>Helm 的本质是<strong>模板引擎 + Release 状态机 + 三路合并</strong>。很多人只用了第一层，所以觉得“Helm 不就是带变量的 kubectl 吗”。但真正让 Helm 在生产环境可靠运行的，是后两层。</p>
+<p>回顾几个要点：</p>
+<ol>
+<li><strong>模板渲染</strong>：Go Template 的零值行为是最大的坑，永远用 <code>default</code> 或 <code>required</code> 兜底。</li>
+<li><strong>Release 管理</strong>：Helm 3 把状态存在 Secret 里，支持回滚，但三路合并的逻辑需要理解清楚，否则会遇到“配置莫名消失”的问题。</li>
+<li><strong>多环境管理</strong>：用基础 <code>values.yaml</code> + 环境覆盖文件，配合 <code>--atomic</code> 保证升级安全。</li>
+<li><strong>Hook 机制</strong>：适合做数据库迁移、缓存预热这类生命周期任务，但要注意删除策略和权重。</li>
+</ol>
+<p><strong>延伸思考</strong>：Helm 正在向 OCI Registry 迁移，未来 Chart 会像 Docker 镜像一样用 <code>oci://</code> 协议分发。同时，Helm 和 Operator 的边界也在模糊——有些团队开始用 Helm 部署 Operator，再用 Operator 管理有状态服务。理解这两者的分工，是云原生架构师进阶的必修课。</p>
+<p>最后送一句话：<strong>写 Chart 的时候，假设下一个维护它的人是一个刚入职的实习生，而且他只能看你的 values.yaml，不能看你的模板。</strong> 如果他能猜出所有配置项的含义，你的 Chart 就合格了。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
