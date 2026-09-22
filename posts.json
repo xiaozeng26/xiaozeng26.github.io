@@ -1,5 +1,25 @@
 [
  {
+  "title": "LangChain Memory模块：对话历史管理最佳实践",
+  "url": "/2026/09/22/LangChain%20Memory%E6%A8%A1%E5%9D%97%EF%BC%9A%E5%AF%B9%E8%AF%9D%E5%8E%86%E5%8F%B2%E7%AE%A1%E7%90%86%E6%9C%80%E4%BD%B3%E5%AE%9E%E8%B7%B5/",
+  "date": "2026-09-22",
+  "year": 2026,
+  "month": 9,
+  "day": 22,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=7844",
+  "excerpt": "引言 去年冬天，我帮一家做智能客服的团队做架构评审。他们的系统上线三个月，用户投诉量却一直降不下来。问题很有意思：用户在第一轮对话里说了\\"
+ },
+ {
   "title": "Helm Chart模板开发与Release管理",
   "url": "/2026/09/22/Helm%20Chart%E6%A8%A1%E6%9D%BF%E5%BC%80%E5%8F%91%E4%B8%8ERelease%E7%AE%A1%E7%90%86/",
   "date": "2026-09-22",
