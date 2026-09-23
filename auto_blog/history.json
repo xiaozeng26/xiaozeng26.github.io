@@ -426,6 +426,13 @@
       "subtopic": "LangChain Memory模块：对话历史管理最佳实践",
       "date": "2026-09-22",
       "url": "/2026/09/22/LangChain Memory模块：对话历史管理最佳实践/"
+    },
+    {
+      "title": "Go项目工程化：wire依赖注入与分层架构",
+      "category": "golang",
+      "subtopic": "Go项目工程化：wire依赖注入与分层架构",
+      "date": "2026-09-23",
+      "url": "/2026/09/23/Go项目工程化：wire依赖注入与分层架构/"
     }
   ],
   "used_subtopics": {
@@ -500,7 +507,8 @@
       "net/http包架构与中间件链实现",
       "Go GC的演进与调优策略",
       "Channel底层实现与select多路复用",
-      "protobuf + gRPC拦截器链实现"
+      "protobuf + gRPC拦截器链实现",
+      "Go项目工程化：wire依赖注入与分层架构"
     ]
   },
   "content_hashes": {
@@ -563,6 +571,7 @@
     "protobuf + gRPC拦截器链实现": "937fcdaefc2025e4dbbbaf8823091936fa61622af60ca98c53e361484559a147",
     "Sentinel流控降级源码分析": "758e6a654364b97bfef58e406350b9c7e8a211c45d1a23e4c75c89a36830cde4",
     "Helm Chart模板开发与Release管理": "e764abcc0175180ec517c413b02712eff93858edabd88838b1cdbcba15bf0e5d",
-    "LangChain Memory模块：对话历史管理最佳实践": "abce23c8f216d9f95795d09ee6e5b3406f4efb6330b6f3034884abbb68cce606"
+    "LangChain Memory模块：对话历史管理最佳实践": "abce23c8f216d9f95795d09ee6e5b3406f4efb6330b6f3034884abbb68cce606",
+    "Go项目工程化：wire依赖注入与分层架构": "a9e64da0e36778006b5ff95a8bd735d20bf138b54fb7f4e80391a00a7a7c5983"
   }
 }
