@@ -433,6 +433,13 @@
       "subtopic": "Go项目工程化：wire依赖注入与分层架构",
       "date": "2026-09-23",
       "url": "/2026/09/23/Go项目工程化：wire依赖注入与分层架构/"
+    },
+    {
+      "title": "Java 21虚拟线程（Virtual Threads）深度解析",
+      "category": "java",
+      "subtopic": "Java 21虚拟线程（Virtual Threads）深度解析",
+      "date": "2026-09-24",
+      "url": "/2026/09/25/Java 21虚拟线程（Virtual Threads）深度解析/"
     }
   ],
   "used_subtopics": {
@@ -447,7 +454,8 @@
       "Spring事务传播行为与失效场景分析",
       "Seata分布式事务AT模式源码分析",
       "Spring Boot自动配置原理与自定义Starter",
-      "Sentinel流控降级源码分析"
+      "Sentinel流控降级源码分析",
+      "Java 21虚拟线程（Virtual Threads）深度解析"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -572,6 +580,7 @@
     "Sentinel流控降级源码分析": "758e6a654364b97bfef58e406350b9c7e8a211c45d1a23e4c75c89a36830cde4",
     "Helm Chart模板开发与Release管理": "e764abcc0175180ec517c413b02712eff93858edabd88838b1cdbcba15bf0e5d",
     "LangChain Memory模块：对话历史管理最佳实践": "abce23c8f216d9f95795d09ee6e5b3406f4efb6330b6f3034884abbb68cce606",
-    "Go项目工程化：wire依赖注入与分层架构": "a9e64da0e36778006b5ff95a8bd735d20bf138b54fb7f4e80391a00a7a7c5983"
+    "Go项目工程化：wire依赖注入与分层架构": "a9e64da0e36778006b5ff95a8bd735d20bf138b54fb7f4e80391a00a7a7c5983",
+    "Java 21虚拟线程（Virtual Threads）深度解析": "ffeac01ade72043503d8d9587e8c91361dc4750429cb8d1ab46cc4a7ac20cf9a"
   }
 }
