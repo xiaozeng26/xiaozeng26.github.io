@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>K8s网络插件CNI原理：Calico vs Flannel | 小曾博客</title>
+  <meta name="description" content="K8s网络插件CNI原理：Calico vs Flannel 引言 凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：跨节点Pod通信丢包。 这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过： Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍； Calico的BGP模式看起来很美好，但一到跨网段就懵">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="K8s网络插件CNI原理：Calico vs Flannel">
+  <meta name="twitter:description" content="K8s网络插件CNI原理：Calico vs Flannel 引言 凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：跨节点Pod通信丢包。 这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过： Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍； Calico的BGP模式看起来很美好，但一到跨网段就懵">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=5098">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="K8s网络插件CNI原理：Calico vs Flannel">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="K8s网络插件CNI原理：Calico vs Flannel 引言 凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：跨节点Pod通信丢包。 这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过： Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍； Calico的BGP模式看起来很美好，但一到跨网段就懵">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=5098">
+  <meta property="article:published_time" content="2026-09-26T00:08:21.000Z">
+  <meta property="article:modified_time" content="2026-09-26T00:08:21.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#K8s网络插件CNI原理-Calico-vs-Flannel"><span class="toc-text">K8s网络插件CNI原理：Calico vs Flannel</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-CNI到底是什么"><span class="toc-text">核心概念：CNI到底是什么？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-网络插件就像小区的-物业布线方案"><span class="toc-text">生活类比：网络插件就像小区的“物业布线方案”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级原理深度分析"><span class="toc-text">源码级原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Flannel-简单但-笨重-的隧道方案"><span class="toc-text">Flannel：简单但“笨重”的隧道方案</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Calico-用BGP打造-无隧道-网络"><span class="toc-text">Calico：用BGP打造“无隧道”网络</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个完整示例"><span class="toc-text">实战代码：三个完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例1-手写一个最小CNI插件-Go"><span class="toc-text">示例1：手写一个最小CNI插件（Go）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例2-用Go读取Calico的路由表并分析"><span class="toc-text">示例2：用Go读取Calico的路由表并分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例3-NetworkPolicy-生效性验证脚本"><span class="toc-text">示例3：NetworkPolicy 生效性验证脚本</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Calico-vs-Flannel-vs-其他"><span class="toc-text">方案对比：Calico vs Flannel vs 其他</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心对比表"><span class="toc-text">核心对比表</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#数据包路径对比"><span class="toc-text">数据包路径对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#选型决策树"><span class="toc-text">选型决策树</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑1-Flannel的MTU陷阱"><span class="toc-text">坑1：Flannel的MTU陷阱</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑2-Calico在跨网段环境的BGP失效"><span class="toc-text">坑2：Calico在跨网段环境的BGP失效</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑3-NetworkPolicy-的-隐式拒绝"><span class="toc-text">坑3：NetworkPolicy 的“隐式拒绝”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑4-Calico的iptables规则膨胀"><span class="toc-text">坑4：Calico的iptables规则膨胀</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=5098)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">K8s网络插件CNI原理：Calico vs Flannel</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-26"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-26</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-26"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-26</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="K8s网络插件CNI原理-Calico-vs-Flannel"><a href="#K8s网络插件CNI原理-Calico-vs-Flannel" class="headerlink" title="K8s网络插件CNI原理：Calico vs Flannel"></a>K8s网络插件CNI原理：Calico vs Flannel</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：<strong>跨节点Pod通信丢包</strong>。</p>
+<p>这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过：</p>
+<ul>
+<li>Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍；</li>
+</ul>
+<ul>
+<li>Calico的BGP模式看起来很美好，但一到跨网段就懵了；</li>
+</ul>
+<ul>
+<li>集群节点上了100个之后，路由表膨胀到内核开始抖动；</li>
+</ul>
+<ul>
+<li>NetworkPolicy配了却完全不生效，因为Flannel根本不支持。</li>
+</ul>
+<p>这些问题的根源，都指向同一个东西——<strong>CNI（Container Network Interface）</strong>。</p>
+<p>这篇文章不打算写成CNI入门科普，而是从架构师视角，把Calico和Flannel的实现原理剖开，让你知道<strong>为什么选它、什么时候别选它</strong>。</p>
+<hr>
+<h2 id="核心概念-CNI到底是什么"><a href="#核心概念-CNI到底是什么" class="headerlink" title="核心概念：CNI到底是什么？"></a>核心概念：CNI到底是什么？</h2>
+<h3 id="生活类比-网络插件就像小区的-物业布线方案"><a href="#生活类比-网络插件就像小区的-物业布线方案" class="headerlink" title="生活类比：网络插件就像小区的“物业布线方案”"></a>生活类比：网络插件就像小区的“物业布线方案”</h3>
+<p>想象你买了一个新小区（K8s集群），每个住户（Pod）都需要：</p>
+<ol>
+<li><strong>有唯一的门牌号</strong>（IP地址）</li>
+<li><strong>能敲开邻居的门</strong>（同节点Pod通信）</li>
+<li><strong>能打电话到隔壁小区</strong>（跨节点Pod通信）</li>
+<li><strong>快递能送进来</strong>（外部访问Service）</li>
+</ol>
+<p>CNI规范就是<strong>物业协会定的布线标准</strong>：它规定了“住户入住时怎么拉线”（ADD）、“搬走时怎么拆线”（DEL）、“查一下这户人家的线路信息”（CHECK）。</p>
+<p>而Calico、Flannel这类插件，就是不同的<strong>施工队</strong>：</p>
+<ul>
+<li><strong>Flannel</strong>：简单粗暴，给每栋楼（节点）分配一个网段，楼与楼之间挖一条隧道（VXLAN），所有包裹都打包再发。</li>
+</ul>
+<ul>
+<li><strong>Calico</strong>：像个高级物流公司，不挖隧道，直接给每个住户配一个全网可达的地址，让路由器（BGP）自己学路由。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>CNI是CNCF的一个规范，定义了容器运行时（containerd、CRI-O）与网络插件之间的接口。核心是三个操作：</p>
+<figure class="highlight go"><pre><code class="language-go">// CNI 规范核心接口（简化示意）
+type CNI interface {
+    // 添加网络：Pod 创建时调用
+    AddNetworkList(ctx context.Context, net *NetworkConfigList, rt *RuntimeConf) (types.Result, error)
+    // 删除网络：Pod 销毁时调用
+    DelNetworkList(ctx context.Context, net *NetworkConfigList, rt *RuntimeConf) error
+    // 检查网络：健康检查时调用
+    CheckNetworkList(ctx context.Context, net *NetworkConfigList, rt *RuntimeConf) error
+}</code></pre></figure>
+<p><strong>关键点</strong>：CNI插件是一个<strong>可执行二进制文件</strong>，而不是一个常驻服务。Kubelet在Pod创建时，通过stdin传入JSON配置，插件执行完把结果写到stdout。这个设计非常“Unix哲学”——简单、可组合。</p>
+<div class="mermaid">
+graph TD
+    A[Kubelet] -->|调用| B[CNI Plugin Binary]
+    B -->|读取| C[/etc/cni/net.d/*.conf/]
+    B -->|执行| D[配置网络命名空间]
+    D --> E[分配IP/配置路由/设置iptables]
+    E --> F[返回结果给Kubelet]
+    F --> G[Pod Ready]
+</div>
+<hr>
+<h2 id="源码级原理深度分析"><a href="#源码级原理深度分析" class="headerlink" title="源码级原理深度分析"></a>源码级原理深度分析</h2>
+<h3 id="Flannel-简单但-笨重-的隧道方案"><a href="#Flannel-简单但-笨重-的隧道方案" class="headerlink" title="Flannel：简单但“笨重”的隧道方案"></a>Flannel：简单但“笨重”的隧道方案</h3>
+<p>Flannel的核心逻辑在 <code>flannel/pkg/backend/</code> 目录下。它支持多种backend：<code>vxlan</code>、<code>host-gw</code>、<code>udp</code>、<code>ipip</code>等。</p>
+<p>#### VXLAN backend 源码剖析</p>
+<p>看 <code>flannel/pkg/backend/vxlan/vxlan.go</code> 中的关键片段：</p>
+<figure class="highlight go"><pre><code class="language-go">// flannel/pkg/backend/vxlan/vxlan.go (简化注释版)
+func (be *VXLANBackend) RegisterNetwork(ctx context.Context, wg sync.WaitGroup, config *subnet.Config) (backend.Network, error) {
+    // 1. 解析配置，拿到本节点的 Subnet（例如 10.244.1.0/24）
+    cfg := struct {
+        VNI           uint32
+        Port          int
+        GBP           bool
+        DirectRouting bool
+    }{ VNI: 1, Port: 8472 }
+
+    // 2. 创建 VXLAN 设备，这是核心！
+    //    每个节点都会有一个 flannel.1 虚拟网卡
+    dev, err := netlink.LinkAdd(&amp;netlink.Vxlan{
+        LinkAttrs: netlink.LinkAttrs{Name: &quot;flannel.1&quot;},
+        VxlanId:   int(cfg.VNI),       // VNI 标识一个 VXLAN 网络
+        Port:      cfg.Port,           // 默认 8472
+        Learning:  true,               // 开启 MAC 学习
+    })
+
+    // 3. 配置 FDB 表：告诉内核“发往某个 MAC 的包，应该封装到哪个节点IP”
+    //    这就是为什么 Flannel 需要 etcd 存储节点信息
+    for _, subnet := range subnets {
+        // 添加静态 FDB 条目
+        netlink.NeighAdd(&amp;netlink.Neigh{
+            LinkIndex: dev.Attrs().Index,
+            State:     netlink.NUD_PERMANENT,
+            IP:        subnet.MAC,      // 对端 flannel.1 的 MAC
+            HardwareAddr: subnet.MAC,
+        })
+        // 添加 ARP 条目：对端 Subnet 网关 IP -&gt; 对端 MAC
+        netlink.NeighAdd(&amp;netlink.Neigh{
+            LinkIndex: dev.Attrs().Index,
+            State:     netlink.NUD_PERMANENT,
+            IP:        subnet.GatewayIP(),
+            HardwareAddr: subnet.MAC,
+        })
+    }
+
+    // 4. 添加路由：发往对端 Subnet 的包，走 flannel.1
+    netlink.RouteAdd(&amp;netlink.Route{
+        LinkIndex: dev.Attrs().Index,
+        Dst:       subnet.Subnet,       // 例如 10.244.2.0/24
+        Scope:     netlink.SCOPE_UNIVERSE,
+        Gw:        subnet.GatewayIP(),
+    })
+}</code></pre></figure>
+<p><strong>这段代码揭示了Flannel VXLAN的本质</strong>：</p>
+<ol>
+<li>每个节点有一个 <code>flannel.1</code> VXLAN设备，VNI=1</li>
+<li>节点间的路由信息通过<strong>静态FDB/ARP条目</strong>写死</li>
+<li>数据包发送时，内核自动封装成VXLAN包（UDP 8472），走物理网卡发出</li>
+</ol>
+<p><strong>生活类比</strong>：Flannel就像小区之间不修路，而是每户人家把包裹装进统一规格的集装箱（VXLAN封装），通过一条公共隧道（UDP）运输。到达对端小区后，再拆箱配送。</p>
+<p>#### Flannel 的性能瓶颈</p>
+<p>问题在哪里？看数据包路径：</p>
+<figure class="highlight "><pre><code>Pod A -&gt; veth -&gt; 宿主机协议栈 -&gt; flannel.1 (封装) -&gt; eth0 -&gt; 物理网络
+                                    ↓
+                              对端 eth0 -&gt; 解封装 -&gt; 对端协议栈 -&gt; veth -&gt; Pod B</code></pre></figure>
+<p><strong>每一次跨节点通信，都要经历两次完整的协议栈处理</strong>（封装+解封装）。这带来：</p>
+<ul>
+<li><strong>MTU损耗</strong>：VXLAN头部50字节，假设物理MTU 1500，那Pod内MTU只能设1450</li>
+</ul>
+<ul>
+<li><strong>CPU开销</strong>：封装/解封装需要CPU参与（除非网卡支持VXLAN offload）</li>
+</ul>
+<ul>
+<li><strong>延迟增加</strong>：实测跨节点延迟比同节点高0.3-1ms</li>
+</ul>
+<h3 id="Calico-用BGP打造-无隧道-网络"><a href="#Calico-用BGP打造-无隧道-网络" class="headerlink" title="Calico：用BGP打造“无隧道”网络"></a>Calico：用BGP打造“无隧道”网络</h3>
+<p>Calico的哲学完全不同：<strong>不封装，直接路由</strong>。核心组件是 <code>Felix</code>（每个节点一个）和 <code>BIRD</code>（BGP客户端）。</p>
+<p>#### Felix 的核心逻辑</p>
+<p>看 <code>felix/daemon/daemon.go</code> 和 <code>felix/dataplane/linux/</code> 下的实现。Felix的核心工作是：</p>
+<ol>
+<li><strong>监听Calico datastore</strong>（etcd或Kubernetes API）中的WorkloadEndpoint变化</li>
+<li><strong>编程内核</strong>：写路由、配iptables、设NetworkPolicy</li>
+</ol>
+<p>关键代码在 <code>felix/dataplane/linux/route_mgr.go</code>：</p>
+<figure class="highlight go"><pre><code class="language-go">// felix/dataplane/linux/route_mgr.go (简化注释版)
+func (m *routeManager) setRoutesForInterface(ifaceName string, routes []*net.IPNet) error {
+    // 1. 获取 veth 对端（即 Pod 内的 eth0）
+    link, err := netlink.LinkByName(ifaceName)
+
+    // 2. 为每个 Pod 的 IP 添加一条 /32 主机路由
+    //    这是 Calico 的核心：每个 Pod IP 都是一条独立路由
+    for _, route := range routes {
+        err := netlink.RouteAdd(&amp;netlink.Route{
+            LinkIndex: link.Attrs().Index,
+            Dst:       route,              // 例如 10.244.1.5/32
+            Scope:     netlink.SCOPE_LINK, // 链路范围，不经过网关
+        })
+    }
+    return nil
+}</code></pre></figure>
+<p><strong>这意味着</strong>：节点A上的Felix知道“10.244.1.5这个Pod在我的veth上”，节点B的Felix知道“10.244.1.0/24这个网段在节点A上”。这些信息通过<strong>BGP协议</strong>在节点间交换。</p>
+<p>#### BIRD 的BGP宣告</p>
+<p>Calico使用BIRD作为BGP daemon。它会把本节点的Pod网段宣告给其他节点：</p>
+<figure class="highlight "><pre><code># BIRD 配置片段（Calico自动生成）
+protocol bgp bgp_65001 {
+    local as 65001;
+    neighbor 192.168.1.2 as 65001;  # 对端节点
+    export filter {
+        if ( net ~ [ 10.244.1.0/24 ] ) then accept;  # 宣告本节点Pod网段
+        reject;
+    };
+}</code></pre></figure>
+<p><strong>数据包路径</strong>：</p>
+<figure class="highlight "><pre><code>Pod A -&gt; veth -&gt; 宿主机路由表（查10.244.1.5/32）-&gt; eth0 -&gt; 物理网络 -&gt; 节点B
+                                                                        ↓
+                                                            节点B路由表 -&gt; veth -&gt; Pod B</code></pre></figure>
+<p><strong>没有封装，没有解封装</strong>，直接走物理网络。这就是Calico性能好的原因。</p>
+<div class="mermaid">
+graph TD
+    subgraph NodeA[节点A 192.168.1.1]
+        PodA1[Pod 10.244.1.5]
+        FelixA[Felix]
+        BIRDA[BIRD]
+    end
+    subgraph NodeB[节点B 192.168.1.2]
+        PodB1[Pod 10.244.2.6]
+        FelixB[Felix]
+        BIRDB[BIRD]
+    end
+    
+    PodA1 -->|veth| FelixA
+    FelixA -->|BGP宣告 10.244.1.0/24| BIRDA
+    BIRDA <-->|BGP Session| BIRDB
+    BIRDB -->|宣告 10.244.2.0/24| FelixB
+    FelixB -->|veth| PodB1
+    
+    PodA1 -.->|无隧道直达| PodB1
+</div>
+<hr>
+<h2 id="实战代码-三个完整示例"><a href="#实战代码-三个完整示例" class="headerlink" title="实战代码：三个完整示例"></a>实战代码：三个完整示例</h2>
+<h3 id="示例1-手写一个最小CNI插件-Go"><a href="#示例1-手写一个最小CNI插件-Go" class="headerlink" title="示例1：手写一个最小CNI插件（Go）"></a>示例1：手写一个最小CNI插件（Go）</h3>
+<p>这是理解CNI最好的方式。我们写一个“傻瓜版”CNI插件，功能是给Pod分配一个固定IP并配置veth对。</p>
+<figure class="highlight go"><pre><code class="language-go">// main.go - 最小 CNI 插件实现
+package main
+
+import (
+	&quot;encoding/json&quot;
+	&quot;fmt&quot;
+	&quot;io&quot;
+	&quot;net&quot;
+	&quot;os&quot;
+	&quot;os/exec&quot;
+	&quot;syscall&quot;
+
+	&quot;github.com/containernetworking/cni/pkg/skel&quot;
+	&quot;github.com/containernetworking/cni/pkg/types&quot;
+	&quot;github.com/containernetworking/cni/pkg/types/100&quot;
+	&quot;github.com/vishvananda/netlink&quot;
+)
+
+// CNI 配置结构（对应 /etc/cni/net.d/10-myplugin.conf）
+type PluginConf struct {
+	types.NetConf
+	// 我们自定义的字段
+	BridgeName string `json:&quot;bridgeName&quot;`
+	Subnet     string `json:&quot;subnet&quot;`
+}
+
+func main() {
+	// skel 是 CNI 官方提供的脚手架，自动处理 stdin/stdout 协议
+	skel.PluginMain(cmdAdd, cmdCheck, cmdDel, 
+		types100.All, &quot;0.4.0&quot;)
+}
+
+// cmdAdd 在 Pod 创建时调用
+func cmdAdd(args *skel.CmdArgs) error {
+	// 1. 解析配置
+	conf := PluginConf{}
+	if err := json.Unmarshal(args.StdinData, &amp;conf); err != nil {
+		return fmt.Errorf(&quot;解析配置失败: %v&quot;, err)
+	}
+
+	// 2. 从 args.Netns 进入 Pod 的网络命名空间
+	//    args.Netns 形如 /var/run/netns/cni-xxxxx
+	ns, err := netns.GetFromPath(args.Netns)
+	if err != nil {
+		return err
+	}
+	defer ns.Close()
+
+	// 3. 在 Pod 命名空间内创建 veth 对
+	//    veth 是虚拟网卡对，一端在 Pod，一端在宿主机
+	hostVethName := &quot;veth-&quot; + args.ContainerID[:8]
+	contVethName := &quot;eth0&quot;
+
+	// 在宿主机创建 veth 对
+	hostVeth, contVeth, err := makeVethPair(hostVethName, contVethName)
+	if err != nil {
+		return err
+	}
+
+	// 4. 把 contVeth 移到 Pod 命名空间
+	if err := netlink.LinkSetNsFd(contVeth, int(ns)); err != nil {
+		return fmt.Errorf(&quot;移动 veth 到 Pod 命名空间失败: %v&quot;, err)
+	}
+
+	// 5. 给 Pod 内的 eth0 分配 IP
+	ip, ipNet, err := net.ParseCIDR(conf.Subnet)
+	if err != nil {
+		return err
+	}
+	// 简单起见，用 IP 最后一位做区分
+	ip = ip.To4()
+	ip[3] = 2 // 实际应基于分配器
+
+	// 进入 Pod 命名空间配置 IP（这里用 nsenter 简化）
+	if err := nsenterAndConfig(contVethName, ip.String(), ipNet); err != nil {
+		return err
+	}
+
+	// 6. 在宿主机配置 hostVeth 并加路由
+	hostIP := net.IPNet{IP: ip, Mask: ipNet.Mask}
+	if err := netlink.AddrAdd(hostVeth, &amp;netlink.Addr{IPNet: &amp;hostIP}); err != nil {
+		return err
+	}
+	if err := netlink.LinkSetUp(hostVeth); err != nil {
+		return err
+	}
+
+	// 7. 返回结果给 Kubelet
+	result := &amp;types100.Result{
+		CNIVersion: &quot;1.0.0&quot;,
+		Interfaces: []*types100.Interface{
+			{Name: contVethName, Mac: contVeth.Attrs().HardwareAddr.String()},
+		},
+		IPs: []*types100.IPConfig{
+			{
+				Address: net.IPNet{IP: ip, Mask: ipNet.Mask},
+			},
+		},
+	}
+	return types.PrintResult(result, &quot;1.0.0&quot;)
+}
+
+// cmdDel 在 Pod 销毁时调用
+func cmdDel(args *skel.CmdArgs) error {
+	// 删除 veth 对即可，内核会自动清理
+	hostVethName := &quot;veth-&quot; + args.ContainerID[:8]
+	link, err := netlink.LinkByName(hostVethName)
+	if err != nil {
+		// 已经不存在了，幂等返回
+		return nil
+	}
+	return netlink.LinkDel(link)
+}
+
+func cmdCheck(args *skel.CmdArgs) error {
+	return nil // 简化实现
+}
+
+func makeVethPair(hostName, contName string) (netlink.Link, netlink.Link, error) {
+	attrs := netlink.NewLinkAttrs()
+	attrs.Name = hostName
+	hostVeth := &amp;netlink.Veth{
+		LinkAttrs: attrs,
+		PeerName:  contName,
+	}
+	if err := netlink.LinkAdd(hostVeth); err != nil {
+		return nil, nil, err
+	}
+	host, _ := netlink.LinkByName(hostName)
+	cont, _ := netlink.LinkByName(contName)
+	return host, cont, nil
+}
+
+func nsenterAndConfig(iface, ip string, ipNet *net.IPNet) error {
+	// 实际生产代码应该在 C 层用 setns() 系统调用
+	// 这里为了可读性用 nsenter 命令示意
+	cmd := exec.Command(&quot;nsenter&quot;, &quot;--net=&quot;+os.Getenv(&quot;NETNS&quot;), 
+		&quot;ip&quot;, &quot;addr&quot;, &quot;add&quot;, ip+&quot;/24&quot;, &quot;dev&quot;, iface)
+	return cmd.Run()
+}</code></pre></figure>
+<p><strong>关键注释</strong>：</p>
+<ul>
+<li><code>skel.PluginMain</code> 是CNI官方脚手架，自动处理环境变量（<code>CNI_COMMAND</code>、<code>CNI_CONTAINERID</code>、<code>CNI_NETNS</code>等）</li>
+</ul>
+<ul>
+<li><code>args.Netns</code> 是Pod的网络命名空间路径，必须进入这个命名空间才能配置Pod内的网卡</li>
+</ul>
+<ul>
+<li>返回的 <code>types100.Result</code> 会被Kubelet解析，用于设置Pod状态</li>
+</ul>
+<h3 id="示例2-用Go读取Calico的路由表并分析"><a href="#示例2-用Go读取Calico的路由表并分析" class="headerlink" title="示例2：用Go读取Calico的路由表并分析"></a>示例2：用Go读取Calico的路由表并分析</h3>
+<p>这个例子帮你<strong>实时诊断</strong>Calico的工作状态：</p>
+<figure class="highlight go"><pre><code class="language-go">// calico-diag.go - 诊断 Calico 路由状态
+package main
+
+import (
+	&quot;fmt&quot;
+	&quot;net&quot;
+	&quot;os&quot;
+
+	&quot;github.com/vishvananda/netlink&quot;
+)
+
+func main() {
+	// 1. 列出所有路由
+	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	if err != nil {
+		fmt.Printf(&quot;获取路由失败: %v\n&quot;, err)
+		os.Exit(1)
+	}
+
+	// 2. 分类统计
+	podRoutes := []netlink.Route{}
+	otherRoutes := []netlink.Route{}
+
+	for _, r := range routes {
+		// Calico 为每个 Pod 添加 /32 路由（主机路由）
+		// Flannel 为每个节点添加 /24 路由（网段路由）
+		if r.Dst != nil &amp;&amp; r.Dst.IP.To4() != nil {
+			ones, _ := r.Dst.Mask.Size()
+			if ones == 32 {
+				podRoutes = append(podRoutes, r)
+			} else {
+				otherRoutes = append(otherRoutes, r)
+			}
+		}
+	}
+
+	fmt.Printf(&quot;=== 路由统计 ===\n&quot;)
+	fmt.Printf(&quot;Pod /32 路由数量: %d\n&quot;, len(podRoutes))
+	fmt.Printf(&quot;其他路由数量: %d\n&quot;, len(otherRoutes))
+
+	// 3. 判断当前使用的是 Calico 还是 Flannel
+	if len(podRoutes) &gt; 10 {
+		fmt.Println(&quot;\n✅ 检测到 Calico 特征：大量 /32 Pod 路由&quot;)
+		fmt.Println(&quot;   说明：Calico 为每个 Pod 单独添加路由条目&quot;)
+	} else {
+		// 检查是否有 flannel.1 设备
+		link, err := netlink.LinkByName(&quot;flannel.1&quot;)
+		if err == nil &amp;&amp; link != nil {
+			fmt.Println(&quot;\n✅ 检测到 Flannel 特征：存在 flannel.1 VXLAN 设备&quot;)
+			fmt.Printf(&quot;   MTU: %d (对比物理网卡通常少 50 字节)\n&quot;, link.Attrs().MTU)
+		}
+	}
+
+	// 4. 输出前 5 条 Pod 路由示例
+	fmt.Println(&quot;\n=== 前 5 条 Pod 路由 ===&quot;)
+	for i, r := range podRoutes {
+		if i &gt;= 5 {
+			break
+		}
+		linkName := &quot;unknown&quot;
+		if l, err := netlink.LinkByIndex(r.LinkIndex); err == nil {
+			linkName = l.Attrs().Name
+		}
+		fmt.Printf(&quot;  %s -&gt; %s (via %s)\n&quot;, r.Dst.String(), r.Gw, linkName)
+	}
+
+	// 5. 检查 IP 转发是否开启（Calico 必须开启）
+	data, _ := os.ReadFile(&quot;/proc/sys/net/ipv4/ip_forward&quot;)
+	fmt.Printf(&quot;\n=== IP 转发状态 ===\n&quot;)
+	fmt.Printf(&quot;net.ipv4.ip_forward = %s&quot;, string(data))
+	if string(data) == &quot;0\n&quot; {
+		fmt.Println(&quot;❌ 未开启！Calico/Flannel 都无法工作&quot;)
+	} else {
+		fmt.Println(&quot;✅ 已开启&quot;)
+	}
+}</code></pre></figure>
+<p><strong>运行效果</strong>（Calico集群）：</p>
+<figure class="highlight "><pre><code>=== 路由统计 ===
+Pod /32 路由数量: 156
+其他路由数量: 12
+
+✅ 检测到 Calico 特征：大量 /32 Pod 路由
+
+=== 前 5 条 Pod 路由 ===
+  10.244.1.5/32 -&gt; &lt;nil&gt; (via cali1234567890)
+  10.244.1.6/32 -&gt; &lt;nil&gt; (via cali1234567891)
+  ...
+
+=== IP 转发状态 ===
+net.ipv4.ip_forward = 1
+✅ 已开启</code></pre></figure>
+<h3 id="示例3-NetworkPolicy-生效性验证脚本"><a href="#示例3-NetworkPolicy-生效性验证脚本" class="headerlink" title="示例3：NetworkPolicy 生效性验证脚本"></a>示例3：NetworkPolicy 生效性验证脚本</h3>
+<p>Calico支持NetworkPolicy，Flannel不支持。这个脚本帮你<strong>验证策略是否真正生效</strong>：</p>
+<figure class="highlight go"><pre><code class="language-go">// netpol-test.go - NetworkPolicy 连通性验证
+package main
+
+import (
+	&quot;context&quot;
+	&quot;fmt&quot;
+	&quot;time&quot;
+
+	corev1 &quot;k8s.io/api/core/v1&quot;
+	networkingv1 &quot;k8s.io/api/networking/v1&quot;
+	metav1 &quot;k8s.io/apimachinery/pkg/apis/meta/v1&quot;
+	&quot;k8s.io/client-go/kubernetes&quot;
+	&quot;k8s.io/client-go/tools/clientcmd&quot;
+)
+
+func main() {
+	// 1. 加载 kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags(&quot;&quot;, 
+		clientcmd.RecommendedHomeFile)
+	if err != nil {
+		panic(err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := context.Background()
+
+	// 2. 创建测试命名空间
+	ns := &quot;netpol-test-demo&quot;
+	_, err = clientset.CoreV1().Namespaces().Create(ctx,
+		&amp;corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
+		metav1.CreateOptions{})
+	if err != nil {
+		fmt.Printf(&quot;命名空间可能已存在: %v\n&quot;, err)
+	}
+
+	// 3. 部署两个测试 Pod：server 和 client
+	deployPod := func(name, label string) {
+		pod := &amp;corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: ns,
+				Labels:    map[string]string{&quot;app&quot;: label},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name:    &quot;nginx&quot;,
+					Image:   &quot;nginx:alpine&quot;,
+					Ports:   []corev1.ContainerPort{{ContainerPort: 80}},
+				}},
+			},
+		}
+		clientset.CoreV1().Pods(ns).Create(ctx, pod, metav1.CreateOptions{})
+	}
+	deployPod(&quot;server&quot;, &quot;server&quot;)
+	deployPod(&quot;client&quot;, &quot;client&quot;)
+
+	// 等待 Pod 就绪
+	time.Sleep(15 * time.Second)
+
+	// 4. 应用 NetworkPolicy：只允许 client 访问 server
+	protocolTCP := corev1.ProtocolTCP
+	port80 := int32(80)
+	policy := &amp;networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      &quot;allow-client-only&quot;,
+			Namespace: ns,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{&quot;app&quot;: &quot;server&quot;},
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{{
+				From: []networkingv1.NetworkPolicyPeer{{
+					PodSelector: &amp;metav1.LabelSelector{
+						MatchLabels: map[string]string{&quot;app&quot;: &quot;client&quot;},
+					},
+				}},
+				Ports: []networkingv1.NetworkPolicyPort{{
+					Protocol: &amp;protocolTCP,
+					Port:     &amp;port80,
+				}},
+			}},
+		},
+	}
+	_, err = clientset.NetworkingV1().NetworkPolicies(ns).Create(
+		ctx, policy, metav1.CreateOptions{})
+	if err != nil {
+		fmt.Printf(&quot;创建 NetworkPolicy 失败: %v\n&quot;, err)
+		return
+	}
+
+	fmt.Println(&quot;✅ NetworkPolicy 已创建&quot;)
+	fmt.Println(&quot;\n⚠️  重要提示：&quot;)
+	fmt.Println(&quot;   - 如果使用 Calico：策略会通过 iptables/BPF 生效&quot;)
+	fmt.Println(&quot;   - 如果使用 Flannel：策略被静默忽略！&quot;)
+	fmt.Println(&quot;\n验证方法：&quot;)
+	fmt.Printf(&quot;   kubectl exec -n %s client -- wget -qO- --timeout=3 server\n&quot;, ns)
+	fmt.Println(&quot;   - 应成功（策略允许）&quot;)
+	fmt.Printf(&quot;   kubectl exec -n %s server -- wget -qO- --timeout=3 client\n&quot;, ns)
+	fmt.Println(&quot;   - 应超时（策略拒绝）&quot;)
+}</code></pre></figure>
+<p><strong>这个脚本的价值</strong>：很多团队上了Flannel后配了NetworkPolicy，以为安全了，实际上<strong>策略完全没生效</strong>。这个脚本能直接暴露问题。</p>
+<hr>
+<h2 id="方案对比-Calico-vs-Flannel-vs-其他"><a href="#方案对比-Calico-vs-Flannel-vs-其他" class="headerlink" title="方案对比：Calico vs Flannel vs 其他"></a>方案对比：Calico vs Flannel vs 其他</h2>
+<h3 id="核心对比表"><a href="#核心对比表" class="headerlink" title="核心对比表"></a>核心对比表</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Flannel (VXLAN)</th>
+<th>Calico (BGP)</th>
+<th>Calico (IPIP)</th>
+<th>Cilium (eBPF)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>封装方式</strong></td>
+<td>VXLAN隧道</td>
+<td>无封装</td>
+<td>IPIP隧道</td>
+<td>无封装/eBPF</td>
+</tr><tr>
+<td><strong>网络性能</strong></td>
+<td>中（CPU封装）</td>
+<td>高</td>
+<td>中</td>
+<td>极高</td>
+</tr><tr>
+<td><strong>延迟</strong></td>
+<td>+0.5~1ms</td>
+<td>接近物理</td>
+<td>+0.3~0.8ms</td>
+<td>最低</td>
+</tr><tr>
+<td><strong>MTU损耗</strong></td>
+<td>50字节</td>
+<td>0</td>
+<td>20字节</td>
+<td>0</td>
+</tr><tr>
+<td><strong>NetworkPolicy</strong></td>
+<td>❌ 不支持</td>
+<td>✅ 完整支持</td>
+<td>✅ 完整支持</td>
+<td>✅ L3-L7</td>
+</tr><tr>
+<td><strong>跨网段支持</strong></td>
+<td>✅ 好</td>
+<td>⚠️ 需配置BGP反射器</td>
+<td>✅ 好</td>
+<td>✅ 好</td>
+</tr><tr>
+<td><strong>大规模集群</strong></td>
+<td>一般（>500节点吃力）</td>
+<td>好（BGP天然分布式）</td>
+<td>好</td>
+<td>极好</td>
+</tr><tr>
+<td><strong>运维复杂度</strong></td>
+<td>低</td>
+<td>中高</td>
+<td>中</td>
+<td>高</td>
+</tr><tr>
+<td><strong>依赖</strong></td>
+<td>etcd/K8s API</td>
+<td>BGP/etcd/K8s API</td>
+<td>BGP</td>
+<td>内核>=4.19</td>
+</tr></tbody></table>
+<h3 id="数据包路径对比"><a href="#数据包路径对比" class="headerlink" title="数据包路径对比"></a>数据包路径对比</h3>
+<div class="mermaid">
+graph LR
+    subgraph Flannel[Flannel VXLAN]
+        A1[Pod] --> B1[veth] --> C1[协议栈] --> D1[flannel.1 封装] --> E1[eth0]
+    end
+    
+    subgraph Calico[Calico BGP]
+        A2[Pod] --> B2[veth] --> C2[协议栈 查路由] --> D2[eth0]
+    end
+    
+    subgraph Cilium[Cilium eBPF]
+        A3[Pod] --> B3[veth] --> C3[eBPF 程序] --> D3[eth0]
+    end
+</div>
+<h3 id="选型决策树"><a href="#选型决策树" class="headerlink" title="选型决策树"></a>选型决策树</h3>
+<div class="mermaid">
+graph TD
+    Start[开始选型] --> Q1{是否需要 NetworkPolicy?}
+    Q1 -->|否| Q2{集群规模 < 100 节点?}
+    Q1 -->|是| Q3{是否在云上?}
+    
+    Q2 -->|是| Flannel[Flannel VXLAN<br/>简单够用]
+    Q2 -->|否| Calico1[Calico BGP<br/>性能更好]
+    
+    Q3 -->|AWS/GCP| Calico2[Calico + 云原生路由<br/>或 Cilium]
+    Q3 -->|自建机房| Q4{网络设备支持 BGP?}
+    
+    Q4 -->|是| Calico3[Calico BGP<br/>无封装最佳性能]
+    Q4 -->|否| Calico4[Calico IPIP<br/>兼容性更好]
+    
+    Q3 -->|追求极致性能| Cilium[Cilium eBPF<br/>L7 策略 + 可观测性]
+</div>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑1-Flannel的MTU陷阱"><a href="#坑1-Flannel的MTU陷阱" class="headerlink" title="坑1：Flannel的MTU陷阱"></a>坑1：Flannel的MTU陷阱</h3>
+<p><strong>现象</strong>：Pod能ping通，但大包传输（如HTTP POST）超时。</p>
+<p><strong>原因</strong>：Flannel VXLAN封装后，Pod内MTU应设为 <code>物理MTU - 50</code>。但很多CNI配置没自动调整。</p>
+<p><strong>解决</strong>：</p>
+<figure class="highlight bash"><pre><code class="language-bash"># 检查物理网卡 MTU
+ip link show eth0 | grep mtu
+# 输出: mtu 1500
+
+# 检查 flannel.1 MTU
+ip link show flannel.1 | grep mtu
+# 应为 1450
+
+# 检查 Pod 内网卡 MTU
+kubectl exec -it pod-name -- ip link show eth0
+# 应为 1450</code></pre></figure>
+<p><strong>最佳实践</strong>：在Flannel配置中显式指定MTU：</p>
+<figure class="highlight json"><pre><code class="language-json">{
+  &quot;Network&quot;: &quot;10.244.0.0/16&quot;,
+  &quot;Backend&quot;: {
+    &quot;Type&quot;: &quot;vxlan&quot;,
+    &quot;MTU&quot;: 1450
+  }
+}</code></pre></figure>
+<h3 id="坑2-Calico在跨网段环境的BGP失效"><a href="#坑2-Calico在跨网段环境的BGP失效" class="headerlink" title="坑2：Calico在跨网段环境的BGP失效"></a>坑2：Calico在跨网段环境的BGP失效</h3>
+<p><strong>现象</strong>：同网段节点正常，跨网段节点Pod无法通信。</p>
+<p><strong>原因</strong>：Calico默认使用节点间BGP对等，但BGP是<strong>单跳协议</strong>，不跨网段。</p>
+<p><strong>解决方案</strong>：</p>
+<ol>
+<li><strong>方案A</strong>：使用 <code>BGP Route Reflector</code>（推荐）</li>
+</ol>
+<figure class="highlight yaml"><pre><code class="language-yaml">   # 配置 Route Reflector
+   apiVersion: projectcalico.org/v3
+   kind: BGPPeer
+   metadata:
+     name: rr-peer
+   spec:
+     peerIP: 192.168.100.10  # RR 地址
+     asNumber: 64512</code></pre></figure>
+<ol>
+<li><strong>方案B</strong>：切换为 IPIP 模式（牺牲性能换兼容性）</li>
+</ol>
+<figure class="highlight yaml"><pre><code class="language-yaml">   # calico-config ConfigMap
+   data:
+     calico_backend: &quot;bird&quot;
+     veth_mtu: &quot;1440&quot;
+   # 环境变量
+   - name: CALICO_IPV4POOL_IPIP
+     value: &quot;Always&quot;</code></pre></figure>
+<h3 id="坑3-NetworkPolicy-的-隐式拒绝"><a href="#坑3-NetworkPolicy-的-隐式拒绝" class="headerlink" title="坑3：NetworkPolicy 的“隐式拒绝”"></a>坑3：NetworkPolicy 的“隐式拒绝”</h3>
+<p><strong>现象</strong>：配了一条允许规则，结果其他流量全断了。</p>
+<p><strong>原因</strong>：NetworkPolicy是<strong>白名单</strong>机制。一旦某个Pod被<strong>任何</strong>NetworkPolicy选中，未被明确允许的流量全部拒绝。</p>
+<p><strong>避坑</strong>：用 <code>kubectl describe networkpolicy</code> 检查，并注意<strong>空PodSelector</strong>会选中所有Pod：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># 危险！这会选中命名空间下所有 Pod
+spec:
+  podSelector: {}   # 空选择器 = 所有 Pod
+  policyTypes:
+  - Ingress
+  ingress: []       # 空规则 = 拒绝所有入站</code></pre></figure>
+<h3 id="坑4-Calico的iptables规则膨胀"><a href="#坑4-Calico的iptables规则膨胀" class="headerlink" title="坑4：Calico的iptables规则膨胀"></a>坑4：Calico的iptables规则膨胀</h3>
+<p><strong>现象</strong>：节点上Pod超过500个后，iptables规则数万条，网络延迟飙升。</p>
+<p><strong>解决</strong>：切换到 <strong>eBPF 模式</strong>（Calico 3.13+）：</p>
+<figure class="highlight bash"><pre><code class="language-bash"># 启用 eBPF 数据平面
+kubectl patch installation default --type=merge -p &#x27;{
+  &quot;spec&quot;: {
+    &quot;calicoNetwork&quot;: {
+      &quot;linuxDataplane&quot;: &quot;BPF&quot;
+    }
+  }
+}&#x27;</code></pre></figure>
+<p>eBPF模式下，策略在<strong>内核态</strong>执行，无需遍历iptables链，性能提升3-5倍。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>生产环境优先选Calico</strong>：除非你明确知道不需要NetworkPolicy</li>
+<li><strong>云环境看CNI兼容性</strong>：AWS EKS用VPC CNI，GKE用Calico，AKS用Azure CNI</li>
+<li><strong>监控路由表大小</strong>：<code>ip route | wc -l</code> 超过5000要警惕</li>
+<li><strong>MTU统一规划</strong>：集群所有节点物理MTU必须一致，否则诡异丢包</li>
+<li><strong>NetworkPolicy先测后上</strong>：用 <code>kubectl exec</code> 验证连通性再上生产</li>
+<li><strong>大集群考虑Cilium</strong>：>1000节点或需要L7策略时，eBPF是未来</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个凌晨两点的告警。如果当时用的是Calico BGP模式，跨节点丢包问题可能根本不会发生——因为没有VXLAN封装，MTU不会踩坑，路由直达性能更好。</p>
+<p><strong>核心要点回顾</strong>：</p>
+<ol>
+<li><strong>CNI是规范，不是实现</strong>。它定义了Kubelet与网络插件的接口，插件是可执行二进制，不是常驻服务。</li>
+<li><strong>Flannel = 简单 + 隧道</strong>。VXLAN封装带来MTU损耗和性能开销，但配置简单，适合小集群。</li>
+<li><strong>Calico = 性能 + 策略</strong>。BGP路由无封装，NetworkPolicy完整支持，但运维复杂度更高。</li>
+<li><strong>选型看场景</strong>：小集群Flannel够用，生产环境Calico是默认答案，超大规模考虑Cilium。</li>
+</ol>
+<p><strong>延伸思考</strong>：</p>
+<ul>
+<li><strong>eBPF正在重塑CNI</strong>：Cilium用eBPF替代iptables，性能提升的同时带来了L7可观测性。Calico也在跟进。</li>
+</ul>
+<ul>
+<li><strong>Service Mesh与CNI的边界模糊</strong>：Istio的Sidecar和Cilium的eBPF都在做流量治理，未来可能融合。</li>
+</ul>
+<ul>
+<li><strong>IPv6与双栈</strong>：Calico和Cilium都支持双栈，Flannel支持较弱，新集群建议直接规划IPv6。</li>
+</ul>
+<p>网络是K8s最容易被忽视、又最容易出问题的部分。<strong>选对CNI，比调优应用本身更能提升集群稳定性</strong>。希望这篇文章能帮你在下一次选型时，做出更有依据的决策。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

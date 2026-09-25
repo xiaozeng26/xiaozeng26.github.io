@@ -440,6 +440,13 @@
       "subtopic": "Java 21虚拟线程（Virtual Threads）深度解析",
       "date": "2026-09-24",
       "url": "/2026/09/25/Java 21虚拟线程（Virtual Threads）深度解析/"
+    },
+    {
+      "title": "K8s网络插件CNI原理：Calico vs Flannel",
+      "category": "cloud-native",
+      "subtopic": "K8s网络插件CNI原理：Calico vs Flannel",
+      "date": "2026-09-25",
+      "url": "/2026/09/26/K8s网络插件CNI原理：Calico vs Flannel/"
     }
   ],
   "used_subtopics": {
@@ -501,7 +508,8 @@
       "K8s Operator模式与自定义资源CRD开发",
       "Docker网络模式：bridge、host、overlay深入对比",
       "K8s HPA与VPA自动扩缩容策略详解",
-      "Helm Chart模板开发与Release管理"
+      "Helm Chart模板开发与Release管理",
+      "K8s网络插件CNI原理：Calico vs Flannel"
     ],
     "go": [
       "Go泛型的设计哲学与实战应用",
@@ -581,6 +589,7 @@
     "Helm Chart模板开发与Release管理": "e764abcc0175180ec517c413b02712eff93858edabd88838b1cdbcba15bf0e5d",
     "LangChain Memory模块：对话历史管理最佳实践": "abce23c8f216d9f95795d09ee6e5b3406f4efb6330b6f3034884abbb68cce606",
     "Go项目工程化：wire依赖注入与分层架构": "a9e64da0e36778006b5ff95a8bd735d20bf138b54fb7f4e80391a00a7a7c5983",
-    "Java 21虚拟线程（Virtual Threads）深度解析": "ffeac01ade72043503d8d9587e8c91361dc4750429cb8d1ab46cc4a7ac20cf9a"
+    "Java 21虚拟线程（Virtual Threads）深度解析": "ffeac01ade72043503d8d9587e8c91361dc4750429cb8d1ab46cc4a7ac20cf9a",
+    "K8s网络插件CNI原理：Calico vs Flannel": "8f9524c92459eb99eef6a898177e60466c26f8987ea9c373719930ee462e045f"
   }
 }
