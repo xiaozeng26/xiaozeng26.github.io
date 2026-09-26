@@ -18,6 +18,24 @@
   "excerpt": "引言 凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：跨节点Pod通信丢包。 这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过： Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍； Calico的BGP模式看起来很美好"
  },
  {
+  "title": "DDD领域驱动设计落地实践与六边形架构",
+  "url": "/2026/09/26/DDD%E9%A2%86%E5%9F%9F%E9%A9%B1%E5%8A%A8%E8%AE%BE%E8%AE%A1%E8%90%BD%E5%9C%B0%E5%AE%9E%E8%B7%B5%E4%B8%8E%E5%85%AD%E8%BE%B9%E5%BD%A2%E6%9E%B6%E6%9E%84/",
+  "date": "2026-09-26",
+  "year": 2026,
+  "month": 9,
+  "day": 26,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=8204",
+  "excerpt": "引言 先讲一个我亲身经历过的项目事故。 三年前我接手一个\\"
+ },
+ {
   "title": "Java 21虚拟线程（Virtual Threads）深度解析",
   "url": "/2026/09/25/Java%2021%E8%99%9A%E6%8B%9F%E7%BA%BF%E7%A8%8B%EF%BC%88Virtual%20Threads%EF%BC%89%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/",
   "date": "2026-09-25",

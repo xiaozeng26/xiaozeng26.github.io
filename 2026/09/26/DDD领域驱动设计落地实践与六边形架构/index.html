@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DDD领域驱动设计落地实践与六边形架构 | 小曾博客</title>
+  <meta name="description" content="DDD领域驱动设计落地实践与六边形架构 引言 先讲一个我亲身经历过的项目事故。 三年前我接手一个\"电商中台\"的重构项目。这个系统最初只有商品管理和订单创建两个功能，两年后膨胀到 47 个 Service 类、12 万行代码。最要命的是，某次大促前，运营提了一个需求：\"VIP 用户在特定品类下单时，可以叠加使用定向优惠券，但优惠券不能和满减活动同时生效。\" 听起来是个简单规则，但我们的开发同学改了整">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="DDD领域驱动设计落地实践与六边形架构">
+  <meta name="twitter:description" content="DDD领域驱动设计落地实践与六边形架构 引言 先讲一个我亲身经历过的项目事故。 三年前我接手一个\"电商中台\"的重构项目。这个系统最初只有商品管理和订单创建两个功能，两年后膨胀到 47 个 Service 类、12 万行代码。最要命的是，某次大促前，运营提了一个需求：\"VIP 用户在特定品类下单时，可以叠加使用定向优惠券，但优惠券不能和满减活动同时生效。\" 听起来是个简单规则，但我们的开发同学改了整">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=8204">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="DDD领域驱动设计落地实践与六边形架构">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="DDD领域驱动设计落地实践与六边形架构 引言 先讲一个我亲身经历过的项目事故。 三年前我接手一个\"电商中台\"的重构项目。这个系统最初只有商品管理和订单创建两个功能，两年后膨胀到 47 个 Service 类、12 万行代码。最要命的是，某次大促前，运营提了一个需求：\"VIP 用户在特定品类下单时，可以叠加使用定向优惠券，但优惠券不能和满减活动同时生效。\" 听起来是个简单规则，但我们的开发同学改了整">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=8204">
+  <meta property="article:published_time" content="2026-09-26T23:21:50.000Z">
+  <meta property="article:modified_time" content="2026-09-26T23:21:50.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#DDD领域驱动设计落地实践与六边形架构"><span class="toc-text">DDD领域驱动设计落地实践与六边形架构</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#一-核心概念-用餐厅类比理解-DDD-与六边形架构"><span class="toc-text">一、核心概念：用餐厅类比理解 DDD 与六边形架构</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-餐厅类比"><span class="toc-text">1.1 餐厅类比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-六边形架构的核心价值"><span class="toc-text">1.2 六边形架构的核心价值</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#二-源码级深度分析-为什么贫血模型会失控"><span class="toc-text">二、源码级深度分析：为什么贫血模型会失控？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-贫血模型的典型代码"><span class="toc-text">2.1 贫血模型的典型代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-用-DDD-重构后的代码"><span class="toc-text">2.2 用 DDD 重构后的代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-聚合边界的源码级判断"><span class="toc-text">2.3 聚合边界的源码级判断</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#三-实战代码-三个完整可运行示例"><span class="toc-text">三、实战代码：三个完整可运行示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-完整的订单聚合-值对象-Java"><span class="toc-text">示例 1：完整的订单聚合 + 值对象（Java）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-六边形架构的应用服务-适配器-Java-Spring"><span class="toc-text">示例 2：六边形架构的应用服务 + 适配器（Java + Spring）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-领域事件-最终一致性-Go-版本"><span class="toc-text">示例 3：领域事件 + 最终一致性（Go 版本）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#四-方案对比-DDD-与传统分层架构"><span class="toc-text">四、方案对比：DDD 与传统分层架构</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#与其他架构的对比"><span class="toc-text">与其他架构的对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#五-最佳实践与避坑指南"><span class="toc-text">五、最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践"><span class="toc-text">✅ 最佳实践</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#常见坑"><span class="toc-text">❌ 常见坑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#六-总结与延伸思考"><span class="toc-text">六、总结与延伸思考</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#核心要点回顾"><span class="toc-text">核心要点回顾</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#延伸思考"><span class="toc-text">延伸思考</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=8204)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">DDD领域驱动设计落地实践与六边形架构</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-26"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-26</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-26"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-26</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="DDD领域驱动设计落地实践与六边形架构"><a href="#DDD领域驱动设计落地实践与六边形架构" class="headerlink" title="DDD领域驱动设计落地实践与六边形架构"></a>DDD领域驱动设计落地实践与六边形架构</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先讲一个我亲身经历过的项目事故。</p>
+<p>三年前我接手一个"电商中台"的重构项目。这个系统最初只有商品管理和订单创建两个功能，两年后膨胀到 47 个 Service 类、12 万行代码。最要命的是，某次大促前，运营提了一个需求："VIP 用户在特定品类下单时，可以叠加使用定向优惠券，但优惠券不能和满减活动同时生效。"</p>
+<p>听起来是个简单规则，但我们的开发同学改了整整两周，上线后出现了三处资损漏洞。原因很简单——<strong>这段业务规则被拆散在 OrderService、CouponService、PromotionService、UserService 四个类里，没有任何一个地方能完整表达"VIP 用户 + 特定品类 + 定向券 + 满减"这个业务事实</strong>。</p>
+<p>这就是典型的<strong>贫血模型（Anemic Domain Model）</strong>灾难：对象只有 getter/setter，所有业务逻辑散落在 Service 层，业务规则无处安放，改一处漏三处。</p>
+<p>DDD（Domain-Driven Design）和六边形架构（Hexagonal Architecture）正是为了解决这类问题而生的。但市面上大量文章只讲概念不讲落地，看完还是不知道怎么下手。这篇文章，我会用<strong>源码级分析 + 可运行代码</strong>，把 DDD 落地这件事讲透。</p>
+<hr>
+<h2 id="一-核心概念-用餐厅类比理解-DDD-与六边形架构"><a href="#一-核心概念-用餐厅类比理解-DDD-与六边形架构" class="headerlink" title="一、核心概念：用餐厅类比理解 DDD 与六边形架构"></a>一、核心概念：用餐厅类比理解 DDD 与六边形架构</h2>
+<h3 id="1-1-餐厅类比"><a href="#1-1-餐厅类比" class="headerlink" title="1.1 餐厅类比"></a>1.1 餐厅类比</h3>
+<p>把软件系统想象成一家餐厅：</p>
+<table>
+<thead>
+<tr>
+<th>软件概念</th>
+<th>餐厅类比</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>领域（Domain）</strong></td>
+<td>餐厅的核心业务</td>
+<td>做菜、点单、结账</td>
+</tr><tr>
+<td><strong>实体（Entity）</strong></td>
+<td>一道具体的菜</td>
+<td>有唯一标识（订单号），状态会变（生的→熟的）</td>
+</tr><tr>
+<td><strong>值对象（Value Object）</strong></td>
+<td>一份"微辣"口味要求</td>
+<td>不可变，只描述特征，没有身份</td>
+</tr><tr>
+<td><strong>聚合（Aggregate）</strong></td>
+<td>一张订单</td>
+<td>订单 + 菜品 + 备注作为一个整体，有事务边界</td>
+</tr><tr>
+<td><strong>聚合根（Aggregate Root）</strong></td>
+<td>订单本身</td>
+<td>外界只能通过订单访问菜品，不能绕过订单直接改菜品</td>
+</tr><tr>
+<td><strong>领域服务（Domain Service）</strong></td>
+<td>大厨</td>
+<td>跨多个食材的复杂烹饪逻辑</td>
+</tr><tr>
+<td><strong>仓储（Repository）</strong></td>
+<td>仓库管理员</td>
+<td>负责取出/存放食材，隐藏存储细节</td>
+</tr><tr>
+<td><strong>六边形架构</strong></td>
+<td>餐厅的就餐区 + 后厨 + 采购口</td>
+<td>就餐区（API）、后厨（领域）、采购口（DB）通过标准接口对接</td>
+</tr></tbody></table>
+<p><strong>关键点</strong>：餐厅的"菜谱"（业务规则）必须写在厨房里，而不是写在服务员的对讲机里（Service 层）。这就是 DDD 的核心主张——<strong>业务逻辑回归领域对象</strong>。</p>
+<h3 id="1-2-六边形架构的核心价值"><a href="#1-2-六边形架构的核心价值" class="headerlink" title="1.2 六边形架构的核心价值"></a>1.2 六边形架构的核心价值</h3>
+<p>六边形架构（也叫端口-适配器架构）的本质是<strong>依赖倒置</strong>：</p>
+<ul>
+<li><strong>端口（Port）</strong>：领域层定义的接口，表达"我需要什么能力"</li>
+</ul>
+<ul>
+<li><strong>适配器（Adapter）</strong>：基础设施层实现端口，比如 MySQL、Redis、RPC</li>
+</ul>
+<div class="mermaid">
+graph TD
+    subgraph 外部世界
+        A[HTTP 客户端]
+        B[gRPC 调用方]
+        C[消息队列]
+    end
+
+    subgraph 适配器层 Adapter
+        D[REST Controller]
+        E[gRPC Adapter]
+        F[MQ Consumer]
+        G[OrderRepositoryImpl]
+        H[PaymentGatewayImpl]
+    end
+
+    subgraph 应用层 Application
+        I[OrderApplicationService]
+    end
+
+    subgraph 领域层 Domain
+        J[Order 聚合根]
+        K[Coupon 值对象]
+        L[OrderRepository 端口]
+        M[PaymentGateway 端口]
+    end
+
+    subgraph 基础设施
+        N[(MySQL)]
+        O[(Redis)]
+        P[第三方支付]
+    end
+
+    A --> D
+    B --> E
+    C --> F
+    D --> I
+    E --> I
+    F --> I
+    I --> J
+    I --> K
+    I --> L
+    I --> M
+    G -.实现.-> L
+    H -.实现.-> M
+    G --> N
+    H --> P
+    I --> O
+
+    style J fill:#ffcccc
+    style K fill:#ffcccc
+    style L fill:#ffcccc
+    style M fill:#ffcccc
+</div>
+<p><strong>注意看箭头方向</strong>：领域层是绝对核心，它不依赖任何外层；所有依赖都通过端口（接口）倒置。这就是六边形架构的灵魂——<strong>领域层零依赖</strong>。</p>
+<hr>
+<h2 id="二-源码级深度分析-为什么贫血模型会失控"><a href="#二-源码级深度分析-为什么贫血模型会失控" class="headerlink" title="二、源码级深度分析：为什么贫血模型会失控？"></a>二、源码级深度分析：为什么贫血模型会失控？</h2>
+<h3 id="2-1-贫血模型的典型代码"><a href="#2-1-贫血模型的典型代码" class="headerlink" title="2.1 贫血模型的典型代码"></a>2.1 贫血模型的典型代码</h3>
+<p>来看一段真实的订单创建代码（简化版）：</p>
+<figure class="highlight java"><pre><code class="language-java">// ❌ 贫血模型：Order 只是个数据袋子
+public class Order {
+    private Long id;
+    private Long userId;
+    private BigDecimal amount;
+    private Integer status;
+    // 只有 getter/setter...
+}
+
+// ❌ 业务逻辑全在 Service，规则散落
+@Service
+public class OrderService {
+    public void createOrder(Long userId, BigDecimal amount) {
+        // 校验用户
+        User user = userService.get(userId);
+        if (user == null) throw new BizException(&quot;用户不存在&quot;);
+        
+        // 校验金额
+        if (amount.compareTo(BigDecimal.ZERO) &lt;= 0) 
+            throw new BizException(&quot;金额非法&quot;);
+        
+        // 计算折扣（散落在 Service 里的规则）
+        if (user.isVip() &amp;&amp; amount.compareTo(new BigDecimal(&quot;1000&quot;)) &gt; 0) {
+            amount = amount.multiply(new BigDecimal(&quot;0.9&quot;));
+        }
+        
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setAmount(amount);
+        order.setStatus(0);
+        orderMapper.insert(order);
+    }
+}</code></pre></figure>
+<p>这段代码的问题：</p>
+<ol>
+<li><strong>规则无法复用</strong>：另一个入口（比如 MQ 消费）想创建订单，必须再写一遍校验</li>
+<li><strong>并发不安全</strong>：<code>order.setStatus(0)</code> 后如果有人改了 status，没有任何保护</li>
+<li><strong>无法表达不变量</strong>：Order 对象可以处于任意非法状态（amount 为负、status 为 999）</li>
+<li><strong>测试困难</strong>：想测试"金额非法"的场景，必须启动 Spring 容器</li>
+</ol>
+<h3 id="2-2-用-DDD-重构后的代码"><a href="#2-2-用-DDD-重构后的代码" class="headerlink" title="2.2 用 DDD 重构后的代码"></a>2.2 用 DDD 重构后的代码</h3>
+<figure class="highlight java"><pre><code class="language-java">// ✅ 充血模型：Order 自己守护业务不变量
+public class Order {
+    private final OrderId id;           // 值对象，不可变
+    private final UserId userId;
+    private Money amount;               // 值对象，自带校验
+    private OrderStatus status;         // 枚举，状态机
+    private final List&lt;OrderItem&gt; items;
+
+    // 私有构造 + 工厂方法，禁止非法创建
+    private Order(OrderId id, UserId userId, List&lt;OrderItem&gt; items) {
+        if (items == null || items.isEmpty()) {
+            throw new DomainException(&quot;订单必须包含至少一个商品&quot;);
+        }
+        this.id = id;
+        this.userId = userId;
+        this.items = List.copyOf(items);  // 防御性拷贝
+        this.amount = calculateTotal(items);
+        this.status = OrderStatus.CREATED;
+    }
+
+    public static Order create(UserId userId, List&lt;OrderItem&gt; items) {
+        return new Order(OrderId.generate(), userId, items);
+    }
+
+    // 业务行为内聚在领域对象里
+    public void applyDiscount(DiscountPolicy policy, User user) {
+        if (this.status != OrderStatus.CREATED) {
+            throw new DomainException(&quot;只有待支付订单可以打折&quot;);
+        }
+        this.amount = policy.calculate(this.amount, user, this.items);
+    }
+
+    public void pay(PaymentId paymentId) {
+        if (this.status != OrderStatus.CREATED) {
+            throw new DomainException(&quot;订单状态不允许支付&quot;);
+        }
+        this.status = OrderStatus.PAID;
+        // 发布领域事件...
+    }
+
+    private Money calculateTotal(List&lt;OrderItem&gt; items) {
+        return items.stream()
+                    .map(OrderItem::subtotal)
+                    .reduce(Money.ZERO, Money::add);
+    }
+    
+    // 只暴露必要的行为，不暴露 setter
+    public Money amount() { return amount; }
+    public OrderStatus status() { return status; }
+}</code></pre></figure>
+<p><strong>核心差异</strong>：</p>
+<ul>
+<li>贫血模型：<strong>对象是名词，逻辑是动词，散落各处</strong></li>
+</ul>
+<ul>
+<li>充血模型：<strong>对象既是名词也是动词，逻辑内聚</strong></li>
+</ul>
+<h3 id="2-3-聚合边界的源码级判断"><a href="#2-3-聚合边界的源码级判断" class="headerlink" title="2.3 聚合边界的源码级判断"></a>2.3 聚合边界的源码级判断</h3>
+<p>如何判断两个实体是否应该在同一聚合？看这个经验法则：</p>
+<blockquote>
+<p><strong>一个事务只修改一个聚合。</strong></p>
+</blockquote>
+<p>比如"下单扣库存"这个场景，很多同学会把 Order 和 Inventory 放在一个聚合里，导致：</p>
+<figure class="highlight java"><pre><code class="language-java">// ❌ 错误：跨聚合事务，锁竞争严重
+@Transactional
+public void createOrder(...) {
+    Order order = Order.create(...);
+    orderRepository.save(order);
+    inventory.decrease(order.items());  // 同一个事务里改库存
+}</code></pre></figure>
+<p>正确做法是<strong>通过领域事件最终一致</strong>：</p>
+<figure class="highlight java"><pre><code class="language-java">// ✅ 正确：Order 聚合只负责自己
+@Transactional
+public void createOrder(...) {
+    Order order = Order.create(...);
+    orderRepository.save(order);
+    // 领域事件在事务提交后发布
+    eventPublisher.publish(new OrderCreatedEvent(order.id(), order.items()));
+}
+
+// 库存服务订阅事件，独立事务处理
+@EventHandler
+public void on(OrderCreatedEvent event) {
+    inventoryService.decrease(event.items());
+}</code></pre></figure>
+<hr>
+<h2 id="三-实战代码-三个完整可运行示例"><a href="#三-实战代码-三个完整可运行示例" class="headerlink" title="三、实战代码：三个完整可运行示例"></a>三、实战代码：三个完整可运行示例</h2>
+<h3 id="示例-1-完整的订单聚合-值对象-Java"><a href="#示例-1-完整的订单聚合-值对象-Java" class="headerlink" title="示例 1：完整的订单聚合 + 值对象（Java）"></a>示例 1：完整的订单聚合 + 值对象（Java）</h3>
+<figure class="highlight java"><pre><code class="language-java">// ============ 值对象：Money ============
+package com.example.domain.shared;
+
+import java.math.BigDecimal;
+import java.util.Currency;
+import java.util.Objects;
+
+/**
+ * 值对象：金额
+ * 特性：不可变、无身份、可替换
+ */
+public final class Money {
+    public static final Money ZERO = new Money(BigDecimal.ZERO, Currency.getInstance(&quot;CNY&quot;));
+    
+    private final BigDecimal amount;
+    private final Currency currency;
+
+    private Money(BigDecimal amount, Currency currency) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) &lt; 0) {
+            throw new IllegalArgumentException(&quot;金额不能为负&quot;);
+        }
+        this.amount = amount.setScale(2, java.math.RoundingMode.HALF_UP);
+        this.currency = Objects.requireNonNull(currency);
+    }
+
+    public static Money of(BigDecimal amount) {
+        return new Money(amount, Currency.getInstance(&quot;CNY&quot;));
+    }
+
+    public static Money of(double amount) {
+        return of(BigDecimal.valueOf(amount));
+    }
+
+    public Money add(Money other) {
+        assertSameCurrency(other);
+        return new Money(this.amount.add(other.amount), this.currency);
+    }
+
+    public Money multiply(BigDecimal rate) {
+        return new Money(this.amount.multiply(rate), this.currency);
+    }
+
+    private void assertSameCurrency(Money other) {
+        if (!this.currency.equals(other.currency)) {
+            throw new IllegalArgumentException(&quot;币种不一致&quot;);
+        }
+    }
+
+    public BigDecimal value() { return amount; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Money)) return false;
+        Money money = (Money) o;
+        return amount.compareTo(money.amount) == 0 &amp;&amp; currency.equals(money.currency);
+    }
+
+    @Override
+    public int hashCode() { return Objects.hash(amount, currency); }
+}</code></pre></figure>
+<figure class="highlight java"><pre><code class="language-java">// ============ 聚合根：Order ============
+package com.example.domain.order;
+
+import com.example.domain.shared.Money;
+import com.example.domain.shared.DomainEvent;
+import com.example.domain.shared.DomainException;
+
+import java.time.Instant;
+import java.util.*;
+
+/**
+ * 订单聚合根
+ * - 唯一入口：所有对订单的修改必须通过 Order 的方法
+ * - 不变量：金额非负、状态机合法、至少一个商品
+ */
+public class Order {
+    private final OrderId id;
+    private final UserId userId;
+    private final List&lt;OrderItem&gt; items;
+    private Money amount;
+    private OrderStatus status;
+    private final Instant createdAt;
+    private final List&lt;DomainEvent&gt; events = new ArrayList&lt;&gt;();
+
+    private Order(OrderId id, UserId userId, List&lt;OrderItem&gt; items) {
+        if (items == null || items.isEmpty()) {
+            throw new DomainException(&quot;订单必须包含至少一个商品&quot;);
+        }
+        this.id = Objects.requireNonNull(id);
+        this.userId = Objects.requireNonNull(userId);
+        this.items = List.copyOf(items);
+        this.amount = items.stream().map(OrderItem::subtotal)
+                            .reduce(Money.ZERO, Money::add);
+        this.status = OrderStatus.CREATED;
+        this.createdAt = Instant.now();
+        this.events.add(new OrderCreatedEvent(this.id, this.userId, this.amount));
+    }
+
+    public static Order create(UserId userId, List&lt;OrderItem&gt; items) {
+        return new Order(OrderId.generate(), userId, items);
+    }
+
+    /** 应用折扣策略 —— 策略通过参数传入，聚合不依赖具体实现 */
+    public void applyDiscount(DiscountPolicy policy, UserContext ctx) {
+        requireStatus(OrderStatus.CREATED, &quot;应用折扣&quot;);
+        Money discounted = policy.calculate(this.amount, ctx, this.items);
+        if (discounted.value().compareTo(Money.ZERO.value()) &lt; 0) {
+            throw new DomainException(&quot;折扣后金额不能为负&quot;);
+        }
+        this.amount = discounted;
+        this.events.add(new OrderDiscountedEvent(this.id, this.amount));
+    }
+
+    public void pay(PaymentId paymentId) {
+        requireStatus(OrderStatus.CREATED, &quot;支付&quot;);
+        this.status = OrderStatus.PAID;
+        this.events.add(new OrderPaidEvent(this.id, paymentId, this.amount));
+    }
+
+    public void cancel(String reason) {
+        if (status == OrderStatus.PAID) {
+            throw new DomainException(&quot;已支付订单需走退款流程&quot;);
+        }
+        this.status = OrderStatus.CANCELLED;
+        this.events.add(new OrderCancelledEvent(this.id, reason));
+    }
+
+    private void requireStatus(OrderStatus expected, String action) {
+        if (this.status != expected) {
+            throw new DomainException(
+                String.format(&quot;订单当前状态[%s]不允许[%s]&quot;, status, action));
+        }
+    }
+
+    /** 拉取领域事件（事务提交后清空） */
+    public List&lt;DomainEvent&gt; pullEvents() {
+        List&lt;DomainEvent&gt; copy = List.copyOf(events);
+        events.clear();
+        return copy;
+    }
+
+    public OrderId id() { return id; }
+    public Money amount() { return amount; }
+    public OrderStatus status() { return status; }
+    public List&lt;OrderItem&gt; items() { return items; }
+}</code></pre></figure>
+<figure class="highlight java"><pre><code class="language-java">// ============ 端口：Repository ============
+package com.example.domain.order;
+
+/**
+ * 端口（Port）：领域层定义，基础设施层实现
+ * 注意：接口在领域层，实现在基础设施层 —— 依赖倒置
+ */
+public interface OrderRepository {
+    void save(Order order);
+    Optional&lt;Order&gt; findById(OrderId id);
+    List&lt;Order&gt; findByUserId(UserId userId);
+}</code></pre></figure>
+<p><strong>这段代码的关键设计点</strong>：</p>
+<ol>
+<li><code>Order</code> 没有 setter，外部只能通过业务方法修改</li>
+<li><code>applyDiscount</code> 接收 <code>DiscountPolicy</code> 接口而非具体实现，<strong>领域层不依赖任何框架</strong></li>
+<li><code>pullEvents()</code> 实现领域事件的延迟发布，保证事务一致</li>
+</ol>
+<h3 id="示例-2-六边形架构的应用服务-适配器-Java-Spring"><a href="#示例-2-六边形架构的应用服务-适配器-Java-Spring" class="headerlink" title="示例 2：六边形架构的应用服务 + 适配器（Java + Spring）"></a>示例 2：六边形架构的应用服务 + 适配器（Java + Spring）</h3>
+<figure class="highlight java"><pre><code class="language-java">// ============ 应用层：编排用例 ============
+package com.example.application;
+
+import com.example.domain.order.*;
+import com.example.domain.shared.DomainEvent;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 应用服务：只做编排，不写业务规则
+ * 职责：加载聚合 → 调用领域方法 → 保存 → 发布事件
+ */
+@Service
+public class OrderApplicationService {
+
+    private final OrderRepository orderRepository;
+    private final UserQueryService userQueryService;
+    private final DiscountPolicyFactory discountPolicyFactory;
+    private final DomainEventPublisher eventPublisher;
+
+    public OrderApplicationService(OrderRepository orderRepository,
+                                   UserQueryService userQueryService,
+                                   DiscountPolicyFactory discountPolicyFactory,
+                                   DomainEventPublisher eventPublisher) {
+        this.orderRepository = orderRepository;
+        this.userQueryService = userQueryService;
+        this.discountPolicyFactory = discountPolicyFactory;
+        this.eventPublisher = eventPublisher;
+    }
+
+    @Transactional
+    public OrderId createOrder(CreateOrderCommand cmd) {
+        // 1. 调用领域工厂创建聚合
+        List&lt;OrderItem&gt; items = cmd.items().stream()
+                .map(i -&gt; new OrderItem(i.skuId(), i.price(), i.quantity()))
+                .toList();
+        Order order = Order.create(new UserId(cmd.userId()), items);
+
+        // 2. 查询上下文（跨聚合查询走读模型，不加载整个 User 聚合）
+        UserContext ctx = userQueryService.loadContext(cmd.userId());
+
+        // 3. 调用领域行为
+        DiscountPolicy policy = discountPolicyFactory.resolve(ctx);
+        order.applyDiscount(policy, ctx);
+
+        // 4. 持久化
+        orderRepository.save(order);
+
+        // 5. 事务提交后发布事件（通过 TransactionSynchronization 保证）
+        order.pullEvents().forEach(eventPublisher::publishAfterCommit);
+
+        return order.id();
+    }
+}</code></pre></figure>
+<figure class="highlight java"><pre><code class="language-java">// ============ 适配器层：REST Controller ============
+package com.example.adapter.web;
+
+import com.example.application.OrderApplicationService;
+import com.example.application.CreateOrderCommand;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * 入站适配器（Driving Adapter）
+ * 职责：协议转换（HTTP → Command），不包含业务逻辑
+ */
+@RestController
+@RequestMapping(&quot;/api/orders&quot;)
+public class OrderController {
+
+    private final OrderApplicationService orderService;
+
+    public OrderController(OrderApplicationService orderService) {
+        this.orderService = orderService;
+    }
+
+    @PostMapping
+    public ApiResponse&lt;String&gt; create(@RequestBody CreateOrderRequest req) {
+        // 只做 DTO → Command 转换
+        CreateOrderCommand cmd = new CreateOrderCommand(
+                req.userId(),
+                req.items().stream()
+                   .map(i -&gt; new CreateOrderCommand.Item(
+                       i.skuId(), i.price(), i.quantity()))
+                   .toList()
+        );
+        String orderId = orderService.createOrder(cmd).value();
+        return ApiResponse.ok(orderId);
+    }
+}</code></pre></figure>
+<figure class="highlight java"><pre><code class="language-java">// ============ 适配器层：Repository 实现 ============
+package com.example.adapter.persistence;
+
+import com.example.domain.order.*;
+import org.springframework.stereotype.Repository;
+
+/**
+ * 出站适配器（Driven Adapter）
+ * 职责：领域对象 ↔ 数据库表 的映射
+ */
+@Repository
+public class OrderRepositoryImpl implements OrderRepository {
+
+    private final OrderJpaMapper jpaMapper;
+
+    public OrderRepositoryImpl(OrderJpaMapper jpaMapper) {
+        this.jpaMapper = jpaMapper;
+    }
+
+    @Override
+    public void save(Order order) {
+        OrderPO po = OrderConverter.toPO(order);
+        jpaMapper.save(po);
+    }
+
+    @Override
+    public Optional&lt;Order&gt; findById(OrderId id) {
+        return jpaMapper.findById(id.value())
+                        .map(OrderConverter::toDomain);
+    }
+
+    @Override
+    public List&lt;Order&gt; findByUserId(UserId userId) {
+        return jpaMapper.findByUserId(userId.value())
+                        .stream()
+                        .map(OrderConverter::toDomain)
+                        .toList();
+    }
+}</code></pre></figure>
+<p><strong>分层职责一览</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>层</th>
+<th>职责</th>
+<th>依赖方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Adapter（适配器）</td>
+<td>协议转换、数据映射</td>
+<td>依赖 Application</td>
+</tr><tr>
+<td>Application（应用）</td>
+<td>用例编排、事务边界</td>
+<td>依赖 Domain</td>
+</tr><tr>
+<td>Domain（领域）</td>
+<td>业务规则、不变量</td>
+<td><strong>零依赖</strong></td>
+</tr><tr>
+<td>Infrastructure</td>
+<td>技术实现（DB、MQ、RPC）</td>
+<td>实现 Domain 端口</td>
+</tr></tbody></table>
+<h3 id="示例-3-领域事件-最终一致性-Go-版本"><a href="#示例-3-领域事件-最终一致性-Go-版本" class="headerlink" title="示例 3：领域事件 + 最终一致性（Go 版本）"></a>示例 3：领域事件 + 最终一致性（Go 版本）</h3>
+<p>换个语言，展示 DDD 不是 Java 专属：</p>
+<figure class="highlight go"><pre><code class="language-go">package order
+
+import (
+	&quot;errors&quot;
+	&quot;time&quot;
+)
+
+// Order 聚合根
+type Order struct {
+	id        OrderID
+	userID    UserID
+	items     []OrderItem
+	amount    Money
+	status    Status
+	events    []DomainEvent
+	createdAt time.Time
+}
+
+// 工厂方法，禁止直接构造
+func NewOrder(userID UserID, items []OrderItem) (*Order, error) {
+	if len(items) == 0 {
+		return nil, errors.New(&quot;订单必须包含至少一个商品&quot;)
+	}
+	total := ZeroMoney()
+	for _, it := range items {
+		total = total.Add(it.Subtotal())
+	}
+	o := &amp;Order{
+		id:        NewOrderID(),
+		userID:    userID,
+		items:     items,
+		amount:    total,
+		status:    StatusCreated,
+		createdAt: time.Now(),
+	}
+	o.record(OrderCreatedEvent{OrderID: o.id, Amount: total})
+	return o, nil
+}
+
+// 业务行为
+func (o *Order) ApplyDiscount(policy DiscountPolicy, ctx UserContext) error {
+	if o.status != StatusCreated {
+		return errors.New(&quot;只有待支付订单可以打折&quot;)
+	}
+	newAmount, err := policy.Calculate(o.amount, ctx, o.items)
+	if err != nil {
+		return err
+	}
+	o.amount = newAmount
+	o.record(OrderDiscountedEvent{OrderID: o.id, NewAmount: newAmount})
+	return nil
+}
+
+func (o *Order) Pay(paymentID PaymentID) error {
+	if o.status != StatusCreated {
+		return errors.New(&quot;订单状态不允许支付&quot;)
+	}
+	o.status = StatusPaid
+	o.record(OrderPaidEvent{OrderID: o.id, PaymentID: paymentID})
+	return nil
+}
+
+func (o *Order) record(e DomainEvent) {
+	o.events = append(o.events, e)
+}
+
+// PullEvents 拉取并清空事件
+func (o *Order) PullEvents() []DomainEvent {
+	evts := o.events
+	o.events = nil
+	return evts
+}
+
+// 端口定义
+type Repository interface {
+	Save(o *Order) error
+	FindByID(id OrderID) (*Order, error)
+}</code></pre></figure>
+<hr>
+<h2 id="四-方案对比-DDD-与传统分层架构"><a href="#四-方案对比-DDD-与传统分层架构" class="headerlink" title="四、方案对比：DDD 与传统分层架构"></a>四、方案对比：DDD 与传统分层架构</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>传统三层架构</th>
+<th>DDD + 六边形架构</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>业务逻辑位置</strong></td>
+<td>Service 层（贫血）</td>
+<td>领域对象（充血）</td>
+</tr><tr>
+<td><strong>对象职责</strong></td>
+<td>数据载体</td>
+<td>数据 + 行为</td>
+</tr><tr>
+<td><strong>依赖方向</strong></td>
+<td>Controller → Service → DAO</td>
+<td>Adapter → Application → Domain ← Infrastructure</td>
+</tr><tr>
+<td><strong>可测试性</strong></td>
+<td>需启动容器</td>
+<td>领域层纯单元测试</td>
+</tr><tr>
+<td><strong>业务规则复用</strong></td>
+<td>差（散落）</td>
+<td>好（内聚）</td>
+</tr><tr>
+<td><strong>学习成本</strong></td>
+<td>低</td>
+<td>高</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>CRUD、简单业务</td>
+<td>复杂业务、长期演进系统</td>
+</tr></tbody></table>
+<h3 id="与其他架构的对比"><a href="#与其他架构的对比" class="headerlink" title="与其他架构的对比"></a>与其他架构的对比</h3>
+<p><strong>1. DDD vs 事务脚本（Transaction Script）</strong></p>
+<p>事务脚本适合简单场景，比如后台管理系统的增删改查。强行上 DDD 是过度设计。判断标准：<strong>如果一个业务规则能用 3 行 if-else 说清楚，就不要用聚合</strong>。</p>
+<p><strong>2. DDD vs 洋葱架构（Onion Architecture）</strong></p>
+<p>洋葱架构和六边形架构是同一思想的不同表达。区别在于：</p>
+<ul>
+<li>六边形强调<strong>端口/适配器</strong>（技术视角）</li>
+</ul>
+<ul>
+<li>洋葱强调<strong>依赖同心圆</strong>（分层视角）</li>
+</ul>
+<p>实战中两者常常混用，本质都是"领域核心，依赖倒置"。</p>
+<p><strong>3. DDD vs CQRS</strong></p>
+<p>CQRS 不是 DDD 的替代，而是<strong>补充</strong>。DDD 解决"写模型"的复杂业务，CQRS 解决"读模型"的高并发查询。常见组合：<strong>写侧用 DDD 聚合，读侧用扁平化 View</strong>。</p>
+<div class="mermaid">
+graph LR
+    A[客户端] --> B[Command 入口]
+    A --> C[Query 入口]
+    B --> D[Order 聚合<br/>充血模型]
+    D --> E[写库]
+    E -.事件同步.-> F[读库<br/>宽表/ES]
+    C --> F
+    style D fill:#ffcccc
+    style F fill:#ccffcc
+</div>
+<hr>
+<h2 id="五-最佳实践与避坑指南"><a href="#五-最佳实践与避坑指南" class="headerlink" title="五、最佳实践与避坑指南"></a>五、最佳实践与避坑指南</h2>
+<h3 id="最佳实践"><a href="#最佳实践" class="headerlink" title="✅ 最佳实践"></a>✅ 最佳实践</h3>
+<ol>
+<li><strong>聚合尽量小</strong>：一个聚合只保护真正需要强一致的不变量。Order + OrderItem 是合理的，Order + User 就是灾难。</li>
+</ol>
+<ol>
+<li><strong>通过 ID 引用其他聚合</strong>：<code>Order.userId</code> 而不是 <code>Order.user</code>。跨聚合加载会破坏事务边界。</li>
+</ol>
+<ol>
+<li><strong>领域层零框架依赖</strong>：Domain 模块的 <code>pom.xml</code> 里不应该有 Spring、MyBatis。这是检验架构是否干净的硬指标。</li>
+</ol>
+<ol>
+<li><strong>领域事件延迟发布</strong>：用 <code>TransactionSynchronizationManager</code> 保证事务提交后才发 MQ，避免"消息发了但事务回滚"。</li>
+</ol>
+<ol>
+<li><strong>DTO 与领域对象分离</strong>：Controller 的 Request 和 Domain 的 Entity 必须分开，防止外部直接操作领域对象。</li>
+</ol>
+<h3 id="常见坑"><a href="#常见坑" class="headerlink" title="❌ 常见坑"></a>❌ 常见坑</h3>
+<p><strong>坑 1：把聚合根当成万能容器</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// ❌ 聚合过大：Order 里塞了 User、Coupon、Promotion
+public class Order {
+    private User user;          // 跨聚合！
+    private List&lt;Coupon&gt; coupons;  // 跨聚合！
+    private Promotion promotion;    // 跨聚合！
+}</code></pre></figure>
+<p>后果：加载一个订单要 join 十张表，锁竞争剧烈。</p>
+<p><strong>坑 2：领域服务滥用</strong></p>
+<p>领域服务只应该处理"跨多个实体的业务规则"，比如"转账"涉及两个 Account。如果只有一个实体参与，写在实体内部。</p>
+<p><strong>坑 3：Repository 里写业务逻辑</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// ❌ 错误
+public interface OrderRepository {
+    List&lt;Order&gt; findExpiredOrders();  // 什么算&quot;过期&quot;？这是业务规则！
+}
+
+// ✅ 正确
+public interface OrderRepository {
+    List&lt;Order&gt; findByStatusAndCreatedBefore(OrderStatus status, Instant time);
+}</code></pre></figure>
+<p><strong>坑 4：贫血模型 + DDD 命名 = 伪 DDD</strong></p>
+<p>很多团队号称用了 DDD，代码里却全是 <code>OrderDTO</code>、<code>OrderService.updateStatus()</code>。<strong>判断标准</strong>：领域对象有没有行为方法？没有就是贫血。</p>
+<p><strong>坑 5：忽略防腐层（ACL）</strong></p>
+<p>对接外部系统时，不要直接把对方的 DTO 引入领域层。用<strong>适配器 + 转换器</strong>隔离：</p>
+<figure class="highlight java"><pre><code class="language-java">// ✅ 防腐层
+public class ExternalPaymentAdapter implements PaymentGateway {
+    private final ThirdPartyPaymentClient client;  // 三方 SDK
+    
+    @Override
+    public PaymentResult pay(Order order, Money amount) {
+        // 转换：领域模型 → 三方请求
+        ThirdPartyRequest req = new ThirdPartyRequest(
+            order.id().value(), amount.value().toString());
+        ThirdPartyResponse resp = client.invoke(req);
+        // 转换：三方响应 → 领域模型
+        return resp.success() 
+            ? PaymentResult.success(resp.transactionId())
+            : PaymentResult.fail(resp.errorMsg());
+    }
+}</code></pre></figure>
+<hr>
+<h2 id="六-总结与延伸思考"><a href="#六-总结与延伸思考" class="headerlink" title="六、总结与延伸思考"></a>六、总结与延伸思考</h2>
+<h3 id="核心要点回顾"><a href="#核心要点回顾" class="headerlink" title="核心要点回顾"></a>核心要点回顾</h3>
+<ol>
+<li><strong>DDD 的本质是"把业务规则放回它该在的地方"</strong>——领域对象。贫血模型是绝大多数业务失控的根源。</li>
+</ol>
+<ol>
+<li><strong>聚合是事务边界，不是对象容器</strong>。一个事务只改一个聚合，跨聚合用领域事件最终一致。</li>
+</ol>
+<ol>
+<li><strong>六边形架构的核心是依赖倒置</strong>。领域层零依赖，所有外部能力通过端口（接口）注入。</li>
+</ol>
+<ol>
+<li><strong>DDD 不是银弹</strong>。CRUD 系统上 DDD 是自寻烦恼，复杂业务系统不用 DDD 是慢性自杀。</li>
+</ol>
+<h3 id="延伸思考"><a href="#延伸思考" class="headerlink" title="延伸思考"></a>延伸思考</h3>
+<ul>
+<li><strong>DDD 与微服务的边界如何对齐？</strong> 一个限界上下文（Bounded Context）通常对应一个微服务，但并非绝对。如果两个上下文共享同一团队、同一发布节奏，合并为模块化单体反而更好。</li>
+</ul>
+<ul>
+<li><strong>事件溯源（Event Sourcing）值得上吗？</strong> 只有在需要完整审计、时间旅行查询时才考虑。大多数场景，传统持久化 + 领域事件足够。</li>
+</ul>
+<ul>
+<li><strong>如何度量 DDD 落地效果？</strong> 看两个指标：领域层单元测试覆盖率（应 > 80%）、领域模块的依赖数（应为 0）。</li>
+</ul>
+<p>架构的演进从来不是一蹴而就的。我建议的落地路径是：<strong>先在核心域试点一个聚合 → 团队达成共识 → 逐步推广到支撑域 → 通用域保持简单 CRUD</strong>。切忌一步到位，那是架构师最大的傲慢。</p>
+<p>愿你的领域模型，永远清晰如初。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
