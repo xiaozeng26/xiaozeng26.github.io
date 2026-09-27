@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>大模型微调技术对比：LoRA、QLoRA、全参微调 | 小曾博客</title>
+  <meta name="description" content="大模型微调技术对比：LoRA、QLoRA、全参微调 引言 去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；而且他们的法律术语体系非常特">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="大模型微调技术对比：LoRA、QLoRA、全参微调">
+  <meta name="twitter:description" content="大模型微调技术对比：LoRA、QLoRA、全参微调 引言 去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；而且他们的法律术语体系非常特">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=4550">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="大模型微调技术对比：LoRA、QLoRA、全参微调">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="大模型微调技术对比：LoRA、QLoRA、全参微调 引言 去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；而且他们的法律术语体系非常特">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=4550">
+  <meta property="article:published_time" content="2026-09-28T00:00:47.000Z">
+  <meta property="article:modified_time" content="2026-09-28T00:00:47.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#大模型微调技术对比-LoRA-QLoRA-全参微调"><span class="toc-text">大模型微调技术对比：LoRA、QLoRA、全参微调</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-三种微调路线的本质区别"><span class="toc-text">核心概念：三种微调路线的本质区别</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个餐厅后厨的类比"><span class="toc-text">一个餐厅后厨的类比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#全参微调的显存账本"><span class="toc-text">全参微调的显存账本</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#LoRA-的源码级剖析"><span class="toc-text">LoRA 的源码级剖析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#QLoRA-的三项核心创新"><span class="toc-text">QLoRA 的三项核心创新</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三种方案的架构对比"><span class="toc-text">三种方案的架构对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-全参微调-以小型模型为例-便于复现"><span class="toc-text">示例一：全参微调（以小型模型为例，便于复现）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-LoRA-微调-生产环境主力方案"><span class="toc-text">示例二：LoRA 微调（生产环境主力方案）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-QLoRA-微调-单卡跑-70B-的救命方案"><span class="toc-text">示例三：QLoRA 微调（单卡跑 70B 的救命方案）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-横向评测"><span class="toc-text">方案对比：横向评测</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#与-Prompt-Tuning-P-Tuning-的对比"><span class="toc-text">与 Prompt Tuning / P-Tuning 的对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#与-Adapter-层的对比"><span class="toc-text">与 Adapter 层的对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-数据质量-一切"><span class="toc-text"> 一切">1. 数据质量 > 一切</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-学习率与-batch-size-的耦合"><span class="toc-text">2. 学习率与 batch size 的耦合</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-秩-r-的选择"><span class="toc-text">3. 秩 r 的选择</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-目标模块的选择"><span class="toc-text">4. 目标模块的选择</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-常见坑点速查"><span class="toc-text">5. 常见坑点速查</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-一个实用的选型决策树"><span class="toc-text">6. 一个实用的选型决策树</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=4550)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">大模型微调技术对比：LoRA、QLoRA、全参微调</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-28"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-28</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-28"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-28</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="大模型微调技术对比-LoRA-QLoRA-全参微调"><a href="#大模型微调技术对比-LoRA-QLoRA-全参微调" class="headerlink" title="大模型微调技术对比：LoRA、QLoRA、全参微调"></a>大模型微调技术对比：LoRA、QLoRA、全参微调</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；而且他们的法律术语体系非常特殊，通用模型对"表见代理""善意取得"这类概念的回答总是差那么一口气，RAG 检索回来的片段也经常答非所问。</p>
+<p>摆在面前的路只有一条：本地部署开源模型，并且做微调，让模型真正"学会"这家律所的语言习惯和知识分布。</p>
+<p>但真正动手时，新的问题又来了。律所的 GPU 预算只有 2 张 A100 80G，而我们想微调的是 70B 级别的模型。全参微调？光是优化器状态就要吃掉几百 GB 显存，根本跑不起来。这时候，LoRA 和 QLoRA 进入了视野。</p>
+<p>这篇文章，我想把这三种微调路线——<strong>全参微调（Full Fine-tuning）</strong>、<strong>LoRA</strong>、<strong>QLoRA</strong>——从原理到源码彻底讲清楚，帮你在真实项目里做出正确的技术选型。这不是一篇"Hello World"级别的教程，而是面向有 3-5 年工程经验、准备把微调真正落地到生产环境的开发者。</p>
+<hr>
+<h2 id="核心概念-三种微调路线的本质区别"><a href="#核心概念-三种微调路线的本质区别" class="headerlink" title="核心概念：三种微调路线的本质区别"></a>核心概念：三种微调路线的本质区别</h2>
+<h3 id="一个餐厅后厨的类比"><a href="#一个餐厅后厨的类比" class="headerlink" title="一个餐厅后厨的类比"></a>一个餐厅后厨的类比</h3>
+<p>想象你经营一家餐厅，现在要培养一位新厨师。</p>
+<p><strong>全参微调</strong>，相当于让这位厨师从零开始重新学一遍所有菜系——川菜、粤菜、法餐、日料，全部推倒重来。学成之后，他对所有菜的理解都会变化，但代价是：需要重金聘请教务团队（优化器状态）、耗时数月（训练时间长）、而且万一学砸了，原来的手艺也回不来了（灾难性遗忘）。</p>
+<p><strong>LoRA</strong>，相当于不动厨师原有的手艺，只给他配一本"本店特色菜补充手册"。手册很薄，只记录这家店特有的调味偏好和摆盘风格。厨师做菜时，一边用自己原有的功底，一边翻阅这本手册做微调。手册可以随时换、随时扔，厨师本身不受影响。</p>
+<p><strong>QLoRA</strong>，则是在 LoRA 的基础上，先把厨师本人的记忆压缩成"精简版"（4-bit 量化），再配那本补充手册。这样厨师占用的"工位"（显存）大大减少，但做菜时的精细度会有一点点损失。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p><strong>全参微调（Full Fine-tuning）</strong>：在预训练模型的基础上，用下游任务数据更新模型的<strong>全部参数</strong>。对于一个 7B 模型，需要更新的参数量就是 70 亿个，训练时每个参数还要额外存储梯度、优化器的一阶矩和二阶矩（Adam 优化器下，每个参数额外占用 8 字节），显存开销是模型本身的 3-4 倍。</p>
+<p><strong>LoRA（Low-Rank Adaptation）</strong>：冻结预训练模型的所有原始权重 $W_0 \in \mathbb{R}^{d \times k}$，在旁路注入一对可训练的低秩矩阵 $A \in \mathbb{R}^{r \times k}$ 和 $B \in \mathbb{R}^{d \times r}$，其中秩 $r \ll \min(d, k)$。前向传播变为：</p>
+<p>$$</p>
+<p>h = W_0 x + \Delta W x = W_0 x + BAx</p>
+<p>$$</p>
+<p>训练时只更新 $A$ 和 $B$，参数量从 $d \times k$ 降到 $r \times (d + k)$。以 $d=k=4096, r=8$ 为例，参数量从 1600 万降到 6.5 万，压缩了 244 倍。</p>
+<p><strong>QLoRA（Quantized LoRA）</strong>：在 LoRA 的基础上，把冻结的基座模型 $W_0$ 量化到 4-bit（NF4 数据类型），同时引入三项关键创新：4-bit NormalFloat 量化、双重量化（Double Quantization）、以及分页优化器（Paged Optimizers）。这让 65B 模型可以在单张 48G 显卡上微调。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="全参微调的显存账本"><a href="#全参微调的显存账本" class="headerlink" title="全参微调的显存账本"></a>全参微调的显存账本</h3>
+<p>先算一笔账。假设我们要微调一个 7B 模型（如 Llama-2-7B），使用 AdamW 优化器 + 混合精度训练（fp16 计算 + fp32 主权重）：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>精度</th>
+<th>显存占用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>模型权重</td>
+<td>fp16</td>
+<td>14 GB</td>
+</tr><tr>
+<td>主权重副本</td>
+<td>fp32</td>
+<td>28 GB</td>
+</tr><tr>
+<td>梯度</td>
+<td>fp16</td>
+<td>14 GB</td>
+</tr><tr>
+<td>Adam 一阶矩</td>
+<td>fp32</td>
+<td>28 GB</td>
+</tr><tr>
+<td>Adam 二阶矩</td>
+<td>fp32</td>
+<td>28 GB</td>
+</tr><tr>
+<td>激活值</td>
+<td>fp16</td>
+<td>视 batch size 而定</td>
+</tr><tr>
+<td><strong>合计</strong></td>
+<td></td>
+<td><strong>≈ 112 GB + 激活值</strong></td>
+</tr></tbody></table>
+<p>这就是为什么全参微调 7B 模型至少需要一张 A100 80G（还得用 gradient checkpointing 省激活值），70B 模型则要好几张卡做 ZeRO-3 分片。</p>
+<h3 id="LoRA-的源码级剖析"><a href="#LoRA-的源码级剖析" class="headerlink" title="LoRA 的源码级剖析"></a>LoRA 的源码级剖析</h3>
+<p>我们直接看 HuggingFace <code>peft</code> 库中 LoRA 层的核心实现（<code>peft/tuners/lora/layer.py</code>，简化版）：</p>
+<figure class="highlight python"><pre><code class="language-python">class LoraLayer(BaseTunerLayer):
+    def __init__(self, in_features: int, out_features: int, **kwargs):
+        self.r = {}
+        self.lora_alpha = {}
+        self.scaling = {}
+        self.lora_dropout = nn.ModuleDict({})
+        self.lora_A = nn.ModuleDict({})
+        self.lora_B = nn.ModuleDict({})
+        # 冻结的原始权重
+        self.weight = nn.Parameter(torch.empty((out_features, in_features)))
+
+    def update_layer(self, adapter_name, r, lora_alpha, lora_dropout, init_lora_weights):
+        self.r[adapter_name] = r
+        self.lora_alpha[adapter_name] = lora_alpha
+        # 关键：scaling = alpha / r
+        self.scaling[adapter_name] = lora_alpha / r
+        if lora_dropout &gt; 0.0:
+            lora_dropout_layer = nn.Dropout(p=lora_dropout)
+        else:
+            lora_dropout_layer = nn.Identity()
+        self.lora_dropout.update(nn.ModuleDict({adapter_name: lora_dropout_layer}))
+
+        # A 矩阵：高斯初始化，形状 (r, in_features)
+        self.lora_A[adapter_name] = nn.Linear(in_features, r, bias=False)
+        # B 矩阵：零初始化，形状 (out_features, r)
+        self.lora_B[adapter_name] = nn.Linear(r, out_features, bias=False)
+        # 初始化：A 用 Kaiming，B 用零，保证训练开始时 ΔW = BA = 0
+        nn.init.kaiming_uniform_(self.lora_A[adapter_name].weight, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B[adapter_name].weight)</code></pre></figure>
+<p>前向传播的实现（<code>Linear</code> 版本）：</p>
+<figure class="highlight python"><pre><code class="language-python">def forward(self, x: torch.Tensor, *args, **kwargs):
+    # 原始路径：使用冻结的 base weight
+    result = self.base_layer(x, *args, **kwargs)
+    # LoRA 旁路
+    for active_adapter in self.active_adapters:
+        if active_adapter not in self.lora_A.keys():
+            continue
+        lora_A = self.lora_A[active_adapter]
+        lora_B = self.lora_B[active_adapter]
+        dropout = self.lora_dropout[active_adapter]
+        scaling = self.scaling[active_adapter]
+        # 注意：输入先做 dropout，再经过 A、B，最后乘 scaling
+        x_dropped = dropout(x.to(lora_A.weight.dtype))
+        result += lora_B(lora_A(x_dropped)) * scaling
+    return result</code></pre></figure>
+<p>这里有几个<strong>源码级的关键细节</strong>，很多博客不会告诉你：</p>
+<ol>
+<li><strong><code>scaling = alpha / r</code> 的设计意图</strong>：当你调整 <code>r</code> 时，无需重新调 <code>learning_rate</code>。alpha 固定，r 变大时 scaling 自动变小，保证有效学习率稳定。这是 LoRA 论文里一个非常工程化的巧思。</li>
+</ol>
+<ol>
+<li><strong>B 矩阵零初始化</strong>：保证训练开始时 $\Delta W = BA = 0$，模型行为与原始模型完全一致，然后平滑地开始学习。这一点至关重要——如果 A、B 都随机初始化，训练初期会出现明显的性能抖动。</li>
+</ol>
+<ol>
+<li><strong>dropout 的位置</strong>：注意是 <code>dropout(x)</code> 而不是 <code>dropout(B(A(x)))</code>。dropout 作用在输入上，与标准 Linear 层的 dropout 位置一致。</li>
+</ol>
+<ol>
+<li><strong>哪些层加 LoRA</strong>：实践中我们通常只对 attention 的 <code>q_proj, k_proj, v_proj, o_proj</code> 加 LoRA，有时加上 MLP 的 <code>gate_proj, up_proj, down_proj</code>。全加会显著增加参数量，收益递减。</li>
+</ol>
+<h3 id="QLoRA-的三项核心创新"><a href="#QLoRA-的三项核心创新" class="headerlink" title="QLoRA 的三项核心创新"></a>QLoRA 的三项核心创新</h3>
+<p>QLoRA 的源码主要在 <code>bitsandbytes</code> 库里。我们看最关键的 <strong>NF4 量化</strong>（<code>bitsandbytes/functional.py</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python"># 4-bit NormalFloat 量化：基于分位数的信息论最优量化
+def create_normal_map(offset=0.9677083, use_extra_value=True):
+    from scipy.stats import norm
+    # 生成 16 个分位点，使每个量化桶的概率质量相等
+    if use_extra_value:
+        # 正负两侧各 8 个点，但为了对称性做了特殊处理
+        v1 = norm.ppf(torch.linspace(offset, 0.5, 9)[:-1]).tolist()
+        v2 = (-1 * torch.tensor(v1)).tolist()
+        v2.reverse()
+        v0 = v2 + [0] + v1
+    else:
+        v1 = norm.ppf(torch.linspace(offset, 0.5, 8)[:-1]).tolist()
+        v2 = (-1 * torch.tensor(v1)).tolist()
+        v2.reverse()
+        v0 = v2 + v1
+    return v0</code></pre></figure>
+<p><strong>为什么 NF4 比普通 int4 好？</strong> 因为预训练模型的权重近似服从零均值正态分布。普通 int4 把数值均匀分成 16 个桶，导致中间密集区域精度不够、两侧稀疏区域浪费桶。NF4 按正态分布的分位数切桶，让每个桶的"概率质量"相等，等于把有限的 16 个比特位分配到了信息量最大的地方。这是信息论意义上对正态分布的最优量化。</p>
+<p><strong>双重量化（Double Quantization）</strong>：量化本身需要存储 scale（缩放因子）。对 7B 模型，每 64 个权重一个 scale，scale 用 fp32 存储，大约额外占用 0.5 bit/参数。双重量化把这些 scale 再量化一次，将 0.5 bit 降到 0.127 bit，节省约 0.37 bit/参数。对 65B 模型来说，这就是 3 GB 的显存。</p>
+<p><strong>分页优化器（Paged Optimizers）</strong>：利用 NVIDIA 的统一内存（Unified Memory），当显存不足时自动把优化器状态换出到 CPU 内存。这样训练长序列时，即使显存瞬时峰值超过容量也不会 OOM。</p>
+<h3 id="三种方案的架构对比"><a href="#三种方案的架构对比" class="headerlink" title="三种方案的架构对比"></a>三种方案的架构对比</h3>
+<div class="mermaid">
+graph TD
+    subgraph FullFT["全参微调"]
+        A1[输入 x] --> A2[W0 更新]
+        A2 --> A3[输出 h]
+        A4[梯度更新全部参数]
+    end
+
+    subgraph LoRA["LoRA"]
+        B1[输入 x] --> B2[W0 冻结]
+        B1 --> B3[A: r×k 可训练]
+        B3 --> B4[B: d×r 可训练]
+        B2 --> B5[相加]
+        B4 --> B5
+        B5 --> B6[输出 h]
+    end
+
+    subgraph QLoRA["QLoRA"]
+        C1[输入 x] --> C2[W0 4-bit NF4 冻结]
+        C1 --> C3[A: r×k 可训练]
+        C3 --> C4[B: d×r 可训练]
+        C2 --> C5[反量化 + 相加]
+        C4 --> C5
+        C5 --> C6[输出 h]
+    end
+
+    style A2 fill:#ffcccc
+    style B2 fill:#ccffcc
+    style C2 fill:#cce5ff
+</div>
+<p>图中红色表示"需要更新"，绿色表示"冻结但保持高精度"，蓝色表示"冻结且量化"。可以看到 QLoRA 在显存节省和保持可训练性之间找到了一个非常好的平衡点。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面三个示例都是完整可运行的，覆盖从数据准备到训练到推理的全流程。我尽量标注了生产环境中的坑点。</p>
+<h3 id="示例一-全参微调-以小型模型为例-便于复现"><a href="#示例一-全参微调-以小型模型为例-便于复现" class="headerlink" title="示例一：全参微调（以小型模型为例，便于复现）"></a>示例一：全参微调（以小型模型为例，便于复现）</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+全参微调示例：使用 HuggingFace Transformers 微调 Qwen2-0.5B
+适用于：显存充足（&gt;= 24GB）、需要模型能力有根本性改变的场景
+&quot;&quot;&quot;
+import torch
+from datasets import load_dataset
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    TrainingArguments,
+    Trainer,
+    DataCollatorForSeq2Seq,
+)
+
+MODEL_NAME = &quot;Qwen/Qwen2-0.5B-Instruct&quot;
+OUTPUT_DIR = &quot;./full_ft_output&quot;
+
+# 1. 加载模型与分词器
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+# 关键坑点：很多模型没有 pad_token，需手动指定，否则 batch 训练会报错
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    torch_dtype=torch.bfloat16,   # Ampere 及以上用 bf16，避免 fp16 溢出
+    device_map=&quot;auto&quot;,
+)
+
+# 2. 数据预处理：把对话数据转成训练格式
+def format_and_tokenize(example):
+    # 使用 chat template 保证与推理时格式一致
+    messages = [
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: example[&quot;instruction&quot;]},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: example[&quot;output&quot;]},
+    ]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    enc = tokenizer(
+        text,
+        truncation=True,
+        max_length=1024,
+        padding=False,   # 交给 collator 动态 padding，节省显存
+    )
+    # 关键：labels 与 input_ids 相同，但 padding 位置要设为 -100 不参与 loss
+    enc[&quot;labels&quot;] = enc[&quot;input_ids&quot;].copy()
+    return enc
+
+# 用公开的中文指令数据集举例
+raw_ds = load_dataset(&quot;shibing624/alpaca-zh&quot;, split=&quot;train[:2000]&quot;)
+train_ds = raw_ds.map(format_and_tokenize, remove_columns=raw_ds.column_names)
+
+# 3. 训练参数
+args = TrainingArguments(
+    output_dir=OUTPUT_DIR,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,       # 等效 batch size = 16
+    gradient_checkpointing=True,         # 关键：用时间换显存，激活值减半以上
+    learning_rate=2e-5,                  # 全参微调学习率通常 1e-5 ~ 5e-5
+    num_train_epochs=3,
+    lr_scheduler_type=&quot;cosine&quot;,
+    warmup_ratio=0.03,
+    logging_steps=10,
+    save_strategy=&quot;epoch&quot;,
+    bf16=True,
+    optim=&quot;adamw_torch&quot;,
+    report_to=&quot;none&quot;,
+)
+
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_ds,
+    data_collator=DataCollatorForSeq2Seq(
+        tokenizer=tokenizer, padding=True, pad_to_multiple_of=8
+    ),
+)
+
+trainer.train()
+trainer.save_model(OUTPUT_DIR)
+tokenizer.save_pretrained(OUTPUT_DIR)
+print(&quot;全参微调完成，模型已保存到&quot;, OUTPUT_DIR)</code></pre></figure>
+<p><strong>坑点提示</strong>：</p>
+<ul>
+<li><code>gradient_checkpointing=True</code> 时，必须调用 <code>model.enable_input_require_grads()</code>，否则梯度无法回传（在 PEFT 中会自动处理，全参微调时要手动加）。</li>
+</ul>
+<ul>
+<li>全参微调会产生一个和原模型等大的新模型，存储成本要考虑。</li>
+</ul>
+<ul>
+<li>bf16 需要在 Ampere（A100/3090）及以后的架构上才能用，V100 只能用 fp16 + loss scaling。</li>
+</ul>
+<h3 id="示例二-LoRA-微调-生产环境主力方案"><a href="#示例二-LoRA-微调-生产环境主力方案" class="headerlink" title="示例二：LoRA 微调（生产环境主力方案）"></a>示例二：LoRA 微调（生产环境主力方案）</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+LoRA 微调示例：使用 peft 库微调 Qwen2-7B
+显存需求：单张 24GB 显卡可跑（配合 4-bit 则 12GB 即可）
+&quot;&quot;&quot;
+import torch
+from datasets import load_dataset
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    TrainingArguments,
+    Trainer,
+    DataCollatorForSeq2Seq,
+)
+from peft import (
+    LoraConfig,
+    get_peft_model,
+    TaskType,
+    prepare_model_for_kbit_training,
+)
+
+MODEL_NAME = &quot;Qwen/Qwen2-7B-Instruct&quot;
+OUTPUT_DIR = &quot;./lora_output&quot;
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+# 全精度加载（bf16），LoRA 场景下基座不量化
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    torch_dtype=torch.bfloat16,
+    device_map=&quot;auto&quot;,
+)
+model.gradient_checkpointing_enable()
+model.enable_input_require_grads()
+
+# ============ LoRA 配置 ============
+lora_config = LoraConfig(
+    r=16,                          # 秩，越大能力越强但参数越多。8~64 是常见范围
+    lora_alpha=32,                 # 通常设为 2*r，scaling = 2
+    lora_dropout=0.05,             # 小数据集加 dropout 防过拟合
+    bias=&quot;none&quot;,                   # 一般不动 bias
+    task_type=TaskType.CAUSAL_LM,
+    # 关键：目标模块的选择直接影响效果
+    # Qwen/Llama 系列推荐：q,k,v,o + gate,up,down
+    target_modules=[
+        &quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;,
+        &quot;gate_proj&quot;, &quot;up_proj&quot;, &quot;down_proj&quot;,
+    ],
+)
+
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+# 输出示例：trainable params: 20,185,088 || all params: 7,635,000,000 || trainable%: 0.26%
+
+# 数据预处理（同示例一）
+def format_and_tokenize(example):
+    messages = [
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: example[&quot;instruction&quot;]},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: example[&quot;output&quot;]},
+    ]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    enc = tokenizer(text, truncation=True, max_length=1024, padding=False)
+    enc[&quot;labels&quot;] = enc[&quot;input_ids&quot;].copy()
+    return enc
+
+raw_ds = load_dataset(&quot;shibing624/alpaca-zh&quot;, split=&quot;train[:5000]&quot;)
+train_ds = raw_ds.map(format_and_tokenize, remove_columns=raw_ds.column_names)
+
+args = TrainingArguments(
+    output_dir=OUTPUT_DIR,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=4,
+    gradient_checkpointing=True,
+    learning_rate=2e-4,            # LoRA 的学习率通常比全参微调大 10 倍
+    num_train_epochs=3,
+    lr_scheduler_type=&quot;cosine&quot;,
+    warmup_ratio=0.03,
+    logging_steps=10,
+    save_strategy=&quot;epoch&quot;,
+    bf16=True,
+    optim=&quot;adamw_torch&quot;,
+    report_to=&quot;none&quot;,
+)
+
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_ds,
+    data_collator=DataCollatorForSeq2Seq(
+        tokenizer=tokenizer, padding=True, pad_to_multiple_of=8
+    ),
+)
+trainer.train()
+
+# 只保存 LoRA adapter（通常几 MB ~ 几十 MB）
+model.save_pretrained(OUTPUT_DIR)
+tokenizer.save_pretrained(OUTPUT_DIR)
+print(&quot;LoRA adapter 已保存，大小约几 MB&quot;)</code></pre></figure>
+<p><strong>关键实践</strong>：</p>
+<ul>
+<li><strong>学习率</strong>：LoRA 用 1e-4 ~ 3e-4，全参微调用 1e-5 ~ 5e-5，不要搞混。</li>
+</ul>
+<ul>
+<li><strong><code>target_modules</code></strong>：只加 <code>q,v</code> 是最省参数的方案，加全部 attention + MLP 效果最好但参数翻倍。生产上通常先用全 attention 试水。</li>
+</ul>
+<ul>
+<li><strong><code>lora_alpha</code></strong>：设成 <code>2*r</code> 是社区默认，但如果你发现模型欠拟合，可以调大到 <code>4*r</code>。</li>
+</ul>
+<ul>
+<li><strong>多 adapter 复用</strong>：一个基座可以挂多个 LoRA adapter，通过 <code>model.set_adapter("name")</code> 切换，非常适合多租户场景。</li>
+</ul>
+<h3 id="示例三-QLoRA-微调-单卡跑-70B-的救命方案"><a href="#示例三-QLoRA-微调-单卡跑-70B-的救命方案" class="headerlink" title="示例三：QLoRA 微调（单卡跑 70B 的救命方案）"></a>示例三：QLoRA 微调（单卡跑 70B 的救命方案）</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+QLoRA 微调示例：4-bit 量化基座 + LoRA，单卡 48GB 可微调 65B 模型
+本示例用 7B 模型演示，方便复现，但流程完全适用 70B
+&quot;&quot;&quot;
+import torch
+from datasets import load_dataset
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    BitsAndBytesConfig,
+    TrainingArguments,
+    Trainer,
+    DataCollatorForSeq2Seq,
+)
+from peft import LoraConfig, get_peft_model, TaskType, prepare_model_for_kbit_training
+
+MODEL_NAME = &quot;Qwen/Qwen2-7B-Instruct&quot;
+OUTPUT_DIR = &quot;./qlora_output&quot;
+
+# ============ 核心：4-bit 量化配置 ============
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,                     # 启用 4-bit 加载
+    bnb_4bit_quant_type=&quot;nf4&quot;,             # 使用 NF4 数据类型（关键）
+    bnb_4bit_compute_dtype=torch.bfloat16, # 计算时反量化到 bf16
+    bnb_4bit_use_double_quant=True,        # 双重量化，再省 0.37 bit/参数
+)
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_NAME,
+    quantization_config=bnb_config,
+    device_map=&quot;auto&quot;,
+    trust_remote_code=True,
+)
+
+# 关键：为 k-bit 训练做准备，做三件事
+# 1. 冻结所有基座参数
+# 2. 把 LayerNorm 转成 fp32（数值稳定性）
+# 3. 启用 gradient checkpointing 的输入梯度
+model = prepare_model_for_kbit_training(model)
+
+lora_config = LoraConfig(
+    r=64,                          # QLoRA 通常用更大的 r，因为基座精度损失需要补偿
+    lora_alpha=128,
+    lora_dropout=0.05,
+    bias=&quot;none&quot;,
+    task_type=TaskType.CAUSAL_LM,
+    target_modules=[
+        &quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;,
+        &quot;gate_proj&quot;, &quot;up_proj&quot;, &quot;down_proj&quot;,
+    ],
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+
+def format_and_tokenize(example):
+    messages = [
+        {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: example[&quot;instruction&quot;]},
+        {&quot;role&quot;: &quot;assistant&quot;, &quot;content&quot;: example[&quot;output&quot;]},
+    ]
+    text = tokenizer.apply_chat_template(messages, tokenize=False)
+    enc = tokenizer(text, truncation=True, max_length=2048, padding=False)
+    enc[&quot;labels&quot;] = enc[&quot;input_ids&quot;].copy()
+    return enc
+
+raw_ds = load_dataset(&quot;shibing624/alpaca-zh&quot;, split=&quot;train[:5000]&quot;)
+train_ds = raw_ds.map(format_and_tokenize, remove_columns=raw_ds.column_names)
+
+args = TrainingArguments(
+    output_dir=OUTPUT_DIR,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=8,
+    gradient_checkpointing=True,
+    learning_rate=2e-4,
+    num_train_epochs=3,
+    lr_scheduler_type=&quot;cosine&quot;,
+    warmup_ratio=0.03,
+    logging_steps=10,
+    save_strategy=&quot;epoch&quot;,
+    bf16=True,
+    # 关键：QLoRA 必须用 paged optimizer 才能避免长序列 OOM
+    optim=&quot;paged_adamw_8bit&quot;,
+    report_to=&quot;none&quot;,
+)
+
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=train_ds,
+    data_collator=DataCollatorForSeq2Seq(
+        tokenizer=tokenizer, padding=True, pad_to_multiple_of=8
+    ),
+)
+trainer.train()
+model.save_pretrained(OUTPUT_DIR)
+tokenizer.save_pretrained(OUTPUT_DIR)
+print(&quot;QLoRA adapter 已保存&quot;)</code></pre></figure>
+<p><strong>推理时的关键</strong>：QLoRA 训练出的 adapter 可以直接加载到 4-bit 基座上推理，也可以合并到 fp16 基座上。生产部署通常建议<strong>合并后量化到 GPTQ/AWQ</strong>，兼顾精度和吞吐：</p>
+<figure class="highlight python"><pre><code class="language-python"># 合并 LoRA 到基座（需要 fp16 精度的基座）
+from peft import PeftModel
+from transformers import AutoModelForCausalLM
+
+base = AutoModelForCausalLM.from_pretrained(
+    &quot;Qwen/Qwen2-7B-Instruct&quot;, torch_dtype=torch.float16, device_map=&quot;cpu&quot;
+)
+merged = PeftModel.from_pretrained(base, &quot;./qlora_output&quot;).merge_and_unload()
+merged.save_pretrained(&quot;./merged_model&quot;)</code></pre></figure>
+<hr>
+<h2 id="方案对比-横向评测"><a href="#方案对比-横向评测" class="headerlink" title="方案对比：横向评测"></a>方案对比：横向评测</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>全参微调</th>
+<th>LoRA</th>
+<th>QLoRA</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>可训练参数</strong></td>
+<td>100%</td>
+<td>0.1% ~ 2%</td>
+<td>0.1% ~ 2%</td>
+</tr><tr>
+<td><strong>7B 显存需求</strong></td>
+<td>~112 GB</td>
+<td>~20 GB</td>
+<td>~8 GB</td>
+</tr><tr>
+<td><strong>70B 显存需求</strong></td>
+<td>~1.2 TB（多卡）</td>
+<td>~160 GB</td>
+<td>~48 GB（单卡）</td>
+</tr><tr>
+<td><strong>训练速度</strong></td>
+<td>慢</td>
+<td>快</td>
+<td>中等（反量化有开销）</td>
+</tr><tr>
+<td><strong>最终精度</strong></td>
+<td>最高</td>
+<td>接近全参</td>
+<td>略低于 LoRA</td>
+</tr><tr>
+<td><strong>存储成本</strong></td>
+<td>一份完整模型</td>
+<td>几 MB adapter</td>
+<td>几 MB adapter</td>
+</tr><tr>
+<td><strong>多任务切换</strong></td>
+<td>每个任务一份模型</td>
+<td>挂载不同 adapter</td>
+<td>挂载不同 adapter</td>
+</tr><tr>
+<td><strong>灾难性遗忘</strong></td>
+<td>风险高</td>
+<td>风险低</td>
+<td>风险低</td>
+</tr><tr>
+<td><strong>适用场景</strong></td>
+<td>领域大改、数据充足</td>
+<td>绝大多数生产场景</td>
+<td>显存受限、大模型</td>
+</tr></tbody></table>
+<h3 id="与-Prompt-Tuning-P-Tuning-的对比"><a href="#与-Prompt-Tuning-P-Tuning-的对比" class="headerlink" title="与 Prompt Tuning / P-Tuning 的对比"></a>与 Prompt Tuning / P-Tuning 的对比</h3>
+<p>除了 LoRA 家族，还有一类<strong>软提示（Soft Prompt）</strong>方法，比如 Prompt Tuning、P-Tuning v2。它们不改模型权重，只在输入前面拼接可训练 embedding。参数量比 LoRA 更少（几千个），但效果在复杂任务上明显不如 LoRA。<strong>实践建议</strong>：除非你做的是简单分类任务，否则优先 LoRA。</p>
+<h3 id="与-Adapter-层的对比"><a href="#与-Adapter-层的对比" class="headerlink" title="与 Adapter 层的对比"></a>与 Adapter 层的对比</h3>
+<p>Adapter 是在 Transformer 层之间插入小的 bottleneck 模块。它的问题是会<strong>增加推理延迟</strong>（因为串行插入），而 LoRA 因为可以合并回原权重，推理时<strong>零额外延迟</strong>。这也是 LoRA 成为主流的核心原因。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="1-数据质量-一切"><a href="#1-数据质量-一切" class="headerlink" title="1. 数据质量 > 一切"></a>1. 数据质量 > 一切</h3>
+<p>我见过太多团队花两周调超参，最后发现是数据里有 30% 的脏数据。<strong>500 条高质量样本 > 5000 条噪声数据</strong>。具体做法：</p>
+<ul>
+<li>用 LLM 对训练数据做质量打分，过滤低分样本；</li>
+</ul>
+<ul>
+<li>保证指令多样性，不要 500 条都是"总结以下文本"；</li>
+</ul>
+<ul>
+<li>训练集/验证集按 9:1 切分，验证集要能反映真实分布。</li>
+</ul>
+<h3 id="2-学习率与-batch-size-的耦合"><a href="#2-学习率与-batch-size-的耦合" class="headerlink" title="2. 学习率与 batch size 的耦合"></a>2. 学习率与 batch size 的耦合</h3>
+<p>LoRA 的学习率经验值：<code>lr ≈ 1e-4 × sqrt(batch_size / 16)</code>。如果你 batch size 只有 4，学习率应该降到 5e-5 左右。<strong>不要直接照搬别人博客里的 2e-4</strong>。</p>
+<h3 id="3-秩-r-的选择"><a href="#3-秩-r-的选择" class="headerlink" title="3. 秩 r 的选择"></a>3. 秩 r 的选择</h3>
+<ul>
+<li>简单任务（风格迁移、格式对齐）：r=8 足够；</li>
+</ul>
+<ul>
+<li>中等任务（领域知识注入）：r=16~32；</li>
+</ul>
+<ul>
+<li>复杂任务（推理能力增强）：r=64~128，并配合更多数据。</li>
+</ul>
+<p><strong>r 不是越大越好</strong>。r 太大时，LoRA 会退化成近似全参微调，过拟合风险上升，显存也增加。</p>
+<h3 id="4-目标模块的选择"><a href="#4-目标模块的选择" class="headerlink" title="4. 目标模块的选择"></a>4. 目标模块的选择</h3>
+<figure class="highlight python"><pre><code class="language-python"># 保守方案（参数量最少）
+target_modules = [&quot;q_proj&quot;, &quot;v_proj&quot;]
+# 平衡方案（推荐默认）
+target_modules = [&quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;]
+# 激进方案（效果最好，参数最多）
+target_modules = [&quot;q_proj&quot;, &quot;k_proj&quot;, &quot;v_proj&quot;, &quot;o_proj&quot;,
+                  &quot;gate_proj&quot;, &quot;up_proj&quot;, &quot;down_proj&quot;]</code></pre></figure>
+<h3 id="5-常见坑点速查"><a href="#5-常见坑点速查" class="headerlink" title="5. 常见坑点速查"></a>5. 常见坑点速查</h3>
+<ul>
+<li><strong>坑 1</strong>：<code>padding_side</code> 设置错误。训练时应该用 <code>right</code> 或 <code>left</code> 取决于模型，推理生成时必须是 <code>left</code>。搞错会导致输出乱码。</li>
+</ul>
+<ul>
+<li><strong>坑 2</strong>：忘记设置 <code>tokenizer.pad_token</code>，训练直接报错。</li>
+</ul>
+<ul>
+<li><strong>坑 3</strong>：QLoRA 训练时用了 <code>adamw_torch</code> 而不是 <code>paged_adamw_8bit</code>，长序列必 OOM。</li>
+</ul>
+<ul>
+<li><strong>坑 4</strong>：LoRA 权重保存后，推理时忘了 <code>merge_and_unload()</code>，导致推理延迟没优化。</li>
+</ul>
+<ul>
+<li><strong>坑 5</strong>：用 bf16 保存全参微调结果后，再用 fp16 加载做推理，出现溢出。统一精度，或者用 fp32 保存。</li>
+</ul>
+<ul>
+<li><strong>坑 6</strong>：多卡训练 LoRA 时，用 DDP 而不是 FSDP，导致每张卡都存完整基座，显存没省。用 FSDP + <code>sync_module_states</code> 才能真省。</li>
+</ul>
+<h3 id="6-一个实用的选型决策树"><a href="#6-一个实用的选型决策树" class="headerlink" title="6. 一个实用的选型决策树"></a>6. 一个实用的选型决策树</h3>
+<div class="mermaid">
+graph TD
+    Start[开始微调] --> Q1{显存是否充足?}
+    Q1 -->|单卡 80G+| Q2{任务是否根本性改变?}
+    Q1 -->|多卡集群| Q2
+    Q1 -->|单卡 24G 以下| QLoRA[直接上 QLoRA]
+    Q2 -->|是, 需要彻底改造| Full[全参微调 + ZeRO-3]
+    Q2 -->|否, 领域适配/风格对齐| Q3{显存是否够 LoRA?}
+    Q3 -->|够| LoRA[标准 LoRA]
+    Q3 -->|不够| QLoRA
+    Full --> Deploy1[合并权重 + GPTQ 量化部署]
+    LoRA --> Deploy2[adapter 热插拔 或 合并部署]
+    QLoRA --> Deploy3[合并到 fp16 基座 + AWQ 量化]
+</div>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个律所项目。我们最终的方案是：<strong>QLoRA 微调 Qwen2-72B</strong>，单张 A100 80G 训练了 36 小时，得到不到 100MB 的 adapter。部署时把 adapter 合并到 fp16 基座，再用 AWQ 量化到 4-bit，最终单卡 48G 就能推理，响应延迟 800ms 左右。律师们反馈，模型对法律术语的理解明显改善，RAG 检索的片段利用率也上升了。</p>
+<p>三种技术路线的核心取舍可以概括为：</p>
+<ul>
+<li><strong>全参微调</strong>：能力最强、成本最高，适合有充足算力和数据、需要根本性改造模型的场景。但生产环境里，真正需要它的场景其实<strong>比你想的少</strong>。</li>
+</ul>
+<ul>
+<li><strong>LoRA</strong>：<strong>性价比之王</strong>。0.1% 的参数量拿到接近全参的效果，还支持多任务 adapter 热插拔，是绝大多数生产项目的默认选择。</li>
+</ul>
+<ul>
+<li><strong>QLoRA</strong>：<strong>显存救星</strong>。用一点精度损失换取 4 倍的显存节省，让大模型微调从"多卡集群"走进"单卡服务器"。数据量不大、对精度要求不是极致时，它是首选。</li>
+</ul>
+<p>最后我想强调一个观点：<strong>微调不是万能药</strong>。很多团队一上来就想微调，但 80% 的场景 RAG + Prompt Engineering 就够了。微调真正的价值在于：改变模型的<strong>行为模式</strong>（语气、格式、推理风格），而不是注入<strong>事实知识</strong>（这更适合 RAG）。理解这个边界，比掌握具体技术更重要。</p>
+<p>延伸阅读方向：如果你已经掌握 LoRA，下一步可以研究 <strong>DoRA（Weight-Decomposed Low-Rank Adaptation）</strong>、<strong>LoRA+（差异化学习率）</strong>、<strong>GaLore（梯度低秩投影）</strong>，以及如何把微调模型接入 <strong>LangGraph</strong> 构建多步推理 Agent。这些是 2026 年值得投入的方向。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

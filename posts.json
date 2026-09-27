@@ -1,5 +1,25 @@
 [
  {
+  "title": "大模型微调技术对比：LoRA、QLoRA、全参微调",
+  "url": "/2026/09/28/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%BE%AE%E8%B0%83%E6%8A%80%E6%9C%AF%E5%AF%B9%E6%AF%94%EF%BC%9ALoRA%E3%80%81QLoRA%E3%80%81%E5%85%A8%E5%8F%82%E5%BE%AE%E8%B0%83/",
+  "date": "2026-09-28",
+  "year": 2026,
+  "month": 9,
+  "day": 28,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=4550",
+  "excerpt": "引言 去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；"
+ },
+ {
   "title": "K8s网络插件CNI原理：Calico vs Flannel",
   "url": "/2026/09/26/K8s%E7%BD%91%E7%BB%9C%E6%8F%92%E4%BB%B6CNI%E5%8E%9F%E7%90%86%EF%BC%9ACalico%20vs%20Flannel/",
   "date": "2026-09-26",
