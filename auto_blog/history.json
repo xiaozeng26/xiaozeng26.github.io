@@ -461,6 +461,13 @@
       "subtopic": "大模型微调技术对比：LoRA、QLoRA、全参微调",
       "date": "2026-09-27",
       "url": "/2026/09/28/大模型微调技术对比：LoRA、QLoRA、全参微调/"
+    },
+    {
+      "title": "AQS框架源码解读——从ReentrantLock说起",
+      "category": "java",
+      "subtopic": "AQS框架源码解读——从ReentrantLock说起",
+      "date": "2026-09-28",
+      "url": "/2026/09/29/AQS框架源码解读——从ReentrantLock说起/"
     }
   ],
   "used_subtopics": {
@@ -476,7 +483,8 @@
       "Seata分布式事务AT模式源码分析",
       "Spring Boot自动配置原理与自定义Starter",
       "Sentinel流控降级源码分析",
-      "Java 21虚拟线程（Virtual Threads）深度解析"
+      "Java 21虚拟线程（Virtual Threads）深度解析",
+      "AQS框架源码解读——从ReentrantLock说起"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -608,6 +616,7 @@
     "Java 21虚拟线程（Virtual Threads）深度解析": "ffeac01ade72043503d8d9587e8c91361dc4750429cb8d1ab46cc4a7ac20cf9a",
     "K8s网络插件CNI原理：Calico vs Flannel": "8f9524c92459eb99eef6a898177e60466c26f8987ea9c373719930ee462e045f",
     "DDD领域驱动设计落地实践与六边形架构": "8242bdbd5e10922968e3dd0ae1c98a58ed6c3cda00493dfbc7403f3f68f2451a",
-    "大模型微调技术对比：LoRA、QLoRA、全参微调": "97fd14237637374a0a8253945abb023c227cb20d97e339e0c1822bd67e089c49"
+    "大模型微调技术对比：LoRA、QLoRA、全参微调": "97fd14237637374a0a8253945abb023c227cb20d97e339e0c1822bd67e089c49",
+    "AQS框架源码解读——从ReentrantLock说起": "9bb44537b089c501d04b7be37297b7fe95f6b86b6a9c12cdb88cc8f62f5cc252"
   }
 }

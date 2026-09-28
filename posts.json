@@ -1,5 +1,23 @@
 [
  {
+  "title": "AQS框架源码解读——从ReentrantLock说起",
+  "url": "/2026/09/29/AQS%E6%A1%86%E6%9E%B6%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E2%80%94%E2%80%94%E4%BB%8EReentrantLock%E8%AF%B4%E8%B5%B7/",
+  "date": "2026-09-29",
+  "year": 2026,
+  "month": 9,
+  "day": 29,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=8167",
+  "excerpt": "引言 先看一段极其常见的代码： public class Counter { private final ReentrantLock lock = new ReentrantLock(); private int count = 0; public void increment() { lock.lock(); try"
+ },
+ {
   "title": "大模型微调技术对比：LoRA、QLoRA、全参微调",
   "url": "/2026/09/28/%E5%A4%A7%E6%A8%A1%E5%9E%8B%E5%BE%AE%E8%B0%83%E6%8A%80%E6%9C%AF%E5%AF%B9%E6%AF%94%EF%BC%9ALoRA%E3%80%81QLoRA%E3%80%81%E5%85%A8%E5%8F%82%E5%BE%AE%E8%B0%83/",
   "date": "2026-09-28",

@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AQS框架源码解读——从ReentrantLock说起 | 小曾博客</title>
+  <meta name="description" content="AQS框架源码解读——从ReentrantLock说起 引言 先看一段极其常见的代码： public class Counter { private final ReentrantLock lock = new ReentrantLock(); private int count = 0; public void increment() { lock.lock(); try { count++; ">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="AQS框架源码解读——从ReentrantLock说起">
+  <meta name="twitter:description" content="AQS框架源码解读——从ReentrantLock说起 引言 先看一段极其常见的代码： public class Counter { private final ReentrantLock lock = new ReentrantLock(); private int count = 0; public void increment() { lock.lock(); try { count++; ">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=8167">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="AQS框架源码解读——从ReentrantLock说起">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="AQS框架源码解读——从ReentrantLock说起 引言 先看一段极其常见的代码： public class Counter { private final ReentrantLock lock = new ReentrantLock(); private int count = 0; public void increment() { lock.lock(); try { count++; ">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=8167">
+  <meta property="article:published_time" content="2026-09-29T02:56:45.000Z">
+  <meta property="article:modified_time" content="2026-09-29T02:56:45.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#AQS框架源码解读-从ReentrantLock说起"><span class="toc-text">AQS框架源码解读——从ReentrantLock说起</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念"><span class="toc-text">核心概念</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-银行排队机"><span class="toc-text">生活类比：银行排队机</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-ReentrantLock-与-AQS-的桥接"><span class="toc-text">1. ReentrantLock 与 AQS 的桥接</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-acquire-AQS-的核心入口"><span class="toc-text">2. acquire —— AQS 的核心入口</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-shouldParkAfterFailedAcquire-状态机"><span class="toc-text">3. shouldParkAfterFailedAcquire：状态机</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-release-唤醒后继"><span class="toc-text">4. release：唤醒后继</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-Condition-的-await-signal"><span class="toc-text">5. Condition 的 await/signal</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-基于-AQS-实现一个不可重入的独占锁"><span class="toc-text">示例 1：基于 AQS 实现一个不可重入的独占锁</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-用-ReentrantLock-Condition-实现阻塞队列"><span class="toc-text">示例 2：用 ReentrantLock + Condition 实现阻塞队列</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-手写一个公平-非公平对比的-demo"><span class="toc-text">示例 3：手写一个公平/非公平对比的 demo</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#AQS-vs-synchronized"><span class="toc-text">AQS vs synchronized</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#AQS-vs-自旋锁-vs-StampedLock"><span class="toc-text">AQS vs 自旋锁 vs StampedLock</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#CLH-队列-vs-MCS-队列"><span class="toc-text">CLH 队列 vs MCS 队列</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-锁必须在-finally-里释放"><span class="toc-text">1. 锁必须在 finally 里释放</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-用-lockInterruptibly-避免死锁不可中断"><span class="toc-text">2. 用 lockInterruptibly 避免死锁不可中断</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-优先用非公平锁"><span class="toc-text">3. 优先用非公平锁</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-临界区尽量短"><span class="toc-text">4. 临界区尽量短</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-Condition-的-await-必须放在-while-里"><span class="toc-text">5. Condition 的 await 必须放在 while 里</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#6-别在-AQS-子类里直接改-state"><span class="toc-text">6. 别在 AQS 子类里直接改 state</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#7-理解-waitStatus-的传播方向"><span class="toc-text">7. 理解 waitStatus 的传播方向</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#8-中断响应是-延迟-的"><span class="toc-text">8. 中断响应是"延迟"的</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#9-避免锁升级导致的性能雪崩"><span class="toc-text">9. 避免锁升级导致的性能雪崩</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#10-监控队列长度"><span class="toc-text">10. 监控队列长度</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=8167)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">AQS框架源码解读——从ReentrantLock说起</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-09-29"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-09-29</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-09-29"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-09-29</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="AQS框架源码解读-从ReentrantLock说起"><a href="#AQS框架源码解读-从ReentrantLock说起" class="headerlink" title="AQS框架源码解读——从ReentrantLock说起"></a>AQS框架源码解读——从ReentrantLock说起</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先看一段极其常见的代码：</p>
+<figure class="highlight java"><pre><code class="language-java">public class Counter {
+    private final ReentrantLock lock = new ReentrantLock();
+    private int count = 0;
+
+    public void increment() {
+        lock.lock();
+        try {
+            count++;
+        } finally {
+            lock.unlock();
+        }
+    }
+}</code></pre></figure>
+<p>这段代码每个 Java 工程师都写过，但面试时被追问"<code>lock.lock()</code> 背后到底发生了什么"，能答完整的人不多。再往下追问：</p>
+<ul>
+<li>为什么 <code>ReentrantLock</code> 有公平锁和非公平锁两种模式？差别到底在哪一行代码？</li>
+</ul>
+<ul>
+<li><code>tryLock(timeout)</code> 超时后线程是怎么被"叫醒"的？</li>
+</ul>
+<ul>
+<li><code>Condition.await()</code> 和 <code>Object.wait()</code> 到底有什么本质区别？</li>
+</ul>
+<ul>
+<li>为什么 <code>synchronized</code> 在 JDK 6 之后还引入了偏向锁、轻量级锁，而 <code>ReentrantLock</code> 不需要？</li>
+</ul>
+<p>这些问题的答案都指向同一个核心：<strong>AbstractQueuedSynchronizer（AQS）</strong>。它是 <code>ReentrantLock</code>、<code>CountDownLatch</code>、<code>Semaphore</code>、<code>ReentrantReadWriteLock</code> 等一大批同步器的共同基座。理解了 AQS，等于一次性打通了 <code>java.util.concurrent</code> 的半壁江山。</p>
+<p>本文从 <code>ReentrantLock</code> 的调用链切入，一路挖到 AQS 的 <code>state</code> 变量、CLH 变体队列、<code>Node</code> 的等待状态机，再回到工程实践给出现成的避坑清单。</p>
+<h2 id="核心概念"><a href="#核心概念" class="headerlink" title="核心概念"></a>核心概念</h2>
+<h3 id="生活类比-银行排队机"><a href="#生活类比-银行排队机" class="headerlink" title="生活类比：银行排队机"></a>生活类比：银行排队机</h3>
+<p>把 AQS 想象成银行大厅的排队系统：</p>
+<ul>
+<li><strong><code>state</code> 变量</strong> = 当前柜台是否有人在办业务（0 空闲，>0 表示有人占用，数字大小代表重入次数）。</li>
+</ul>
+<ul>
+<li><strong>CLH 变体队列</strong> = 取号机后面的一排椅子，每个椅子上坐着一个线程，椅背上贴着"我在等什么"。</li>
+</ul>
+<ul>
+<li><strong><code>head</code> 指针</strong> = 正在办业务的那个窗口对应的位置（注意：head 节点本身不参与排队，它是"已获得锁的哨兵"）。</li>
+</ul>
+<ul>
+<li><strong><code>tail</code> 指针</strong> = 最后一个取号的人。</li>
+</ul>
+<ul>
+<li><strong><code>Node.waitStatus</code></strong> = 每个等待者身上的状态标签：<code>SIGNAL</code>（办完叫你）、<code>CANCELLED</code>（不办了，走了）、<code>CONDITION</code>（在休息室等）、<code>PROPAGATE</code>（共享模式下唤醒要传播）。</li>
+</ul>
+<ul>
+<li><strong><code>Condition</code></strong> = 银行里的"休息室"，<code>await()</code> 是去休息室喝茶，<code>signal()</code> 是把你从休息室叫回排队队列。</li>
+</ul>
+<p>这个类比记住，后面所有源码都对应得上。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>AQS 的核心设计是一套<strong>模板方法模式</strong>：</p>
+<ul>
+<li><strong>框架负责</strong>：线程排队、阻塞、唤醒、超时、中断响应、状态机维护。</li>
+</ul>
+<ul>
+<li><strong>子类负责</strong>：定义"什么算获得锁、什么算释放锁"，即 <code>tryAcquire</code> / <code>tryRelease</code> / <code>tryAcquireShared</code> / <code>tryReleaseShared</code> / <code>isHeldExclusively</code> 这几个钩子。</li>
+</ul>
+<p>AQS 内部维护两个关键部分：</p>
+<table>
+<thead>
+<tr>
+<th>组成部分</th>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>同步状态</td>
+<td><code>volatile int state</code></td>
+<td>表示资源占用情况，语义由子类定义</td>
+</tr><tr>
+<td>等待队列</td>
+<td><code>transient volatile Node head/tail</code></td>
+<td>CLH 变体的双向 FIFO 队列</td>
+</tr><tr>
+<td>独占持有者</td>
+<td><code>transient Thread exclusiveOwnerThread</code></td>
+<td>记录当前独占线程</td>
+</tr></tbody></table>
+<p><code>state</code> 的语义完全由子类决定：</p>
+<ul>
+<li><code>ReentrantLock</code>：0 未锁，n 表示同一线程重入 n 次。</li>
+</ul>
+<ul>
+<li><code>Semaphore</code>：剩余许可数。</li>
+</ul>
+<ul>
+<li><code>CountDownLatch</code>：剩余未完成计数。</li>
+</ul>
+<ul>
+<li><code>ReentrantReadWriteLock</code>：高 16 位读锁数，低 16 位写锁重入数。</li>
+</ul>
+<p>这就是 AQS 精妙之处——<strong>状态语义外置，队列机制内置</strong>。</p>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-ReentrantLock-与-AQS-的桥接"><a href="#1-ReentrantLock-与-AQS-的桥接" class="headerlink" title="1. ReentrantLock 与 AQS 的桥接"></a>1. ReentrantLock 与 AQS 的桥接</h3>
+<p><code>ReentrantLock</code> 内部有个 <code>Sync</code> 抽象类继承 AQS，下面再分 <code>FairSync</code> 和 <code>NonfairSync</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">// ReentrantLock 构造函数
+public ReentrantLock() {
+    sync = new NonfairSync();   // 默认非公平
+}
+public ReentrantLock(boolean fair) {
+    sync = fair ? new FairSync() : new NonfairSync();
+}</code></pre></figure>
+<p><code>lock()</code> 直接委托给 <code>sync.lock()</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">public void lock() {
+    sync.lock();
+}</code></pre></figure>
+<p>非公平锁的 <code>lock()</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">final void lock() {
+    // 先抢一次，不管队列里有没有人 —— 这就是非公平的关键
+    if (compareAndSetState(0, 1))
+        setExclusiveOwnerThread(Thread.currentThread());
+    else
+        acquire(1);   // 抢不到，走 AQS 标准流程
+}</code></pre></figure>
+<p>公平锁的 <code>lock()</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">final void lock() {
+    acquire(1);       // 老老实实走 AQS，先看队列前面有没有人
+}</code></pre></figure>
+<p><strong>公平与非公平的分水岭就在这里</strong>：非公平锁在进入队列前会先 CAS 抢一次（"插队"一次），公平锁则直接进 <code>acquire</code> 由 <code>tryAcquire</code> 检查队列前驱。</p>
+<h3 id="2-acquire-AQS-的核心入口"><a href="#2-acquire-AQS-的核心入口" class="headerlink" title="2. acquire —— AQS 的核心入口"></a>2. acquire —— AQS 的核心入口</h3>
+<figure class="highlight java"><pre><code class="language-java">public final void acquire(int arg) {
+    if (!tryAcquire(arg) &amp;&amp;                       // ① 尝试获取
+        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))  // ② 入队+自旋
+        selfInterrupt();                          // ③ 补中断
+}</code></pre></figure>
+<p>三步走，每一步都值得深挖。</p>
+<p>#### ① tryAcquire：子类定义"能不能拿"</p>
+<p>非公平版：</p>
+<figure class="highlight java"><pre><code class="language-java">protected final boolean tryAcquire(int acquires) {
+    return nonfairTryAcquire(acquires);
+}
+
+final boolean nonfairTryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    int c = getState();
+    if (c == 0) {
+        // 又一次插队尝试
+        if (compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    else if (current == getExclusiveOwnerThread()) {
+        // 重入：state 累加，注意这里是普通运算不是 CAS，
+        // 因为只有持有锁的线程能进来，天然无竞争
+        int nextc = c + acquires;
+        if (nextc &lt; 0) throw new Error(&quot;Maximum lock count exceeded&quot;);
+        setState(nextc);
+        return true;
+    }
+    return false;
+}</code></pre></figure>
+<p>公平版只多了一行：</p>
+<figure class="highlight java"><pre><code class="language-java">protected final boolean tryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    int c = getState();
+    if (c == 0) {
+        // 关键：!hasQueuedPredecessors() 保证不插队
+        if (!hasQueuedPredecessors() &amp;&amp;
+            compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    else if (current == getExclusiveOwnerThread()) {
+        int nextc = c + acquires;
+        if (nextc &lt; 0) throw new Error(&quot;Maximum lock count exceeded&quot;);
+        setState(nextc);
+        return true;
+    }
+    return false;
+}</code></pre></figure>
+<p><code>hasQueuedPredecessors()</code> 判断队列里是否有比自己更早的等待者。注意，非公平锁的 <code>nonfairTryAcquire</code> <strong>完全没有</strong>这个检查，所以哪怕你已经在队列第一个排队了，只要有人刚释放锁、你还没来得及被唤醒，新来的线程依然可以直接抢走。</p>
+<p><strong>这就是为什么非公平锁吞吐更高</strong>：减少了线程上下文切换（队列里的线程不用被唤醒又失败），代价是可能饥饿。</p>
+<p>#### ② addWaiter：入队</p>
+<figure class="highlight java"><pre><code class="language-java">private Node addWaiter(Node mode) {
+    Node node = new Node(Thread.currentThread(), mode);
+    // 快速路径：直接尝试 CAS 挂到队尾
+    Node pred = tail;
+    if (pred != null) {
+        node.prev = pred;
+        if (compareAndSetTail(pred, node)) {
+            pred.next = node;
+            return node;
+        }
+    }
+    // 慢路径：处理队列未初始化或 CAS 失败
+    enq(node);
+    return node;
+}
+
+private Node enq(final Node node) {
+    for (;;) {
+        Node t = tail;
+        if (t == null) { // 队列空，初始化 head（哨兵）
+            if (compareAndSetHead(new Node()))
+                tail = head;
+        } else {
+            node.prev = t;
+            if (compareAndSetTail(t, node)) {
+                t.next = node;
+                return t;
+            }
+        }
+    }
+}</code></pre></figure>
+<p>注意这里经典的一个细节：<strong>入队是先设置 <code>prev</code> 再 CAS <code>tail</code>，最后设置 <code>pred.next</code></strong>。这样任何时刻从 <code>tail</code> 往前遍历都是完整的，但从 <code>head</code> 往后可能暂时断链——这是 AQS 里"prev 一定可靠，next 可能为 null"的由来。</p>
+<p>#### ③ acquireQueued：自旋 + 阻塞</p>
+<figure class="highlight java"><pre><code class="language-java">final boolean acquireQueued(final Node node, int arg) {
+    boolean failed = true;
+    try {
+        boolean interrupted = false;
+        for (;;) {
+            final Node p = node.predecessor();
+            // 只有前驱是 head 才有资格再试一次
+            if (p == head &amp;&amp; tryAcquire(arg)) {
+                setHead(node);          // 出队：把自己变成新哨兵
+                p.next = null;          // 帮助 GC
+                failed = false;
+                return interrupted;
+            }
+            // 判断是否该阻塞，是的话 parkAndCheckInterrupt 里挂起
+            if (shouldParkAfterFailedAcquire(p, node) &amp;&amp;
+                parkAndCheckInterrupt())
+                interrupted = true;
+        }
+    } finally {
+        if (failed)
+            cancelAcquire(node);
+    }
+}</code></pre></figure>
+<p>这段代码是 AQS 的灵魂，几个关键点：</p>
+<ol>
+<li><strong>只有前驱是 head 才有资格抢锁</strong>——保证 FIFO 大方向。</li>
+<li><strong>自旋两次后才会真正阻塞</strong>——<code>shouldParkAfterFailedAcquire</code> 第一次把前驱状态设为 <code>SIGNAL</code> 并返回 false，第二次才返回 true。</li>
+<li><strong>中断不立即响应</strong>——<code>parkAndCheckInterrupt</code> 返回中断标记后，只是累积到 <code>interrupted</code>，等真正拿到锁后再 <code>selfInterrupt()</code> 补偿。这是为了让锁的获取过程对中断"延迟响应"，避免状态不一致。</li>
+</ol>
+<h3 id="3-shouldParkAfterFailedAcquire-状态机"><a href="#3-shouldParkAfterFailedAcquire-状态机" class="headerlink" title="3. shouldParkAfterFailedAcquire：状态机"></a>3. shouldParkAfterFailedAcquire：状态机</h3>
+<figure class="highlight java"><pre><code class="language-java">private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+    int ws = pred.waitStatus;
+    if (ws == Node.SIGNAL)
+        // 前驱承诺唤醒我，可以安全挂起
+        return true;
+    if (ws &gt; 0) {
+        // 前驱取消了，跳过所有取消节点
+        do {
+            node.prev = pred = pred.prev;
+        } while (pred.waitStatus &gt; 0);
+        pred.next = node;
+    } else {
+        // 0 或 PROPAGATE，把前驱设为 SIGNAL，下次再进来自旋时返回 true
+        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+    }
+    return false;
+}</code></pre></figure>
+<p><code>Node</code> 的状态定义：</p>
+<figure class="highlight java"><pre><code class="language-java">static final int CANCELLED =  1;   // 已取消
+static final int SIGNAL    = -1;   // 后继需要被唤醒
+static final int CONDITION = -2;   // 在 Condition 队列中
+static final int PROPAGATE = -3;   // 共享模式下唤醒要传播
+static final int WAITING   =  0;   // 初始状态</code></pre></figure>
+<p>状态机流转如下：</p>
+<div class="mermaid">
+graph TD
+    A[新建 Node WAITING=0] --> B[前驱设为 SIGNAL]
+    B --> C{能否拿到锁?}
+    C -->|是| D[成为新 head, 出队]
+    C -->|否| E[LockSupport.park 阻塞]
+    E -->|被 unpark| C
+    B -->|超时/中断| F[CANCELLED=1]
+    F --> G[从队列中被跳过并 GC]
+    
+    H[Condition.await] --> I[Node 进入条件队列 CONDITION=-2]
+    I -->|signal| J[转移到同步队列 WAITING=0]
+    J --> B
+</div>
+<h3 id="4-release-唤醒后继"><a href="#4-release-唤醒后继" class="headerlink" title="4. release：唤醒后继"></a>4. release：唤醒后继</h3>
+<figure class="highlight java"><pre><code class="language-java">public final boolean release(int arg) {
+    if (tryRelease(arg)) {          // 子类判断是否真正释放
+        Node h = head;
+        // head 不为 null 且状态不是 0（通常是 SIGNAL），才需要唤醒
+        if (h != null &amp;&amp; h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+
+private void unparkSuccessor(Node node) {
+    int ws = node.waitStatus;
+    if (ws &lt; 0)
+        compareAndSetWaitStatus(node, ws, 0);  // 清 SIGNAL
+    Node s = node.next;
+    // next 可能为 null（前面说过），从 tail 往前找最前面的有效节点
+    if (s == null || s.waitStatus &gt; 0) {
+        s = null;
+        for (Node t = tail; t != null &amp;&amp; t != node; t = t.prev)
+            if (t.waitStatus &lt;= 0)
+                s = t;
+    }
+    if (s != null)
+        LockSupport.unpark(s.thread);
+}</code></pre></figure>
+<p><code>tryRelease</code> 在 <code>ReentrantLock</code> 里：</p>
+<figure class="highlight java"><pre><code class="language-java">protected final boolean tryRelease(int releases) {
+    int c = getState() - releases;
+    if (Thread.currentThread() != getExclusiveOwnerThread())
+        throw new IllegalMonitorStateException();
+    boolean free = false;
+    if (c == 0) {
+        free = true;
+        setExclusiveOwnerThread(null);   // 先清 owner
+    }
+    setState(c);                          // 再改 state，保证顺序
+    return free;
+}</code></pre></figure>
+<p>注意顺序：<strong>先清 owner 再改 state</strong>，配合 <code>volatile</code> 语义，保证其他线程看到 <code>state==0</code> 时 owner 一定也是 null。</p>
+<h3 id="5-Condition-的-await-signal"><a href="#5-Condition-的-await-signal" class="headerlink" title="5. Condition 的 await/signal"></a>5. Condition 的 await/signal</h3>
+<p><code>ConditionObject</code> 是 AQS 内部类，维护一条独立的<strong>条件队列</strong>（单向）：</p>
+<figure class="highlight java"><pre><code class="language-java">public final void await() throws InterruptedException {
+    if (Thread.interrupted()) throw new InterruptedException();
+    Node node = addConditionWaiter();       // 加入条件队列
+    int savedState = fullyRelease(node);    // 完全释放锁（包括重入！）
+    int interruptMode = 0;
+    while (!isOnSyncQueue(node)) {          // 等待被 signal 转移到同步队列
+        LockSupport.park(this);
+        if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
+            break;
+    }
+    // 重新竞争锁，恢复重入次数
+    if (acquireQueued(node, savedState) &amp;&amp; interruptMode != THROW_IE)
+        interruptMode = REINTERRUPT;
+    // ... 清理
+}</code></pre></figure>
+<p>关键点：</p>
+<ul>
+<li><code>fullyRelease</code> 会把重入次数一次性释放干净——这是 <code>Condition</code> 和 <code>Object.wait()</code> 的一个大区别：<code>await</code> 期间完全放弃锁。</li>
+</ul>
+<ul>
+<li><code>signal</code> 只是把节点从条件队列转移到同步队列，<strong>并不立即唤醒</strong>，真正唤醒还是靠 <code>unparkSuccessor</code>。</li>
+</ul>
+<ul>
+<li>一个 <code>Lock</code> 可以有多个 <code>Condition</code>，对应多个条件队列，这是 <code>Object.wait/notify</code> 做不到的（只有一个等待集）。</li>
+</ul>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-基于-AQS-实现一个不可重入的独占锁"><a href="#示例-1-基于-AQS-实现一个不可重入的独占锁" class="headerlink" title="示例 1：基于 AQS 实现一个不可重入的独占锁"></a>示例 1：基于 AQS 实现一个不可重入的独占锁</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+
+/**
+ * 一个最简单的独占锁，用来理解 AQS 的模板方法模式。
+ * state=0 表示未锁，state=1 表示已锁。
+ */
+public class SimpleMutex {
+
+    private static class Sync extends AbstractQueuedSynchronizer {
+        @Override
+        protected boolean tryAcquire(int arg) {
+            // 只有 state 从 0 CAS 到 1 才成功
+            if (compareAndSetState(0, 1)) {
+                setExclusiveOwnerThread(Thread.currentThread());
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            if (getState() == 0) {
+                throw new IllegalMonitorStateException();
+            }
+            setExclusiveOwnerThread(null);
+            setState(0);   // 不需要 CAS，因为只有持有者能调用
+            return true;
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            return getState() == 1;
+        }
+
+        ConditionObject newCondition() {
+            return new ConditionObject();
+        }
+    }
+
+    private final Sync sync = new Sync();
+
+    public void lock()               { sync.acquire(1); }
+    public void unlock()             { sync.release(1); }
+    public boolean isLocked()        { return sync.isHeldExclusively(); }
+    public java.util.concurrent.locks.Condition newCondition() {
+        return sync.newCondition();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        SimpleMutex mutex = new SimpleMutex();
+        int[] count = {0};
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i &lt; threads.length; i++) {
+            threads[i] = new Thread(() -&gt; {
+                for (int j = 0; j &lt; 1000; j++) {
+                    mutex.lock();
+                    try { count[0]++; }
+                    finally { mutex.unlock(); }
+                }
+            });
+            threads[i].start();
+        }
+        for (Thread t : threads) t.join();
+        System.out.println(&quot;count = &quot; + count[0]);   // 一定是 10000
+    }
+}</code></pre></figure>
+<p><strong>要点</strong>：<code>tryRelease</code> 里 <code>setState(0)</code> 不需要 CAS，因为只有持锁线程能进这个方法（AQS 的 <code>release</code> 会先调 <code>tryRelease</code>，而 <code>tryRelease</code> 里如果做校验就会发现调用者不是 owner）。这是 AQS 独占模式的一个隐含契约。</p>
+<h3 id="示例-2-用-ReentrantLock-Condition-实现阻塞队列"><a href="#示例-2-用-ReentrantLock-Condition-实现阻塞队列" class="headerlink" title="示例 2：用 ReentrantLock + Condition 实现阻塞队列"></a>示例 2：用 ReentrantLock + Condition 实现阻塞队列</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * 用 ReentrantLock 的多个 Condition 实现一个有界阻塞队列。
+ * notFull / notEmpty 是两个独立的条件队列，避免无效唤醒。
+ */
+public class BoundedBlockingQueue&lt;T&gt; {
+    private final Deque&lt;T&gt; queue = new ArrayDeque&lt;&gt;();
+    private final int capacity;
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition notFull  = lock.newCondition();
+    private final Condition notEmpty = lock.newCondition();
+
+    public BoundedBlockingQueue(int capacity) {
+        this.capacity = capacity;
+    }
+
+    public void put(T item) throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            while (queue.size() == capacity) {
+                // 队列满，在 notFull 上等待
+                notFull.await();
+            }
+            queue.addLast(item);
+            // 放入元素后唤醒等待非空的消费者
+            notEmpty.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public T take() throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            while (queue.isEmpty()) {
+                notEmpty.await();
+            }
+            T item = queue.removeFirst();
+            // 取出元素后唤醒等待非满的生产者
+            notFull.signal();
+            return item;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public static void main(String[] args) {
+        BoundedBlockingQueue&lt;Integer&gt; q = new BoundedBlockingQueue&lt;&gt;(5);
+        Thread producer = new Thread(() -&gt; {
+            try {
+                for (int i = 0; i &lt; 20; i++) {
+                    q.put(i);
+                    System.out.println(&quot;put &quot; + i);
+                }
+            } catch (InterruptedException ignored) {}
+        });
+        Thread consumer = new Thread(() -&gt; {
+            try {
+                for (int i = 0; i &lt; 20; i++) {
+                    Integer v = q.take();
+                    System.out.println(&quot;take &quot; + v);
+                }
+            } catch (InterruptedException ignored) {}
+        });
+        producer.start();
+        consumer.start();
+    }
+}</code></pre></figure>
+<p><strong>要点</strong>：用两个 <code>Condition</code> 而不是 <code>synchronized + wait/notifyAll</code>，可以做到"精准唤醒"——生产者只唤醒消费者、消费者只唤醒生产者，避免 <code>notifyAll</code> 的惊群效应。这是 <code>Condition</code> 相对于 <code>Object</code> 监视器的最大优势之一。</p>
+<h3 id="示例-3-手写一个公平-非公平对比的-demo"><a href="#示例-3-手写一个公平-非公平对比的-demo" class="headerlink" title="示例 3：手写一个公平/非公平对比的 demo"></a>示例 3：手写一个公平/非公平对比的 demo</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * 对比公平锁和非公平锁在竞争激烈时的行为：
+ * 公平锁趋向于让等待队列里的线程轮流拿到锁；
+ * 非公平锁允许新线程插队，吞吐更高但可能饥饿。
+ */
+public class FairVsNonfair {
+
+    static void run(boolean fair) throws InterruptedException {
+        ReentrantLock lock = new ReentrantLock(fair);
+        int threadCount = 5;
+        int loops = 200_000;
+        int[] perThread = new int[threadCount];   // 每个线程成功拿锁的次数
+
+        long start = System.nanoTime();
+        Thread[] threads = new Thread[threadCount];
+        for (int i = 0; i &lt; threadCount; i++) {
+            final int idx = i;
+            threads[i] = new Thread(() -&gt; {
+                for (int j = 0; j &lt; loops; j++) {
+                    lock.lock();
+                    try {
+                        perThread[idx]++;
+                        // 模拟临界区极短的工作
+                    } finally {
+                        lock.unlock();
+                    }
+                }
+            });
+        }
+        for (Thread t : threads) t.start();
+        for (Thread t : threads) t.join();
+        long cost = (System.nanoTime() - start) / 1_000_000;
+
+        System.out.printf(&quot;fair=%s, cost=%dms, distribution=%s%n&quot;,
+                fair, cost, java.util.Arrays.toString(perThread));
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        run(false);   // 非公平
+        run(true);    // 公平
+    }
+}</code></pre></figure>
+<p>运行多次通常会看到：<strong>非公平锁耗时更短</strong>（少了很多 <code>unpark</code> 又失败的上下文切换），而公平锁在各线程间的分布更均匀——非公平锁下某些线程可能拿到明显更多的锁。</p>
+<p><strong>要点</strong>：公平锁不是"绝对公平"，<code>tryAcquire</code> 里 <code>hasQueuedPredecessors</code> 只保证"队列里没人排队时可以插队"，依然允许非排队线程在锁空闲瞬间抢入。真正的公平需要严格按顺序分配，性能代价更大。</p>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="AQS-vs-synchronized"><a href="#AQS-vs-synchronized" class="headerlink" title="AQS vs synchronized"></a>AQS vs synchronized</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>synchronized</th>
+<th>ReentrantLock (AQS)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>实现层</td>
+<td>JVM 内置（monitorenter/monitorexit 字节码）</td>
+<td>Java 层（CAS + LockSupport）</td>
+</tr><tr>
+<td>锁释放</td>
+<td>自动（异常时字节码保证）</td>
+<td>必须手动 <code>finally</code> 释放</td>
+</tr><tr>
+<td>公平性</td>
+<td>非公平（偏向锁时代可调优）</td>
+<td>可选公平/非公平</td>
+</tr><tr>
+<td>条件等待</td>
+<td>单条件集 <code>wait/notify</code></td>
+<td>多 <code>Condition</code> 精准唤醒</td>
+</tr><tr>
+<td>可中断</td>
+<td>不可</td>
+<td><code>lockInterruptibly</code> 可中断</td>
+</tr><tr>
+<td>超时</td>
+<td>不可</td>
+<td><code>tryLock(timeout)</code> 可超时</td>
+</tr><tr>
+<td>性能</td>
+<td>JDK 6 后优化极佳，热点代码可能更优</td>
+<td>复杂竞争下更可控</td>
+</tr><tr>
+<td>适用</td>
+<td>简单互斥、代码简洁</td>
+<td>需要高级特性：超时、中断、多条件</td>
+</tr></tbody></table>
+<p><strong>结论</strong>：优先用 <code>synchronized</code>，需要超时/中断/多条件时才用 <code>ReentrantLock</code>。别为了"看起来高级"而滥用。</p>
+<h3 id="AQS-vs-自旋锁-vs-StampedLock"><a href="#AQS-vs-自旋锁-vs-StampedLock" class="headerlink" title="AQS vs 自旋锁 vs StampedLock"></a>AQS vs 自旋锁 vs StampedLock</h3>
+<ul>
+<li><strong>自旋锁</strong>：适合临界区极短、核数充足的场景，但会浪费 CPU，且不保证公平。</li>
+</ul>
+<ul>
+<li><strong>AQS 独占模式</strong>：阻塞式，适合临界区可能较长、线程数多的场景。</li>
+</ul>
+<ul>
+<li><strong>StampedLock</strong>：乐观读 + 悲观读写，读多写少时性能远超 <code>ReentrantReadWriteLock</code>，但<strong>不可重入</strong>，且不支持 <code>Condition</code>，API 更复杂。</li>
+</ul>
+<div class="mermaid">
+graph TD
+    A[需要同步原语] --> B{需要超时/中断/多条件?}
+    B -->|否| C[synchronized]
+    B -->|是| D{读多写少?}
+    D -->|是| E[StampedLock 或 ReentrantReadWriteLock]
+    D -->|否| F{需要共享/独占混合?}
+    F -->|是| G[自定义 AQS 子类]
+    F -->|否| H[ReentrantLock]
+</div>
+<h3 id="CLH-队列-vs-MCS-队列"><a href="#CLH-队列-vs-MCS-队列" class="headerlink" title="CLH 队列 vs MCS 队列"></a>CLH 队列 vs MCS 队列</h3>
+<p>AQS 用的是 <strong>CLH 变体</strong>（Craig, Landin, Hagersten 原始版本的变体）：</p>
+<ul>
+<li>原始 CLH：单向链表，每个节点自旋前驱的状态，适合 NUMA 架构，但没有超时/取消支持。</li>
+</ul>
+<ul>
+<li>MCS：显式链表 + 后继自旋，唤醒开销小，但需要额外指针。</li>
+</ul>
+<ul>
+<li>AQS 变体：<strong>双向链表 + <code>LockSupport.park</code></strong>，保留了 CLH 的 FIFO 语义，增加了取消和超时支持，代价是 <code>next</code> 指针可能短暂为 null。</li>
+</ul>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="1-锁必须在-finally-里释放"><a href="#1-锁必须在-finally-里释放" class="headerlink" title="1. 锁必须在 finally 里释放"></a>1. 锁必须在 finally 里释放</h3>
+<figure class="highlight java"><pre><code class="language-java">lock.lock();
+try {
+    // 业务
+} finally {
+    lock.unlock();   // 哪怕业务抛异常也要释放
+}</code></pre></figure>
+<p><strong>坑</strong>：<code>lock()</code> 之前的代码如果抛异常，<code>finally</code> 里的 <code>unlock</code> 会执行，但由于没成功加锁会抛 <code>IllegalMonitorStateException</code>。所以 <code>lock()</code> 一定要放在 <code>try</code> 外面第一行。</p>
+<h3 id="2-用-lockInterruptibly-避免死锁不可中断"><a href="#2-用-lockInterruptibly-避免死锁不可中断" class="headerlink" title="2. 用 lockInterruptibly 避免死锁不可中断"></a>2. 用 lockInterruptibly 避免死锁不可中断</h3>
+<figure class="highlight java"><pre><code class="language-java">lock.lockInterruptibly();   // 等待时可以被中断</code></pre></figure>
+<p><code>lock()</code> 是不可中断的，一旦排队就"死等"。在需要响应关闭信号的场景（比如线程池 shutdown），必须用 <code>lockInterruptibly</code>。</p>
+<h3 id="3-优先用非公平锁"><a href="#3-优先用非公平锁" class="headerlink" title="3. 优先用非公平锁"></a>3. 优先用非公平锁</h3>
+<p>除非有明确的公平性需求（如任务调度必须严格 FIFO），否则用默认的非公平锁。公平锁的吞吐可能低 30%+。</p>
+<h3 id="4-临界区尽量短"><a href="#4-临界区尽量短" class="headerlink" title="4. 临界区尽量短"></a>4. 临界区尽量短</h3>
+<p>AQS 的队列机制再精妙，也架不住你在临界区里做 IO、调远程服务。锁的时间越长，<code>head</code> 节点迟迟不释放，后面所有线程都堵着。</p>
+<h3 id="5-Condition-的-await-必须放在-while-里"><a href="#5-Condition-的-await-必须放在-while-里" class="headerlink" title="5. Condition 的 await 必须放在 while 里"></a>5. Condition 的 await 必须放在 while 里</h3>
+<figure class="highlight java"><pre><code class="language-java">while (!condition) {
+    cond.await();     // 用 while 不用 if
+}</code></pre></figure>
+<p><strong>坑</strong>：<code>await</code> 可能被虚假唤醒（spurious wakeup），也可能是其他线程 <code>signalAll</code> 唤醒了你但条件仍不满足。用 <code>while</code> 重新检查。</p>
+<h3 id="6-别在-AQS-子类里直接改-state"><a href="#6-别在-AQS-子类里直接改-state" class="headerlink" title="6. 别在 AQS 子类里直接改 state"></a>6. 别在 AQS 子类里直接改 state</h3>
+<p><code>state</code> 的读写必须通过 <code>getState/setState/compareAndSetState</code>，且 <code>setState</code> 只在确定无竞争时使用（如持有锁的线程释放锁）。乱用会导致队列状态和实际状态不一致。</p>
+<h3 id="7-理解-waitStatus-的传播方向"><a href="#7-理解-waitStatus-的传播方向" class="headerlink" title="7. 理解 waitStatus 的传播方向"></a>7. 理解 waitStatus 的传播方向</h3>
+<p><code>SIGNAL</code> 是<strong>前驱对后继的承诺</strong>，不是后继自己的状态。很多人搞反。<code>shouldParkAfterFailedAcquire</code> 里永远是把<strong>前驱</strong>设为 <code>SIGNAL</code>。</p>
+<h3 id="8-中断响应是-延迟-的"><a href="#8-中断响应是-延迟-的" class="headerlink" title="8. 中断响应是"延迟"的"></a>8. 中断响应是"延迟"的</h3>
+<p><code>acquire</code> 里如果线程在排队时被中断，不会立刻抛异常，而是等拿到锁后 <code>selfInterrupt</code> 补上标记。业务代码里如果需要立即响应中断，用 <code>lockInterruptibly</code>。</p>
+<h3 id="9-避免锁升级导致的性能雪崩"><a href="#9-避免锁升级导致的性能雪崩" class="headerlink" title="9. 避免锁升级导致的性能雪崩"></a>9. 避免锁升级导致的性能雪崩</h3>
+<p><code>ReentrantReadWriteLock</code> 的写锁升级（读锁 → 写锁）会死锁，因为读锁可共享、写锁独占，同一线程持有读锁后再申请写锁，会等自己释放读锁。降级（写锁 → 读锁）是允许的。</p>
+<h3 id="10-监控队列长度"><a href="#10-监控队列长度" class="headerlink" title="10. 监控队列长度"></a>10. 监控队列长度</h3>
+<p>AQS 没有公开的队列长度 API，但可以通过 <code>getQueueLength()</code>（<code>ReentrantLock</code> 暴露）观察。队列长期很长说明锁竞争严重，考虑拆分锁、减少临界区或换无锁方案。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回顾一下本文的主线：</p>
+<ol>
+<li><strong><code>ReentrantLock</code> 是 AQS 的门面</strong>，<code>lock()</code> 背后是 <code>acquire</code> → <code>tryAcquire</code> → <code>addWaiter</code> → <code>acquireQueued</code> 的标准流程。</li>
+<li><strong><code>state</code> 是 AQS 的核心变量</strong>，语义由子类定义；<code>ReentrantLock</code> 用它表示重入次数。</li>
+<li><strong>CLH 变体队列</strong>用双向链表 + <code>LockSupport.park</code> 实现，<code>head</code> 是哨兵，<code>prev</code> 可靠 <code>next</code> 可能为 null。</li>
+<li><strong><code>Node.waitStatus</code> 是状态机</strong>：<code>CANCELLED/SIGNAL/CONDITION/PROPAGATE</code>，<code>SIGNAL</code> 是前驱对后继的承诺。</li>
+<li><strong>公平与非公平的差别</strong>只在 <code>tryAcquire</code> 里有没有 <code>hasQueuedPredecessors</code> 检查，非公平锁会"插队"两次（<code>lock</code> 一次、<code>tryAcquire</code> 一次）。</li>
+<li><strong><code>Condition</code> 是独立的条件队列</strong>，<code>await</code> 会完全释放锁并转移节点，<code>signal</code> 只是转移不唤醒。</li>
+<li><strong>中断延迟响应</strong>是 AQS 的刻意设计，保证状态一致性。</li>
+</ol>
+<p>延伸思考几个方向：</p>
+<ul>
+<li><strong><code>CountDownLatch</code> 的共享模式</strong>：<code>tryAcquireShared</code> 返回负数表示失败，返回 0 表示成功但后续共享获取也成功，返回正数表示成功且后续还能继续。这是共享锁传播的机制。</li>
+</ul>
+<ul>
+<li><strong><code>Semaphore</code> 的公平性</strong>：和 <code>ReentrantLock</code> 一样，公平模式用 <code>hasQueuedPredecessors</code>。</li>
+</ul>
+<ul>
+<li><strong><code>StampedLock</code> 为什么不用 AQS</strong>：因为它需要乐观读和更细粒度的状态编码，AQS 的 <code>state</code> 一个 int 不够用（虽然 <code>ReentrantReadWriteLock</code> 拆成高低 16 位用，但 StampedLock 需要 version + 模式，所以另起炉灶）。</li>
+</ul>
+<ul>
+<li><strong>虚拟线程对 AQS 的冲击</strong>：JDK 21 的虚拟线程在 <code>park</code> 时会卸载载体线程，AQS 的阻塞语义依然有效，但 <code>synchronized</code> 阻塞虚拟线程会 pin 住载体线程——这是 <code>ReentrantLock</code> 在虚拟线程时代重新受青睐的重要原因。</li>
+</ul>
+<p>AQS 是 Doug Lea 的巅峰之作，用不到 2000 行代码撑起了整个 <code>java.util.concurrent</code> 的同步底座。读懂它，不只是为了面试，更是为了在写并发代码时，清楚地知道每一行背后线程在做什么。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
