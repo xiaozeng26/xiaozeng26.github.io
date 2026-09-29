@@ -1,5 +1,23 @@
 [
  {
+  "title": "Zap + Lumberjack 高性能日志架构",
+  "url": "/2026/09/30/Zap%20%2B%20Lumberjack%20%E9%AB%98%E6%80%A7%E8%83%BD%E6%97%A5%E5%BF%97%E6%9E%B6%E6%9E%84/",
+  "date": "2026-09-30",
+  "year": 2026,
+  "month": 9,
+  "day": 30,
+  "category": "golang",
+  "tags": [
+   "go",
+   "golang",
+   "concurrency",
+   "microservices",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3434",
+  "excerpt": "引言 先说一个真实的生产事故。某支付系统在大促前压测时，QPS 刚过 8000，服务响应时间突然从 12ms 飙到 400ms，P99 突破 2s。排查了半天，CPU、内存、GC 都正常，最后定位到日志模块——团队用的是标准库 log 包，每条日志都加了一把互斥锁，且每次写盘都是一次系统调用，同步刷盘。在高并发下，这把"
+ },
+ {
   "title": "AQS框架源码解读——从ReentrantLock说起",
   "url": "/2026/09/29/AQS%E6%A1%86%E6%9E%B6%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB%E2%80%94%E2%80%94%E4%BB%8EReentrantLock%E8%AF%B4%E8%B5%B7/",
   "date": "2026-09-29",
