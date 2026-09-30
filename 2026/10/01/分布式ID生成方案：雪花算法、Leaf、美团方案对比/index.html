@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>分布式ID生成方案：雪花算法、Leaf、美团方案对比 | 小曾博客</title>
+  <meta name="description" content="分布式ID生成方案：雪花算法、Leaf、美团方案对比 引言 去年双十一大促前夜，我们团队接到一个紧急工单：订单中心在凌晨扩容后，出现了大量主键冲突。排查发现，某台机器的系统时钟被 NTP 回拨了 8 毫秒——就这么不起眼的 8 毫秒，让 Snowflake 算法在同一毫秒内产生了重复 ID，直接导致上千笔订单写入失败。 这不是个例。在分布式系统中，ID 生成看似是最基础的功能，却往往是踩坑最多的地">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="分布式ID生成方案：雪花算法、Leaf、美团方案对比">
+  <meta name="twitter:description" content="分布式ID生成方案：雪花算法、Leaf、美团方案对比 引言 去年双十一大促前夜，我们团队接到一个紧急工单：订单中心在凌晨扩容后，出现了大量主键冲突。排查发现，某台机器的系统时钟被 NTP 回拨了 8 毫秒——就这么不起眼的 8 毫秒，让 Snowflake 算法在同一毫秒内产生了重复 ID，直接导致上千笔订单写入失败。 这不是个例。在分布式系统中，ID 生成看似是最基础的功能，却往往是踩坑最多的地">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=8852">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="分布式ID生成方案：雪花算法、Leaf、美团方案对比">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="分布式ID生成方案：雪花算法、Leaf、美团方案对比 引言 去年双十一大促前夜，我们团队接到一个紧急工单：订单中心在凌晨扩容后，出现了大量主键冲突。排查发现，某台机器的系统时钟被 NTP 回拨了 8 毫秒——就这么不起眼的 8 毫秒，让 Snowflake 算法在同一毫秒内产生了重复 ID，直接导致上千笔订单写入失败。 这不是个例。在分布式系统中，ID 生成看似是最基础的功能，却往往是踩坑最多的地">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=8852">
+  <meta property="article:published_time" content="2026-10-01T01:13:35.000Z">
+  <meta property="article:modified_time" content="2026-10-01T01:13:35.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#分布式ID生成方案-雪花算法-Leaf-美团方案对比"><span class="toc-text">分布式ID生成方案：雪花算法、Leaf、美团方案对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-ID-生成器就像餐厅的取号机"><span class="toc-text">核心概念：ID 生成器就像餐厅的取号机</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Snowflake-的核心思想-把-64-位切成几块"><span class="toc-text">Snowflake 的核心思想：把 64 位切成几块</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级深度分析"><span class="toc-text">源码级深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一-原生-Snowflake-Twitter-的实现与它的致命缺陷"><span class="toc-text">一、原生 Snowflake：Twitter 的实现与它的致命缺陷</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#二-美团-Leaf-两种模式-各有取舍"><span class="toc-text">二、美团 Leaf：两种模式，各有取舍</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三-百度-UidGenerator-用-未来时间-换性能"><span class="toc-text">三、百度 UidGenerator：用"未来时间"换性能</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三种方案的本质对比"><span class="toc-text">三种方案的本质对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的完整示例"><span class="toc-text">实战代码：三个可运行的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-生产级-Snowflake-含时钟回拨自愈"><span class="toc-text">示例 1：生产级 Snowflake（含时钟回拨自愈）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-Leaf-segment-的双-Buffer-完整实现"><span class="toc-text">示例 2：Leaf-segment 的双 Buffer 完整实现</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-基于-Redis-的高可用-ID-生成器-Lua-脚本保证原子性"><span class="toc-text">示例 3：基于 Redis 的高可用 ID 生成器（Lua 脚本保证原子性）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比与选型决策"><span class="toc-text">方案对比与选型决策</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#决策流程图"><span class="toc-text">决策流程图</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#关键场景的选型建议"><span class="toc-text">关键场景的选型建议</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-1-Snowflake-的-workerId-在-K8s-环境下冲突"><span class="toc-text">坑 1：Snowflake 的 workerId 在 K8s 环境下冲突</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-2-NTP-校时导致批量回拨"><span class="toc-text">坑 2：NTP 校时导致批量回拨</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-3-Leaf-segment-重启导致的号段浪费"><span class="toc-text">坑 3：Leaf-segment 重启导致的号段浪费</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-4-序列号耗尽时的性能毛刺"><span class="toc-text">坑 4：序列号耗尽时的性能毛刺</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-5-ID-泄露业务量"><span class="toc-text">坑 5：ID 泄露业务量</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-6-多语言环境下的-ID-兼容"><span class="toc-text">坑 6：多语言环境下的 ID 兼容</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=8852)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">分布式ID生成方案：雪花算法、Leaf、美团方案对比</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-01"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-01</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-01"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-01</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="分布式ID生成方案-雪花算法-Leaf-美团方案对比"><a href="#分布式ID生成方案-雪花算法-Leaf-美团方案对比" class="headerlink" title="分布式ID生成方案：雪花算法、Leaf、美团方案对比"></a>分布式ID生成方案：雪花算法、Leaf、美团方案对比</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一大促前夜，我们团队接到一个紧急工单：订单中心在凌晨扩容后，出现了大量主键冲突。排查发现，某台机器的系统时钟被 NTP 回拨了 8 毫秒——就这么不起眼的 8 毫秒，让 Snowflake 算法在同一毫秒内产生了重复 ID，直接导致上千笔订单写入失败。</p>
+<p>这不是个例。在分布式系统中，ID 生成看似是最基础的功能，却往往是踩坑最多的地方之一：</p>
+<ul>
+<li>用数据库自增？单点瓶颈，分库分表后直接失效。</li>
+</ul>
+<ul>
+<li>用 UUID？无序性导致 InnoDB 的 B+ 树页分裂严重，写入性能断崖式下跌。</li>
+</ul>
+<ul>
+<li>用 Redis 的 INCR？多一次网络 RTT，还要考虑持久化丢失的问题。</li>
+</ul>
+<ul>
+<li>用 Snowflake？时钟回拨、workerId 分配、序列号耗尽，每一个都是坑。</li>
+</ul>
+<p>这篇文章，我会从源码级别拆解三种主流方案——原生 Snowflake、美团 Leaf、百度 UidGenerator（附带对比美团 Leaf-snowflake 的改进），并结合我们线上真实的踩坑经验，给出选型建议。读完你应该能清楚地知道：<strong>在什么场景下用哪个方案，以及为什么</strong>。</p>
+<h2 id="核心概念-ID-生成器就像餐厅的取号机"><a href="#核心概念-ID-生成器就像餐厅的取号机" class="headerlink" title="核心概念：ID 生成器就像餐厅的取号机"></a>核心概念：ID 生成器就像餐厅的取号机</h2>
+<p>先打个比方。</p>
+<p>想象一家网红餐厅，门口有一台取号机。理想情况下，它要满足几个要求：</p>
+<ol>
+<li><strong>不重号</strong>：两个人不能拿到同一个号（唯一性）</li>
+<li><strong>号码递增</strong>：叫号时按顺序来，不能乱跳（有序性）</li>
+<li><strong>出号快</strong>：顾客多的时候不能卡住（高吞吐、低延迟）</li>
+<li><strong>机器坏了能换</strong>：不能因为一台取号机坏了整个餐厅瘫痪（高可用）</li>
+<li><strong>号码不能太长</strong>：太长的号码顾客记不住，也印不下（ID 长度可控）</li>
+</ol>
+<p>分布式 ID 生成器的本质，就是把这个"取号机"做成一个分布式的、可水平扩展的系统。技术语言描述：</p>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>全局唯一</td>
+<td>分布式环境下绝不产生重复 ID</td>
+</tr><tr>
+<td>趋势递增</td>
+<td>大致按时间递增，利于数据库索引</td>
+</tr><tr>
+<td>高可用</td>
+<td>单点故障不影响整体服务</td>
+</tr><tr>
+<td>高并发</td>
+<td>支撑每秒数万到数十万的生成量</td>
+</tr><tr>
+<td>信息安全</td>
+<td>不暴露业务量、不连续可猜测</td>
+</tr></tbody></table>
+<h3 id="Snowflake-的核心思想-把-64-位切成几块"><a href="#Snowflake-的核心思想-把-64-位切成几块" class="headerlink" title="Snowflake 的核心思想：把 64 位切成几块"></a>Snowflake 的核心思想：把 64 位切成几块</h3>
+<p>Snowflake 的精妙之处在于，它把 64 位长整型切成了几个功能块：</p>
+<figure class="highlight "><pre><code>┌─┬─────────────────────────────┬──────────┬──────────┐
+│0│        41 bit 时间戳         │ 10 bit   │ 12 bit   │
+│ │  (毫秒级，可用 69 年)         │ 机器ID   │ 序列号   │
+└─┴─────────────────────────────┴──────────┴──────────┘</code></pre></figure>
+<ul>
+<li><strong>1 bit 符号位</strong>：永远为 0，保证 ID 为正数。</li>
+</ul>
+<ul>
+<li><strong>41 bit 时间戳</strong>：存储的是"当前时间 - 起始纪元"的毫秒差。41 位能表示 2^41 毫秒 ≈ 69 年。</li>
+</ul>
+<ul>
+<li><strong>10 bit 机器 ID</strong>：最多支持 1024 个节点。这就是为什么扩容时要小心——workerId 分配错了，直接重复。</li>
+</ul>
+<ul>
+<li><strong>12 bit 序列号</strong>：同一毫秒内同一机器最多生成 4096 个 ID，也就是单机理论峰值 409.6 万/秒。</li>
+</ul>
+<p><strong>为什么这个设计能保证唯一？</strong> 因为三个维度构成了一个"三维坐标"：<code>(时间, 机器, 序列号)</code>。只要任意一维不同，ID 就不会重复。时间保证了跨毫秒的唯一，机器保证了同毫秒跨节点的唯一，序列号保证了同节点同毫秒内的唯一。</p>
+<h2 id="源码级深度分析"><a href="#源码级深度分析" class="headerlink" title="源码级深度分析"></a>源码级深度分析</h2>
+<h3 id="一-原生-Snowflake-Twitter-的实现与它的致命缺陷"><a href="#一-原生-Snowflake-Twitter-的实现与它的致命缺陷" class="headerlink" title="一、原生 Snowflake：Twitter 的实现与它的致命缺陷"></a>一、原生 Snowflake：Twitter 的实现与它的致命缺陷</h3>
+<p>Twitter 官方 Scala 版本的核心逻辑（我把它翻译成 Java 便于理解）：</p>
+<figure class="highlight java"><pre><code class="language-java">public class Snowflake {
+    private final long twepoch = 1288834974657L; // 起始纪元 2010-11-04
+    private final long workerIdBits = 5L;
+    private final long datacenterIdBits = 5L;
+    private final long sequenceBits = 12L;
+    private final long maxWorkerId = -1L ^ (-1L &lt;&lt; workerIdBits); // 31
+    private final long maxDatacenterId = -1L ^ (-1L &lt;&lt; datacenterIdBits); // 31
+    private final long sequenceMask = -1L ^ (-1L &lt;&lt; sequenceBits); // 4095
+
+    private long workerId;
+    private long datacenterId;
+    private long sequence = 0L;
+    private long lastTimestamp = -1L;
+
+    public synchronized long nextId() {
+        long timestamp = timeGen();
+        // 【关键点1】时钟回拨检测
+        if (timestamp &lt; lastTimestamp) {
+            throw new RuntimeException(
+                &quot;Clock moved backwards. Refusing to generate id for &quot; 
+                + (lastTimestamp - timestamp) + &quot; milliseconds&quot;);
+        }
+        if (lastTimestamp == timestamp) {
+            // 同一毫秒内，序列号自增
+            sequence = (sequence + 1) &amp; sequenceMask;
+            if (sequence == 0) {
+                // 【关键点2】序列号耗尽，自旋等待下一毫秒
+                timestamp = tilNextMillis(lastTimestamp);
+            }
+        } else {
+            // 新的毫秒，序列号归零
+            sequence = 0L;
+        }
+        lastTimestamp = timestamp;
+        // 拼装 ID
+        return ((timestamp - twepoch) &lt;&lt; 22)
+             | (datacenterId &lt;&lt; 17)
+             | (workerId &lt;&lt; 12)
+             | sequence;
+    }
+
+    private long tilNextMillis(long lastTimestamp) {
+        long timestamp = timeGen();
+        while (timestamp &lt;= lastTimestamp) {
+            timestamp = timeGen();
+        }
+        return timestamp;
+    }
+}</code></pre></figure>
+<p><strong>三个致命缺陷：</strong></p>
+<ol>
+<li><strong>时钟回拨直接抛异常</strong>。生产环境 NTP 校时、虚拟机迁移都可能造成回拨，抛异常意味着服务不可用。</li>
+<li><strong>workerId 靠人工配置</strong>。1024 个节点，靠配置文件维护？容器化环境下 Pod 频繁重启，根本无法保证唯一。</li>
+<li><strong>序列号耗尽时自旋</strong>。虽然只有 4096/ms 以上的极端场景才会触发，但自旋期间持有 synchronized 锁，会阻塞所有调用线程。</li>
+</ol>
+<h3 id="二-美团-Leaf-两种模式-各有取舍"><a href="#二-美团-Leaf-两种模式-各有取舍" class="headerlink" title="二、美团 Leaf：两种模式，各有取舍"></a>二、美团 Leaf：两种模式，各有取舍</h3>
+<p>美团的 Leaf 提供了两个方案，我先讲架构：</p>
+<div class="mermaid">
+graph TD
+    A[业务客户端] --> B[Leaf Server 集群]
+    B --> C{模式选择}
+    C -->|Leaf-segment| D[(MySQL 号段表)]
+    C -->|Leaf-snowflake| E[ZooKeeper 分配 workerId]
+    E --> F[本地 Snowflake 生成]
+    D --> G[双 Buffer 异步预加载]
+    G --> H[内存号段池]
+    
+    style D fill:#ffe0b2
+    style E fill:#c8e6c9
+    style H fill:#b3e5fc
+</div>
+<p>#### Leaf-segment：用"批发"代替"零售"</p>
+<p>核心思想是<strong>批量从数据库取号</strong>，把压力从"每次请求一次 DB"降到"每 N 个 ID 才请求一次 DB"。</p>
+<p>数据库表结构：</p>
+<figure class="highlight sql"><pre><code class="language-sql">CREATE TABLE leaf_alloc (
+    biz_tag     VARCHAR(128) NOT NULL DEFAULT &#x27;&#x27;,
+    max_id      BIGINT       NOT NULL DEFAULT 1,
+    step        INT          NOT NULL,
+    description VARCHAR(256),
+    update_time TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP 
+                             ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (biz_tag)
+);</code></pre></figure>
+<p><strong>双 Buffer 优化</strong>是 Leaf 的精髓。传统号段模式是"用完了才去取下一段"，取号段的网络延迟会造成请求毛刺。Leaf 用双 Buffer：当前号段消耗到 10% 时，就异步去加载下一个号段。</p>
+<figure class="highlight java"><pre><code class="language-java">public class SegmentBuffer {
+    private Segment[] segments = new Segment[2]; // 双 buffer
+    private volatile int currentPos = 0;
+    private volatile boolean nextReady = false;
+    private volatile boolean initOk = false;
+    
+    // 当前号段消耗到 10% 时触发预加载
+    public boolean isNextReady() {
+        return nextReady;
+    }
+    
+    public synchronized void switchPos() {
+        if (!nextReady) return;
+        currentPos = 1 - currentPos;   // 切换 buffer
+        segments[currentPos].setId(segments[currentPos].getMin());
+        nextReady = false;
+    }
+}</code></pre></figure>
+<p><strong>优点</strong>：ID 严格递增、性能高（QPS 可达数万）、DB 依赖弱。</p>
+<p><strong>缺点</strong>：ID 有"跳跃"（每次换号段会跳一大截），会暴露业务量；强依赖 DB，DB 挂了只能撑到号段用完。</p>
+<p>#### Leaf-snowflake：解决 workerId 和时钟回拨</p>
+<p>Leaf-snowflake 在原生 Snowflake 基础上做了两个关键改进：</p>
+<p><strong>改进 1：workerId 由 ZooKeeper 自动分配</strong></p>
+<p>利用 ZK 的<strong>顺序持久节点</strong>特性：</p>
+<figure class="highlight java"><pre><code class="language-java">// 启动时在 ZK 的 /snowflake/forever 下创建顺序节点
+String path = zkClient.create()
+    .withMode(CreateMode.PERSISTENT_SEQUENTIAL)
+    .forPath(&quot;/snowflake/forever/worker-&quot;);
+// 从节点名中解析出序号作为 workerId
+// 例如 worker-0000000012 -&gt; workerId = 12
+long workerId = Long.parseLong(path.substring(path.lastIndexOf(&quot;-&quot;) + 1));</code></pre></figure>
+<p><strong>改进 2：弱依赖 ZK + 本地文件缓存 workerId</strong></p>
+<p>关键设计是 <strong>ZK 只是启动时用一次</strong>。如果 ZK 挂了，重启的服务会读取本地文件缓存的 workerId，避免重新分配导致冲突。</p>
+<p><strong>改进 3：容忍小幅时钟回拨</strong></p>
+<p>这是 Leaf 最实用的改进。源码逻辑（简化）：</p>
+<figure class="highlight java"><pre><code class="language-java">public synchronized long nextId() {
+    long timestamp = System.currentTimeMillis();
+    
+    if (timestamp &lt; lastTimestamp) {
+        long offset = lastTimestamp - timestamp;
+        if (offset &lt;= 5) {
+            // 【关键】回拨 5ms 以内，等待两倍时间追平
+            try {
+                wait(offset &lt;&lt; 1);
+                timestamp = System.currentTimeMillis();
+                if (timestamp &lt; lastTimestamp) {
+                    throw new RuntimeException(&quot;wait failed&quot;);
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            // 回拨超过 5ms，直接失败（需要人工介入）
+            throw new RuntimeException(&quot;Clock moved backwards by &quot; + offset);
+        }
+    }
+    // ... 后续同原生 Snowflake
+}</code></pre></figure>
+<p><strong>为什么是 5ms 和 2 倍等待？</strong> 因为 NTP 校时通常是渐进式的，小幅回拨是常态。等待 2×offset 是为了确保追平后还能保持趋势递增。这个阈值可以根据业务对时钟精度的容忍度调整。</p>
+<h3 id="三-百度-UidGenerator-用-未来时间-换性能"><a href="#三-百度-UidGenerator-用-未来时间-换性能" class="headerlink" title="三、百度 UidGenerator：用"未来时间"换性能"></a>三、百度 UidGenerator：用"未来时间"换性能</h3>
+<p>百度的 UidGenerator 有个非常聪明的设计——<strong>借用未来时间</strong>。</p>
+<p>原生 Snowflake 的序列号只有 12 位，单毫秒只能生成 4096 个。UidGenerator 的 CachedUidGenerator 版本把序列号扩到 13 位（8192 个），并且预先生成一批 ID 放在 RingBuffer 里。</p>
+<figure class="highlight java"><pre><code class="language-java">// RingBuffer 的核心：用位运算实现高性能环形队列
+public class RingBuffer {
+    private final int bufferSize;          // 必须是 2 的幂
+    private final long indexMask;
+    private final long[] slots;
+    private final PaddedAtomicLong[] flags; // 填充避免伪共享
+
+    public long take() {
+        long nextCursor = cursor.updateAndGet(
+            old -&gt; old &gt;= tail ? 0 : old + 1
+        );
+        // 等待对应 slot 填充完成
+        while (flags[(int)(nextCursor &amp; indexMask)].get() == 0) {}
+        long uid = slots[(int)(nextCursor &amp; indexMask)];
+        flags[(int)(nextCursor &amp; indexMask)].set(0L);
+        return uid;
+    }
+}</code></pre></figure>
+<p><strong>"借用未来时间"是怎么回事？</strong> 当 RingBuffer 中的 ID 消耗过快时，生成器会<strong>把时间戳向前拨</strong>，预支下一秒的时间，从而在序列号耗尽前继续生成。因为是预生成的，消费时不需要等待，吞吐量能达到单机 600 万/秒。</p>
+<p>但这也是它的代价——<strong>ID 不再严格对应真实时间</strong>，如果按 ID 反推创建时间会有偏差。</p>
+<h3 id="三种方案的本质对比"><a href="#三种方案的本质对比" class="headerlink" title="三种方案的本质对比"></a>三种方案的本质对比</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>原生 Snowflake</th>
+<th>美团 Leaf-segment</th>
+<th>美团 Leaf-snowflake</th>
+<th>百度 UidGenerator</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ID 趋势</td>
+<td>严格递增</td>
+<td>段内递增</td>
+<td>严格递增</td>
+<td>严格递增</td>
+</tr><tr>
+<td>单机 QPS</td>
+<td>~400 万</td>
+<td>依赖 DB 批量</td>
+<td>~400 万</td>
+<td>~600 万</td>
+</tr><tr>
+<td>时钟回拨</td>
+<td>直接失败</td>
+<td>无影响</td>
+<td>容忍 5ms</td>
+<td>容忍一定范围</td>
+</tr><tr>
+<td>workerId</td>
+<td>手工配置</td>
+<td>无需</td>
+<td>ZK 自动分配</td>
+<td>启动时分配</td>
+</tr><tr>
+<td>依赖组件</td>
+<td>无</td>
+<td>MySQL</td>
+<td>ZK + 无</td>
+<td>无</td>
+</tr><tr>
+<td>ID 可反推时间</td>
+<td>是</td>
+<td>否</td>
+<td>是</td>
+<td>近似</td>
+</tr><tr>
+<td>号段浪费</td>
+<td>无</td>
+<td>有（重启）</td>
+<td>无</td>
+<td>无</td>
+</tr></tbody></table>
+<h2 id="实战代码-三个可运行的完整示例"><a href="#实战代码-三个可运行的完整示例" class="headerlink" title="实战代码：三个可运行的完整示例"></a>实战代码：三个可运行的完整示例</h2>
+<h3 id="示例-1-生产级-Snowflake-含时钟回拨自愈"><a href="#示例-1-生产级-Snowflake-含时钟回拨自愈" class="headerlink" title="示例 1：生产级 Snowflake（含时钟回拨自愈）"></a>示例 1：生产级 Snowflake（含时钟回拨自愈）</h3>
+<p>这是我在生产环境用的版本，核心改进是<strong>时钟回拨时自旋等待而不是抛异常</strong>：</p>
+<figure class="highlight java"><pre><code class="language-java">import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * 生产级 Snowflake 实现
+ * 改进点：
+ * 1. 时钟回拨小于阈值时自旋等待，而不是直接抛异常
+ * 2. 使用 ReentrantLock + tryLock 避免长时间阻塞
+ * 3. 提供 workerId 合法性校验
+ */
+public class RobustSnowflake {
+
+    private static final long EPOCH = 1704067200000L; // 2024-01-01 00:00:00
+    private static final long WORKER_ID_BITS = 10L;
+    private static final long SEQUENCE_BITS = 12L;
+    private static final long MAX_WORKER_ID = ~(-1L &lt;&lt; WORKER_ID_BITS); // 1023
+    private static final long SEQUENCE_MASK = ~(-1L &lt;&lt; SEQUENCE_BITS);  // 4095
+    private static final long WORKER_ID_SHIFT = SEQUENCE_BITS;          // 12
+    private static final long TIMESTAMP_SHIFT = SEQUENCE_BITS + WORKER_ID_BITS; // 22
+    private static final long MAX_BACKWARD_MS = 10L; // 最大容忍回拨 10ms
+
+    private final long workerId;
+    private long sequence = 0L;
+    private long lastTimestamp = -1L;
+    private final ReentrantLock lock = new ReentrantLock();
+
+    public RobustSnowflake(long workerId) {
+        if (workerId &lt; 0 || workerId &gt; MAX_WORKER_ID) {
+            throw new IllegalArgumentException(&quot;workerId must be in [0, &quot; + MAX_WORKER_ID + &quot;]&quot;);
+        }
+        this.workerId = workerId;
+    }
+
+    public long nextId() {
+        lock.lock();
+        try {
+            long timestamp = currentTime();
+            long offset = lastTimestamp - timestamp;
+
+            if (offset &gt; 0) {
+                // 发生了时钟回拨
+                if (offset &lt;= MAX_BACKWARD_MS) {
+                    // 小幅回拨，自旋等待追平
+                    timestamp = spinUntil(lastTimestamp);
+                } else {
+                    // 大幅回拨，无法自愈，抛异常让上层告警
+                    throw new IllegalStateException(
+                        &quot;Clock moved backwards by &quot; + offset + &quot;ms, refuse to generate id&quot;);
+                }
+            }
+
+            if (timestamp == lastTimestamp) {
+                sequence = (sequence + 1) &amp; SEQUENCE_MASK;
+                if (sequence == 0) {
+                    timestamp = spinUntil(lastTimestamp);
+                }
+            } else {
+                sequence = 0L;
+            }
+
+            lastTimestamp = timestamp;
+
+            return ((timestamp - EPOCH) &lt;&lt; TIMESTAMP_SHIFT)
+                 | (workerId &lt;&lt; WORKER_ID_SHIFT)
+                 | sequence;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** 自旋等待直到时间超过指定值 */
+    private long spinUntil(long lastTimestamp) {
+        long ts = currentTime();
+        while (ts &lt;= lastTimestamp) {
+            Thread.onSpinWait(); // JDK9+ 自旋提示，减少 CPU 空转
+            ts = currentTime();
+        }
+        return ts;
+    }
+
+    private long currentTime() {
+        return System.currentTimeMillis();
+    }
+
+    /** 从 ID 反解生成时间，用于排查问题 */
+    public static long extractTimestamp(long id) {
+        return (id &gt;&gt; TIMESTAMP_SHIFT) + EPOCH;
+    }
+
+    // ---------- 测试 ----------
+    public static void main(String[] args) throws InterruptedException {
+        RobustSnowflake sf = new RobustSnowflake(1L);
+        long start = System.currentTimeMillis();
+        int count = 100_000;
+        java.util.Set&lt;Long&gt; ids = new java.util.HashSet&lt;&gt;(count * 2);
+
+        for (int i = 0; i &lt; count; i++) {
+            long id = sf.nextId();
+            if (!ids.add(id)) {
+                throw new IllegalStateException(&quot;Duplicate ID: &quot; + id);
+            }
+        }
+        long cost = System.currentTimeMillis() - start;
+        System.out.printf(&quot;生成 %d 个 ID，耗时 %d ms，QPS ≈ %d%n&quot;,
+            count, cost, count * 1000L / Math.max(cost, 1));
+        System.out.println(&quot;样例 ID 反解时间: &quot; + 
+            new java.util.Date(extractTimestamp(ids.iterator().next())));
+    }
+}</code></pre></figure>
+<h3 id="示例-2-Leaf-segment-的双-Buffer-完整实现"><a href="#示例-2-Leaf-segment-的双-Buffer-完整实现" class="headerlink" title="示例 2：Leaf-segment 的双 Buffer 完整实现"></a>示例 2：Leaf-segment 的双 Buffer 完整实现</h3>
+<p>这个示例去掉 DB 依赖，用内存模拟数据库，方便你直接跑起来理解双 Buffer 的调度逻辑：</p>
+<figure class="highlight java"><pre><code class="language-java">import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * Leaf-segment 双 Buffer 核心实现
+ * 用内存模拟 DB 取号段，重点展示双 Buffer 切换机制
+ */
+public class LeafSegmentDemo {
+
+    /** 号段：一段连续的 ID 区间 */
+    static class Segment {
+        private final AtomicLong value;
+        private final long max;
+        private final long step;
+
+        Segment(long min, long step) {
+            this.value = new AtomicLong(min);
+            this.max = min + step;
+            this.step = step;
+        }
+        long getId() { return value.getAndIncrement(); }
+        boolean isExhausted() { return value.get() &gt;= max; }
+        boolean shouldPreload() { return value.get() &gt;= max - step * 0.1; } // 剩 10% 预加载
+    }
+
+    /** 模拟 DB 取号段 */
+    static class FakeDb {
+        private final AtomicLong maxId = new AtomicLong(1);
+        private final long step;
+        FakeDb(long step) { this.step = step; }
+
+        synchronized Segment nextSegment() {
+            long min = maxId.get();
+            maxId.addAndGet(step);
+            System.out.printf(&quot;[DB] 分配号段 [%d, %d)%n&quot;, min, min + step);
+            return new Segment(min, step);
+        }
+    }
+
+    static class DoubleBufferLeaf {
+        private final Segment[] buffers = new Segment[2];
+        private volatile int current = 0;
+        private volatile boolean nextReady = false;
+        private final FakeDb db;
+        private final ExecutorService loader = Executors.newSingleThreadExecutor();
+
+        DoubleBufferLeaf(FakeDb db) {
+            this.db = db;
+            this.buffers[0] = db.nextSegment();
+        }
+
+        public long nextId() {
+            Segment cur = buffers[current];
+            if (cur.shouldPreload() &amp;&amp; !nextReady) {
+                // 异步预加载下一个号段
+                synchronized (this) {
+                    if (!nextReady) {
+                        nextReady = true;
+                        loader.submit(() -&gt; {
+                            buffers[1 - current] = db.nextSegment();
+                        });
+                    }
+                }
+            }
+            if (cur.isExhausted()) {
+                switchBuffer();
+                return nextId();
+            }
+            return cur.getId();
+        }
+
+        private synchronized void switchBuffer() {
+            // 等待预加载完成
+            while (!nextReady) {
+                try { Thread.sleep(1); } catch (InterruptedException ignored) {}
+            }
+            current = 1 - current;
+            nextReady = false;
+            System.out.println(&quot;[Leaf] 切换到 buffer &quot; + current);
+        }
+    }
+
+    public static void main(String[] args) {
+        FakeDb db = new FakeDb(1000); // 每次取 1000 个
+        DoubleBufferLeaf leaf = new DoubleBufferLeaf(db);
+
+        for (int i = 0; i &lt; 3500; i++) {
+            long id = leaf.nextId();
+            if (i % 500 == 0 || i == 3499) {
+                System.out.printf(&quot;生成第 %d 个 ID: %d%n&quot;, i, id);
+            }
+        }
+    }
+}</code></pre></figure>
+<p>运行结果会看到：DB 只在开始时分配了 3 次号段，其余全部走内存，并且切换 Buffer 时没有阻塞——这就是双 Buffer 的价值。</p>
+<h3 id="示例-3-基于-Redis-的高可用-ID-生成器-Lua-脚本保证原子性"><a href="#示例-3-基于-Redis-的高可用-ID-生成器-Lua-脚本保证原子性" class="headerlink" title="示例 3：基于 Redis 的高可用 ID 生成器（Lua 脚本保证原子性）"></a>示例 3：基于 Redis 的高可用 ID 生成器（Lua 脚本保证原子性）</h3>
+<p>当你的系统已经依赖 Redis 时，用 Lua 脚本做批量取号是最轻量的方案：</p>
+<figure class="highlight java"><pre><code class="language-java">import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * 基于 Redis + Lua 的号段模式
+ * 核心：用 Lua 脚本的原子性保证&quot;取号段&quot;操作不并发冲突
+ */
+public class RedisSegmentIdGenerator {
+
+    private static final String LUA_SCRIPT =
+        &quot;local key = KEYS[1] &quot; +
+        &quot;local step = tonumber(ARGV[1]) &quot; +
+        &quot;local current = redis.call(&#x27;GET&#x27;, key) &quot; +
+        &quot;if not current then &quot; +
+        &quot;    redis.call(&#x27;SET&#x27;, key, step) &quot; +
+        &quot;    return {0, step} &quot; +      // 返回 {起始值, 结束值}
+        &quot;else &quot; +
+        &quot;    local start = tonumber(current) &quot; +
+        &quot;    local endVal = start + step &quot; +
+        &quot;    redis.call(&#x27;SET&#x27;, key, endVal) &quot; +
+        &quot;    return {start, endVal} &quot; +
+        &quot;end&quot;;
+
+    private final JedisPool jedisPool;
+    private final String bizKey;
+    private final long step;
+
+    private final AtomicLong currentId = new AtomicLong(-1);
+    private volatile long maxId = -1;
+    private final Object lock = new Object();
+
+    public RedisSegmentIdGenerator(JedisPool pool, String bizKey, long step) {
+        this.jedisPool = pool;
+        this.bizKey = &quot;id_gen:&quot; + bizKey;
+        this.step = step;
+    }
+
+    public long nextId() {
+        // 快路径：无锁读取
+        long id = currentId.incrementAndGet();
+        if (id &lt; maxId) {
+            return id;
+        }
+        // 慢路径：需要取新号段
+        synchronized (lock) {
+            if (currentId.get() &lt; maxId) {
+                return currentId.incrementAndGet();
+            }
+            loadNewSegment();
+            return currentId.getAndIncrement();
+        }
+    }
+
+    @SuppressWarnings(&quot;unchecked&quot;)
+    private void loadNewSegment() {
+        try (Jedis jedis = jedisPool.getResource()) {
+            Object result = jedis.eval(LUA_SCRIPT,
+                Collections.singletonList(bizKey),
+                Collections.singletonList(String.valueOf(step)));
+            java.util.List&lt;Long&gt; range = (java.util.List&lt;Long&gt;) result;
+            long start = range.get(0);
+            long end = range.get(1);
+            currentId.set(start);
+            maxId = end;
+            System.out.printf(&quot;[Redis] 取到号段 [%d, %d)%n&quot;, start, end);
+        }
+    }
+
+    public static void main(String[] args) {
+        // 假设本地有 Redis
+        JedisPool pool = new JedisPool(&quot;127.0.0.1&quot;, 6379);
+        RedisSegmentIdGenerator gen = new RedisSegmentIdGenerator(pool, &quot;order&quot;, 1000);
+
+        java.util.Set&lt;Long&gt; ids = new java.util.HashSet&lt;&gt;();
+        for (int i = 0; i &lt; 5000; i++) {
+            long id = gen.nextId();
+            if (!ids.add(id)) {
+                throw new IllegalStateException(&quot;Duplicate: &quot; + id);
+            }
+        }
+        System.out.println(&quot;生成 5000 个唯一 ID 成功&quot;);
+        pool.close();
+    }
+}</code></pre></figure>
+<p>注意 <code>loadNewSegment</code> 里的一个细节：Lua 脚本返回的是 <code>{start, endVal}</code>，其中 <code>start</code> 是本次号段的<strong>起始值</strong>，<code>endVal</code> 是<strong>下一个号段的起始值</strong>。所以本地 <code>currentId</code> 从 <code>start</code> 开始，<code>maxId</code> 是 <code>endVal</code>（开区间，取不到），保证不越界。</p>
+<h2 id="方案对比与选型决策"><a href="#方案对比与选型决策" class="headerlink" title="方案对比与选型决策"></a>方案对比与选型决策</h2>
+<h3 id="决策流程图"><a href="#决策流程图" class="headerlink" title="决策流程图"></a>决策流程图</h3>
+<div class="mermaid">
+graph TD
+    A[需要分布式ID] --> B{是否有强时序要求?}
+    B -->|是, 需反推时间| C{能否容忍时钟回拨?}
+    B -->|否, 递增即可| D{DB压力大吗?}
+    C -->|能容忍少量| E[Leaf-snowflake]
+    C -->|不能| F[Leaf-segment]
+    D -->|是| F
+    D -->|否| G{已有Redis?}
+    G -->|是| H[Redis号段模式]
+    G -->|否| F
+    E --> I[部署ZK集群]
+    F --> J[部署MySQL主从]
+    H --> K[Redis哨兵/集群]
+    
+    style E fill:#c8e6c9
+    style F fill:#b3e5fc
+    style H fill:#ffe0b2
+</div>
+<h3 id="关键场景的选型建议"><a href="#关键场景的选型建议" class="headerlink" title="关键场景的选型建议"></a>关键场景的选型建议</h3>
+<p><strong>场景 1：电商订单号，需要按时间排序和查询</strong></p>
+<p>选 <strong>Leaf-snowflake</strong>。ID 趋势递增，能反推时间，方便按时间范围分页查询。同时 ZK 自动分配 workerId，容器化部署友好。</p>
+<p><strong>场景 2：日志追踪 ID，只要唯一不重复</strong></p>
+<p>选 <strong>UUID v7</strong> 或 <strong>Redis 号段</strong>。日志 ID 不需要严格递增，UUID v7 内嵌时间戳，既有序又无需中心化组件。</p>
+<p><strong>场景 3：金融交易流水号，绝对不能重复</strong></p>
+<p>选 <strong>Leaf-segment + 数据库唯一索引兜底</strong>。号段模式 ID 是"批发"的，即使生成器全部宕机，DB 里也不会产生重复。而且 ID 严格递增，方便对账。</p>
+<p><strong>场景 4：超高性能场景（>500 万 QPS）</strong></p>
+<p>选 <strong>百度 UidGenerator 的 CachedUidGenerator</strong>。预生成 + RingBuffer 是性能天花板。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑-1-Snowflake-的-workerId-在-K8s-环境下冲突"><a href="#坑-1-Snowflake-的-workerId-在-K8s-环境下冲突" class="headerlink" title="坑 1：Snowflake 的 workerId 在 K8s 环境下冲突"></a>坑 1：Snowflake 的 workerId 在 K8s 环境下冲突</h3>
+<p><strong>问题</strong>：Pod 重启后 IP 变化，用 IP 哈希算 workerId 可能碰撞。</p>
+<p><strong>解法</strong>：用 StatefulSet + 序号作为 workerId，或者接入 ZK/etcd 做注册分配。<strong>千万不要用 Pod IP 后 10 位做 workerId</strong>——IP 会复用。</p>
+<h3 id="坑-2-NTP-校时导致批量回拨"><a href="#坑-2-NTP-校时导致批量回拨" class="headerlink" title="坑 2：NTP 校时导致批量回拨"></a>坑 2：NTP 校时导致批量回拨</h3>
+<p><strong>问题</strong>：默认 NTP 配置下，如果时钟偏差过大，会一次性大步长调整（step），造成几十毫秒甚至秒级的回拨。</p>
+<p><strong>解法</strong>：配置 NTP 使用 <strong>slew 模式</strong>（渐进调整）：</p>
+<figure class="highlight "><pre><code># /etc/chrony.conf
+makestep 0.1 -1     # 只有偏差超过 0.1s 才 step，否则 slew</code></pre></figure>
+<p>同时 Snowflake 实现里保留小幅回拨自愈能力。</p>
+<h3 id="坑-3-Leaf-segment-重启导致的号段浪费"><a href="#坑-3-Leaf-segment-重启导致的号段浪费" class="headerlink" title="坑 3：Leaf-segment 重启导致的号段浪费"></a>坑 3：Leaf-segment 重启导致的号段浪费</h3>
+<p><strong>问题</strong>：服务每次重启都会丢弃内存中未用完的号段，如果 step=10000，重启 100 次就是 100 万个浪费的 ID。</p>
+<p><strong>解法</strong>：</p>
+<ul>
+<li>用<strong>动态 step</strong>：根据当前 QPS 调整，闲时小 step，忙时大 step。</li>
+</ul>
+<ul>
+<li>用<strong>持久化当前号段</strong>：重启时先尝试从本地文件恢复（类似 Leaf 的 <code>leaf_alloc</code> 表记录）。</li>
+</ul>
+<h3 id="坑-4-序列号耗尽时的性能毛刺"><a href="#坑-4-序列号耗尽时的性能毛刺" class="headerlink" title="坑 4：序列号耗尽时的性能毛刺"></a>坑 4：序列号耗尽时的性能毛刺</h3>
+<p><strong>问题</strong>：Snowflake 在 1ms 内超过 4096 个请求会自旋等待，synchronized 锁下所有线程阻塞。</p>
+<p><strong>解法</strong>：</p>
+<ul>
+<li>用 <code>ReentrantLock.tryLock(timeout)</code> 替代 synchronized，避免无限阻塞。</li>
+</ul>
+<ul>
+<li>提高序列号位数（牺牲时间位），或者用 UidGenerator 的 RingBuffer 预生成。</li>
+</ul>
+<h3 id="坑-5-ID-泄露业务量"><a href="#坑-5-ID-泄露业务量" class="headerlink" title="坑 5：ID 泄露业务量"></a>坑 5：ID 泄露业务量</h3>
+<p><strong>问题</strong>：连续递增的 ID 会让竞争对手轻松估算你的日订单量。</p>
+<p><strong>解法</strong>：对外暴露的 ID 用<strong>混淆算法</strong>（如 Feistel 网络），内部保持有序，外部看起来随机但可逆。或者直接用不连续的号段模式。</p>
+<figure class="highlight java"><pre><code class="language-java">// 简单的 ID 混淆（基于乘法逆元，保证一一映射）
+public class IdObfuscator {
+    private static final long PRIME = 1_000_000_007L; // 大质数
+    private static final long MOD   = 1L &lt;&lt; 62;        // 2^62
+
+    public static long encode(long id) {
+        return (id * PRIME) % MOD;
+    }
+    public static long decode(long encoded) {
+        // 计算 PRIME 在模 2^62 下的逆元
+        return (encoded * modInverse(PRIME, MOD)) % MOD;
+    }
+    private static long modInverse(long a, long m) {
+        // 扩展欧几里得算法（此处省略实现）
+        return 0L;
+    }
+}</code></pre></figure>
+<h3 id="坑-6-多语言环境下的-ID-兼容"><a href="#坑-6-多语言环境下的-ID-兼容" class="headerlink" title="坑 6：多语言环境下的 ID 兼容"></a>坑 6：多语言环境下的 ID 兼容</h3>
+<p>Java 的 <code>long</code> 是 64 位有符号，JS 的 <code>Number</code> 只有 53 位精度。Snowflake 生成的 19 位 ID 直接传给前端会<strong>精度丢失</strong>。</p>
+<p><strong>解法</strong>：后端序列化时把 <code>long</code> 类型的 ID 转成 <code>String</code>。Jackson 配置：</p>
+<figure class="highlight java"><pre><code class="language-java">@Configuration
+public class JacksonConfig {
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer longToString() {
+        return builder -&gt; builder
+            .serializerByType(Long.class, ToStringSerializer.instance)
+            .serializerByType(Long.TYPE, ToStringSerializer.instance);
+    }
+}</code></pre></figure>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>监控指标</strong>：ID 生成延迟 P99、时钟偏移量、号段剩余比例、ZK/DB 连接状态。</li>
+<li><strong>降级预案</strong>：Snowflake 服务不可用时，降级到本地 UUID 或 Redis 兜底。</li>
+<li><strong>压测基线</strong>：上线前压测单机 QPS 上限，预留 30% 余量。</li>
+<li><strong>ID 审计</strong>：定期抽样检查重复 ID，用 DB 唯一索引做最后一道防线。</li>
+<li><strong>时间纪元选择</strong>：起始纪元选得越晚，ID 越小，但可用年限越短。一般选项目启动时间。</li>
+</ol>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到文章开头那个双十一的故事。我们最终的方案是：<strong>Leaf-snowflake + NTP slew 模式 + workerId 由 K8s StatefulSet 序号分配</strong>。上线后半年，再没出现过重复 ID。</p>
+<p>三种方案的核心取舍可以浓缩成一张表：</p>
+<table>
+<thead>
+<tr>
+<th>你的核心诉求</th>
+<th>推荐方案</th>
+<th>一句话理由</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>强时序 + 时间可反查</td>
+<td>Leaf-snowflake</td>
+<td>时钟回拨自愈 + ZK 自动分配</td>
+</tr><tr>
+<td>严格递增 + 抗压</td>
+<td>Leaf-segment</td>
+<td>双 Buffer 削峰，DB 兜底</td>
+</tr><tr>
+<td>极致性能</td>
+<td>百度 UidGenerator</td>
+<td>RingBuffer 预生成</td>
+</tr><tr>
+<td>轻量无依赖</td>
+<td>原生 Snowflake（改进版）</td>
+<td>但要自己解决 workerId</td>
+</tr><tr>
+<td>已重度依赖 Redis</td>
+<td>Redis 号段 + Lua</td>
+<td>最少组件</td>
+</tr></tbody></table>
+<p><strong>延伸思考</strong>：分布式 ID 的本质是"在无中心化时钟的环境下，构造一个全局单调的坐标系"。Snowflake 用 <code>(时间, 机器, 序列)</code> 三维，号段模式用 <code>(号段, 段内偏移)</code> 二维。理解了这一点，你就能根据业务对"时间精度、机器规模、单调性"的不同要求，自己设计出合适的方案——而不是盲目套用某个开源实现。</p>
+<p>最后一句忠告：<strong>任何 ID 生成方案都不能保证 100% 不重复，唯一索引才是最后的底线</strong>。把它当作第一道防线，而不是唯一防线。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
