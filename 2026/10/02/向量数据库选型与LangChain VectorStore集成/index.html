@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>向量数据库选型与LangChain VectorStore集成 | 小曾博客</title>
+  <meta name="description" content="向量数据库选型与LangChain VectorStore集成 引言 去年我负责一个企业级 RAG（检索增强生成）平台的重构。项目初期，团队为了\"快速跑通 Demo\"，直接把所有文档向量塞进了 FAISS 的本地索引文件，配合 LangChain 的 FAISS 封装，两周就上线了内测。结果一进入生产环境，问题接踵而至： 多租户隔离失效：不同客户的数据混在同一个索引里，similarity_sea">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="向量数据库选型与LangChain VectorStore集成">
+  <meta name="twitter:description" content="向量数据库选型与LangChain VectorStore集成 引言 去年我负责一个企业级 RAG（检索增强生成）平台的重构。项目初期，团队为了\"快速跑通 Demo\"，直接把所有文档向量塞进了 FAISS 的本地索引文件，配合 LangChain 的 FAISS 封装，两周就上线了内测。结果一进入生产环境，问题接踵而至： 多租户隔离失效：不同客户的数据混在同一个索引里，similarity_sea">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=4229">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="向量数据库选型与LangChain VectorStore集成">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="向量数据库选型与LangChain VectorStore集成 引言 去年我负责一个企业级 RAG（检索增强生成）平台的重构。项目初期，团队为了\"快速跑通 Demo\"，直接把所有文档向量塞进了 FAISS 的本地索引文件，配合 LangChain 的 FAISS 封装，两周就上线了内测。结果一进入生产环境，问题接踵而至： 多租户隔离失效：不同客户的数据混在同一个索引里，similarity_sea">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=4229">
+  <meta property="article:published_time" content="2026-10-02T01:42:35.000Z">
+  <meta property="article:modified_time" content="2026-10-02T01:42:35.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#向量数据库选型与LangChain-VectorStore集成"><span class="toc-text">向量数据库选型与LangChain VectorStore集成</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把向量检索想象成-图书馆找书"><span class="toc-text">核心概念：把向量检索想象成"图书馆找书"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-LangChain-VectorStore-的抽象骨架"><span class="toc-text">1. LangChain VectorStore 的抽象骨架</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-filter-的三种命运-后过滤-下推-混合"><span class="toc-text">filter 的三种命运：后过滤、下推、混合">2. filter 的三种命运：后过滤、下推、混合</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-HNSW-索引-为什么它成了事实标准"><span class="toc-text">3. HNSW 索引：为什么它成了事实标准</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-FAISS-LangChain-理解后过滤的真实行为"><span class="toc-text">示例一：FAISS + LangChain，理解后过滤的真实行为</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-Qdrant-体验原生-filter-下推"><span class="toc-text">示例二：Qdrant，体验原生 filter 下推</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-pgvector-混合查询-关系型选手的优雅"><span class="toc-text">示例三：pgvector + 混合查询，关系型选手的优雅</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=4229)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">向量数据库选型与LangChain VectorStore集成</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-02"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-02</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-02"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-02</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="向量数据库选型与LangChain-VectorStore集成"><a href="#向量数据库选型与LangChain-VectorStore集成" class="headerlink" title="向量数据库选型与LangChain VectorStore集成"></a>向量数据库选型与LangChain VectorStore集成</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年我负责一个企业级 RAG（检索增强生成）平台的重构。项目初期，团队为了"快速跑通 Demo"，直接把所有文档向量塞进了 <code>FAISS</code> 的本地索引文件，配合 <code>LangChain</code> 的 <code>FAISS</code> 封装，两周就上线了内测。结果一进入生产环境，问题接踵而至：</p>
+<ul>
+<li><strong>多租户隔离失效</strong>：不同客户的数据混在同一个索引里，<code>similarity_search</code> 一查就串数据；</li>
+</ul>
+<ul>
+<li><strong>增量更新灾难</strong>：每来一批新文档，就要全量重建索引，10 万条向量重建一次要 8 分钟，业务方直接炸锅；</li>
+</ul>
+<ul>
+<li><strong>元数据过滤形同虚设</strong>：想按"部门=财务"过滤，<code>FAISS</code> 只能先召回再 Python 层过滤，召回率被稀释得惨不忍睹；</li>
+</ul>
+<ul>
+<li><strong>扩容无门</strong>：单机内存顶到 64GB 后，索引再也放不下，团队开始怀疑人生。</li>
+</ul>
+<p>这四个问题，恰好对应了向量数据库选型的四个核心维度：<strong>多租户/命名空间、增量写能力、原生元数据过滤、水平扩展</strong>。而这篇文章，我想从一个架构师的视角，把"选型"和"LangChain VectorStore 集成"这两件事讲透——不只是 API 怎么调，而是<strong>为什么这么设计、源码里到底发生了什么、什么时候该换方案</strong>。</p>
+<p>如果你正在做 RAG、Agent 记忆、推荐召回，或者只是被"到底选 Milvus 还是 pgvector"折磨过，这篇文章应该能帮你少走几个月的弯路。</p>
+<hr>
+<h2 id="核心概念-把向量检索想象成-图书馆找书"><a href="#核心概念-把向量检索想象成-图书馆找书" class="headerlink" title="核心概念：把向量检索想象成"图书馆找书""></a>核心概念：把向量检索想象成"图书馆找书"</h2>
+<p>先建立一个生活化类比，不然后面源码会很难啃。</p>
+<p><strong>传统数据库</strong>像图书馆的<strong>卡片目录</strong>：你报一个书名（精确 key），管理员直接按字母顺序翻到那一格，取出书。查询是"精确匹配 + 范围扫描"。</p>
+<p><strong>向量数据库</strong>像图书馆的<strong>主题导览员</strong>：你没有书名，只有一句模糊的需求——"我想找一本讲'如何优雅地处理分布式事务'的书"。导览员不会去翻卡片，而是把所有书按照"主题坐标"摆在一个巨大的多维空间里，你站在某个坐标点，他把你<strong>附近最近的 10 本书</strong>递给你。这个"坐标"就是<strong>向量（Embedding）</strong>，"附近"就是<strong>相似度（余弦/内积/欧氏）</strong>。</p>
+<p>这个类比的三个关键延伸：</p>
+<ol>
+<li><strong>坐标的维度</strong>：一本书可能被拆成 768 个特征（"技术深度""幽默感""篇幅"……），这就是 embedding 维度。维度越高，语义刻画越细，但计算和存储成本也越高。</li>
+<li><strong>"附近"怎么找</strong>：暴力遍历所有书太慢，于是有了 <strong>ANN（近似最近邻）</strong> 算法——像图书馆先按大类分书架（聚类），再在书架内细找。这就是 <strong>HNSW、IVF、DiskANN</strong> 等索引结构的本质。</li>
+<li><strong>"只看财务类的书"</strong>：这就是<strong>元数据过滤（metadata filtering）</strong>。传统图书馆可以先去"财务"书架再找，而很多朴素向量库只能"先找最近的 100 本，再从中挑财务的"——召回质量天差地别。</li>
+</ol>
+<p>从技术定义看，一个生产级向量数据库必须同时具备：</p>
+<table>
+<thead>
+<tr>
+<th>能力</th>
+<th>说明</th>
+<th>典型实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>向量索引</td>
+<td>ANN 检索，平衡召回率与延迟</td>
+<td>HNSW / IVF-PQ / DiskANN</td>
+</tr><tr>
+<td>元数据存储</td>
+<td>结构化字段，支持过滤</td>
+<td>内置 KV / 列存</td>
+</tr><tr>
+<td>标量+向量混合查询</td>
+<td>filter 下推，避免后过滤</td>
+<td>Milvus / Qdrant / pgvector</td>
+</tr><tr>
+<td>命名空间/多租户</td>
+<td>逻辑隔离</td>
+<td>collection / namespace / partition</td>
+</tr><tr>
+<td>增删改</td>
+<td>动态插入、删除、更新</td>
+<td>支持 upsert 的存储引擎</td>
+</tr><tr>
+<td>持久化与扩展</td>
+<td>副本、分片</td>
+<td>分布式协调（etcd 等）</td>
+</tr></tbody></table>
+<p><strong>LangChain 的 <code>VectorStore</code> 抽象</strong>，则是把这些能力统一成一个接口。它的定位很像 JDBC：你写 <code>similarity_search(query, k, filter)</code>，底下接的是 FAISS 还是 Milvus，业务代码不用改。但——<strong>JDBC 的教训告诉我们，抽象永远不会完全抹平差异</strong>。后面源码分析会看到，<code>filter</code> 在不同后端的行为差异，就是最大的坑。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-LangChain-VectorStore-的抽象骨架"><a href="#1-LangChain-VectorStore-的抽象骨架" class="headerlink" title="1. LangChain VectorStore 的抽象骨架"></a>1. LangChain VectorStore 的抽象骨架</h3>
+<p>先看 <code>langchain_core.vectorstores.VectorStore</code> 的核心方法（简化后）：</p>
+<figure class="highlight python"><pre><code class="language-python">class VectorStore(ABC):
+    @abstractmethod
+    def add_texts(self, texts, metadatas=None, ids=None, **kwargs) -&gt; List[str]:
+        &quot;&quot;&quot;写入文本，返回 id 列表&quot;&quot;&quot;
+        ...
+
+    @abstractmethod
+    def similarity_search(self, query: str, k: int = 4, **kwargs) -&gt; List[Document]:
+        &quot;&quot;&quot;返回 Document 列表（只含 page_content + metadata）&quot;&quot;&quot;
+        ...
+
+    def similarity_search_with_score(self, query, k=4, **kwargs):
+        &quot;&quot;&quot;返回 (Document, score) 列表&quot;&quot;&quot;
+        docs = self.similarity_search_with_score_by_vector(
+            self._embed_query(query), k=k, **kwargs
+        )
+        return docs
+
+    @abstractmethod
+    def similarity_search_with_score_by_vector(self, embedding, k=4, **kwargs):
+        ...</code></pre></figure>
+<p>这里有一个<strong>极其重要的设计细节</strong>：<code>similarity_search</code> 默认返回的是 <code>Document</code>，<strong>丢掉了原始向量和底层 id 的部分语义</strong>。这导致两个后果：</p>
+<ul>
+<li>你想做"MMR 去重"或"自定义重排"时，往往需要重新取向量，多一次 IO；</li>
+</ul>
+<ul>
+<li>不同后端的 <code>score</code> 语义不统一（FAISS 返回 L2 距离，Chroma 返回距离，Milvus 可返回 COSINE/IP/L2），<strong>直接比较 score 会出错</strong>。</li>
+</ul>
+<h3 id="2-filter-的三种命运-后过滤-下推-混合"><a href="#2-filter-的三种命运-后过滤-下推-混合" class="headerlink" title="2. <code>filter</code> 的三种命运：后过滤、下推、混合"></a>2. <code>filter</code> 的三种命运：后过滤、下推、混合</h3>
+<p>这是选型时最容易被忽略、生产上最致命的一点。我们用 mermaid 画一下三种过滤策略：</p>
+<div class="mermaid">
+graph TD
+    A[Query + Filter] --> B{后端策略}
+    B -->|后过滤 Post-filter| C[先 ANN 召回 Top-K*10]
+    C --> D[Python/DB 层按 metadata 过滤]
+    D --> E[返回不足 k 条, 召回率崩]
+    B -->|下推 Push-down| F[ANN 检索时同步下推 filter]
+    F --> G[索引层只遍历满足 filter 的候选]
+    G --> H[返回精确 k 条]
+    B -->|混合 Hybrid| I[标量索引 + 向量索引联合执行]
+    I --> J[按代价选择执行顺序]
+    J --> H
+</div>
+<ul>
+<li><strong>后过滤（Post-filter）</strong>：FAISS、早期 Chroma 的做法。LangChain 的 <code>FAISS.similarity_search</code> 在传入 <code>filter</code> 时，就是<strong>先多召回，再本地过滤</strong>。源码大致是：</li>
+</ul>
+<figure class="highlight python"><pre><code class="language-python"># langchain_community/vectorstores/faiss.py (简化)
+def similarity_search_with_score_by_vector(self, embedding, k=4, filter=None, fetch_k=20):
+    # 注意 fetch_k：为了过滤后还能剩 k 条，先多取
+    if filter is not None:
+        # 多召回 10 倍，再过滤
+        scores, indices = self.index.search(np.array([embedding]), k * 10)
+    else:
+        scores, indices = self.index.search(np.array([embedding]), k)
+    docs = []
+    for score, idx in zip(scores[0], indices[0]):
+        doc = self.docstore.search(self.index_to_docstore_id[idx])
+        if filter is None or filter(doc.metadata):
+            docs.append((doc, score))
+    return docs[:k]</code></pre></figure>
+<p>看到没？<code>fetch_k</code> 默认就是 <code>k*10</code> 甚至更多。<strong>如果你的 filter 选择性极高（比如只占 1%），召回 10 倍根本不够</strong>，结果就是返回条数远小于 k，或者干脆为空。这就是"财务部门文档查不出来"的根因。</p>
+<ul>
+<li><strong>下推（Push-down）</strong>：Milvus、Qdrant、Weaviate 的做法。filter 表达式被翻译成底层引擎的谓词，ANN 遍历时<strong>只考虑满足条件的候选</strong>。Qdrant 的 payload index、Milvus 的 scalar field index（如 <code>INVERTED INDEX</code>）就是为此而生。</li>
+</ul>
+<ul>
+<li><strong>混合（Hybrid）</strong>：pgvector 结合 PostgreSQL 的 B-tree/GIN 索引，优化器会根据 filter 选择性决定"先走标量索引再算向量距离"还是"先 ANN 再过滤"。这是关系型数据库的老本行，也是 pgvector 在"结构化+向量"混合场景下最优雅的地方。</li>
+</ul>
+<p><strong>结论</strong>：选型时，如果你的 RAG 场景<strong>一定有强元数据过滤</strong>（多租户、时间范围、权限），请优先选择支持 <strong>filter 下推</strong>的库。否则你会被迫用 <code>fetch_k</code> 硬扛，延迟和成本双双爆炸。</p>
+<h3 id="3-HNSW-索引-为什么它成了事实标准"><a href="#3-HNSW-索引-为什么它成了事实标准" class="headerlink" title="3. HNSW 索引：为什么它成了事实标准"></a>3. HNSW 索引：为什么它成了事实标准</h3>
+<p>几乎所有主流向量库默认都用 <strong>HNSW（Hierarchical Navigable Small World）</strong>。理解它，才能理解"为什么删除和更新这么贵"。</p>
+<p>HNSW 是一张<strong>多层跳表式的图</strong>：</p>
+<ul>
+<li>顶层稀疏，像高速公路，用于快速"跳到大致区域"；</li>
+</ul>
+<ul>
+<li>底层稠密，像城市街道，用于精确逼近最近邻；</li>
+</ul>
+<ul>
+<li>每个节点维护 <code>M</code> 个邻居（通常 16~64），构建时通过 <code>ef_construction</code> 控制搜索广度。</li>
+</ul>
+<p>查询时从顶层入口点开始，贪心地向"离目标更近的邻居"移动，逐层下降。复杂度约为 <code>O(log N)</code>。</p>
+<p><strong>关键代价</strong>：HNSW 是<strong>图结构</strong>，删除一个节点需要修复所有指向它的边（否则图会断裂、召回率下降）。所以：</p>
+<ul>
+<li>Milvus 的删除是<strong>软删除（标记 tombstone）+ 后台 compaction</strong>；</li>
+</ul>
+<ul>
+<li>Qdrant 支持真正的删除，但会周期性重建受影响的子图；</li>
+</ul>
+<ul>
+<li>很多库的"更新"本质是"删旧 + 插新"。</li>
+</ul>
+<p>这解释了为什么<strong>高频更新的场景，HNSW 不一定是最优解</strong>——此时 IVF-PQ 或 DiskANN 的写入吞吐可能更合适。选型时一定要问自己：<strong>读写比是多少？</strong></p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面三个示例，覆盖三种典型后端，全部可直接运行（依赖见注释）。</p>
+<h3 id="示例一-FAISS-LangChain-理解后过滤的真实行为"><a href="#示例一-FAISS-LangChain-理解后过滤的真实行为" class="headerlink" title="示例一：FAISS + LangChain，理解后过滤的真实行为"></a>示例一：FAISS + LangChain，理解后过滤的真实行为</h3>
+<figure class="highlight python"><pre><code class="language-python"># pip install langchain langchain-community langchain-openai faiss-cpu numpy
+import numpy as np
+from langchain_community.vectorstores import FAISS
+from langchain_core.embeddings import Embeddings
+from langchain_core.documents import Document
+
+# ---- 用一个确定性假 embedding，方便复现，不依赖外部 API ----
+class FakeEmbeddings(Embeddings):
+    def __init__(self, dim: int = 64):
+        self.dim = dim
+
+    def _vec(self, text: str) -&gt; list[float]:
+        # 用字符 hash 生成稳定向量，仅用于演示
+        rng = np.random.default_rng(abs(hash(text)) % (2**32))
+        return rng.random(self.dim).tolist()
+
+    def embed_documents(self, texts):
+        return [self._vec(t) for t in texts]
+
+    def embed_query(self, text):
+        return self._vec(text)
+
+emb = FakeEmbeddings()
+
+# ---- 构造 1000 条文档，其中只有 20 条 dept=finance ----
+texts, metas = [], []
+for i in range(1000):
+    dept = &quot;finance&quot; if i % 50 == 0 else &quot;engineering&quot;
+    texts.append(f&quot;文档编号 {i}，内容涉及 {dept} 领域的知识&quot;)
+    metas.append({&quot;dept&quot;: dept, &quot;doc_id&quot;: i})
+
+store = FAISS.from_texts(texts, emb, metadatas=metas)
+
+# ---- 关键实验：高选择性 filter 下的召回率 ----
+query = &quot;文档编号 500 的内容&quot;
+k = 5
+
+# 1) 不传 filter，正常召回
+raw = store.similarity_search(query, k=k)
+print(&quot;无 filter 返回条数:&quot;, len(raw))
+
+# 2) 传 filter：只有 1/50 命中，观察返回条数
+filtered = store.similarity_search(
+    query, k=k,
+    filter=lambda md: md[&quot;dept&quot;] == &quot;finance&quot;  # 后过滤
+)
+print(&quot;带 filter 返回条数:&quot;, len(filtered))  # 大概率 &lt; 5，甚至为 0
+
+# 3) 手动放大 fetch_k，缓解后过滤问题
+#    注意：FAISS 封装里 fetch_k 通过 kwargs 透传给底层
+filtered2 = store.similarity_search(
+    query, k=k, fetch_k=500,
+    filter=lambda md: md[&quot;dept&quot;] == &quot;finance&quot;
+)
+print(&quot;放大 fetch_k 后返回条数:&quot;, len(filtered2))  # 明显改善，但延迟上升</code></pre></figure>
+<p><strong>运行后你会直观看到</strong>：第 2 步返回条数经常小于 <code>k</code>，甚至为空。这就是后过滤的"召回塌陷"。生产上如果你无法换成支持下推的后端，<strong>必须显式调大 <code>fetch_k</code>，并监控返回条数</strong>。</p>
+<h3 id="示例二-Qdrant-体验原生-filter-下推"><a href="#示例二-Qdrant-体验原生-filter-下推" class="headerlink" title="示例二：Qdrant，体验原生 filter 下推"></a>示例二：Qdrant，体验原生 filter 下推</h3>
+<figure class="highlight python"><pre><code class="language-python"># pip install langchain-qdrant qdrant-client
+# 本地起服务：docker run -p 6333:6333 qdrant/qdrant
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams
+from langchain_qdrant import QdrantVectorStore
+from langchain_core.embeddings import Embeddings
+import numpy as np
+
+class FakeEmbeddings(Embeddings):
+    def __init__(self, dim=64):
+        self.dim = dim
+    def _vec(self, text):
+        rng = np.random.default_rng(abs(hash(text)) % (2**32))
+        return rng.random(self.dim).tolist()
+    def embed_documents(self, texts):
+        return [self._vec(t) for t in texts]
+    def embed_query(self, text):
+        return self._vec(text)
+
+DIM = 64
+client = QdrantClient(url=&quot;http://localhost:6333&quot;)
+
+# 若 collection 不存在则创建
+if not client.collection_exists(&quot;demo&quot;):
+    client.create_collection(
+        collection_name=&quot;demo&quot;,
+        vectors_config=VectorParams(size=DIM, distance=Distance.COSINE),
+    )
+
+emb = FakeEmbeddings(DIM)
+
+store = QdrantVectorStore(
+    client=client,
+    collection_name=&quot;demo&quot;,
+    embedding=emb,
+)
+
+texts, metas, ids = [], [], []
+for i in range(1000):
+    dept = &quot;finance&quot; if i % 50 == 0 else &quot;engineering&quot;
+    texts.append(f&quot;文档编号 {i}，内容涉及 {dept} 领域的知识&quot;)
+    metas.append({&quot;dept&quot;: dept, &quot;doc_id&quot;: i})
+    ids.append(f&quot;doc-{i}&quot;)
+
+# 幂等写入（重复运行不会重复插）
+store.add_texts(texts, metadatas=metas, ids=ids)
+
+# ---- 关键：filter 用 Qdrant 原生表达式，下推到引擎 ----
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+qfilter = Filter(
+    must=[FieldCondition(key=&quot;metadata.dept&quot;, match=MatchValue(value=&quot;finance&quot;))]
+)
+
+results = store.similarity_search(
+    &quot;文档编号 500 的内容&quot;, k=5, filter=qfilter
+)
+print(&quot;Qdrant 下推 filter 返回条数:&quot;, len(results))
+for d in results:
+    print(&quot; -&gt;&quot;, d.metadata)</code></pre></figure>
+<p><strong>对比示例一</strong>：即使 <code>dept=finance</code> 只占 2%，Qdrant 依然能稳定返回 5 条，因为过滤发生在 ANN 遍历内部。这就是<strong>下推 vs 后过滤</strong>的本质差距。</p>
+<blockquote>
+<p>注意：<code>langchain_qdrant</code> 的 <code>filter</code> 参数接受的是 <code>qdrant_client.models.Filter</code>，<strong>不是 Python 函数</strong>。这个接口差异是迁移时最常见的坑。</p>
+</blockquote>
+<h3 id="示例三-pgvector-混合查询-关系型选手的优雅"><a href="#示例三-pgvector-混合查询-关系型选手的优雅" class="headerlink" title="示例三：pgvector + 混合查询，关系型选手的优雅"></a>示例三：pgvector + 混合查询，关系型选手的优雅</h3>
+<figure class="highlight python"><pre><code class="language-python"># pip install langchain-postgres psycopg[binary] pgvector
+# 需 PostgreSQL 15+ 并安装 pgvector 扩展：CREATE EXTENSION vector;
+from langchain_postgres import PGVector
+from langchain_core.embeddings import Embeddings
+import numpy as np
+
+class FakeEmbeddings(Embeddings):
+    def __init__(self, dim=64):
+        self.dim = dim
+    def _vec(self, text):
+        rng = np.random.default_rng(abs(hash(text)) % (2**32))
+        return rng.random(self.dim).tolist()
+    def embed_documents(self, texts):
+        return [self._vec(t) for t in texts]
+    def embed_query(self, text):
+        return self._vec(text)
+
+CONNECTION = &quot;postgresql+psycopg://postgres:postgres@localhost:5432/postgres&quot;
+COLLECTION = &quot;demo_pg&quot;
+
+store = PGVector(
+    embeddings=FakeEmbeddings(64),
+    collection_name=COLLECTION,
+    connection=CONNECTION,
+    use_jsonb=True,   # metadata 存 jsonb，可建 GIN 索引
+)
+
+texts, metas, ids = [], [], []
+for i in range(1000):
+    dept = &quot;finance&quot; if i % 50 == 0 else &quot;engineering&quot;
+    texts.append(f&quot;文档编号 {i}，内容涉及 {dept} 领域的知识&quot;)
+    metas.append({&quot;dept&quot;: dept, &quot;doc_id&quot;: i})
+    ids.append(f&quot;doc-{i}&quot;)
+
+# 幂等写入
+store.add_texts(texts, metadatas=metas, ids=ids)
+
+# ---- LangChain 的 filter 是 dict 语法，会被翻译成 SQL WHERE ----
+results = store.similarity_search(
+    &quot;文档编号 500 的内容&quot;, k=5,
+    filter={&quot;dept&quot;: &quot;finance&quot;}   # 翻译为 metadata-&gt;&gt;&#x27;dept&#x27; = &#x27;finance&#x27;
+)
+print(&quot;pgvector 混合查询返回条数:&quot;, len(results))
+for d in results:
+    print(&quot; -&gt;&quot;, d.metadata)
+
+# ---- 生产建议：为过滤字段建 GIN 索引，让优化器选择执行路径 ----
+# 在 psql 中执行：
+# CREATE INDEX ON langchain_pg_embedding USING gin ((embedding.cmetadata -&gt; &#x27;dept&#x27;));</code></pre></figure>
+<p>pgvector 的精髓在于<strong>优化器</strong>：当 <code>dept='finance'</code> 选择性极高时，Postgres 可能先走 GIN 索引过滤，再算向量距离；选择性低时则先 ANN。这是"混合查询"最省心的实现，代价是<strong>向量检索性能不如专用库</strong>，且大规模下需要调 <code>hnsw.ef_search</code>、<code>ivfflat.probes</code> 等参数。</p>
+<hr>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>FAISS</th>
+<th>Chroma</th>
+<th>Qdrant</th>
+<th>Milvus</th>
+<th>pgvector</th>
+<th>Pinecone(云)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>部署形态</td>
+<td>库/本地</td>
+<td>库/轻量服务</td>
+<td>服务</td>
+<td>分布式服务</td>
+<td>PG 扩展</td>
+<td>全托管</td>
+</tr><tr>
+<td>filter 下推</td>
+<td>❌ 后过滤</td>
+<td>部分</td>
+<td>✅ 原生</td>
+<td>✅ 原生</td>
+<td>✅ SQL 优化器</td>
+<td>✅</td>
+</tr><tr>
+<td>多租户</td>
+<td>手动</td>
+<td>collection</td>
+<td>collection/payload</td>
+<td>database/collection/partition</td>
+<td>schema/表</td>
+<td>namespace</td>
+</tr><tr>
+<td>增量写</td>
+<td>需重建/合并</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr><tr>
+<td>水平扩展</td>
+<td>❌</td>
+<td>有限</td>
+<td>✅</td>
+<td>✅ 强</td>
+<td>靠 PG 分片</td>
+<td>自动</td>
+</tr><tr>
+<td>运维成本</td>
+<td>极低</td>
+<td>低</td>
+<td>中</td>
+<td>高</td>
+<td>低（已有 PG）</td>
+<td>无</td>
+</tr><tr>
+<td>适用场景</td>
+<td>Demo/小数据</td>
+<td>本地原型</td>
+<td>中小规模生产</td>
+<td>大规模生产</td>
+<td>已有 PG 的业务</td>
+<td>不想运维</td>
+</tr></tbody></table>
+<p><strong>选型决策树（简化）</strong>：</p>
+<div class="mermaid">
+graph TD
+    A[需要向量检索] --> B{数据量级}
+    B -->|< 10万 & 单机| C{是否已有 PG}
+    C -->|是| D[pgvector]
+    C -->|否| E[Chroma / FAISS]
+    B -->|10万~千万| F{是否强过滤多租户}
+    F -->|是| G[Qdrant / Milvus]
+    F -->|否| H[Qdrant]
+    B -->|> 千万| I[Milvus / 云托管]
+    I --> J{运维能力}
+    J -->|强| K[Milvus 自建]
+    J -->|弱| L[Pinecone / Zilliz Cloud]
+</div>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<ol>
+<li><strong>永远为 filter 字段建索引</strong>。Qdrant 的 payload index、Milvus 的 scalar index、pgvector 的 GIN，缺了它们，下推会退化成全表扫描。</li>
+</ol>
+<ol>
+<li><strong>不要跨后端比较 score</strong>。FAISS 默认 L2，Qdrant COSINE 返回相似度（越大越相似），Milvus 可配。做重排前，先确认 score 语义，否则阈值过滤会全错。</li>
+</ol>
+<ol>
+<li><strong>批量写入优于逐条写入</strong>。HNSW 构建是 CPU 密集的，<code>add_texts</code> 一次传几百条远比循环调用快。Milvus 有 <code>bulk_insert</code>，Qdrant 有 <code>upload_points</code>。</li>
+</ol>
+<ol>
+<li><strong>更新 = 删除 + 插入，注意 compaction</strong>。高频更新场景要监控 tombstone 比例，Milvus 需定期 <code>compact()</code>，否则查询会越来越慢。</li>
+</ol>
+<ol>
+<li><strong>embedding 模型与维度锁定后不要轻易换</strong>。换模型意味着全量重嵌入+重建索引，这是 RAG 系统最大的迁移成本。建议在 collection 上记录模型版本。</li>
+</ol>
+<ol>
+<li><strong><code>k</code> 不要盲目调大</strong>。RAG 里 <code>k=20</code> 往往比 <code>k=4</code> 效果更好，但会把噪声塞进 context，反而降低 LLM 回答质量。正确姿势是 <strong>召回多（k=20~50）+ 重排（Rerank）取 3~5</strong>。</li>
+</ol>
+<ol>
+<li><strong>多租户用 partition/namespace，不要用 filter 硬扛</strong>。Milvus 的 partition、Qdrant 的 collection 是物理级隔离，比 filter 更快更安全。</li>
+</ol>
+<ol>
+<li><strong>监控三个指标</strong>：召回延迟 P99、返回条数是否 < k（后过滤塌陷信号）、索引内存占用。前两个是 RAG 质量的先行指标。</li>
+</ol>
+<ol>
+<li><strong>LangChain 的封装会滞后于底层</strong>。新特性（如 Qdrant 的量化、Milvus 的稀疏向量）往往要等 <code>langchain-xxx</code> 更新。生产关键路径上，建议<strong>直接用原生 SDK</strong>，LangChain 只做编排层。</li>
+</ol>
+<ol>
+<li><strong>测试时用真实 embedding 分布</strong>。随机向量和真实 embedding 的聚类特性完全不同，用假向量压测出来的召回率没有参考价值。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头的四个生产事故，现在可以给出清晰的答案：</p>
+<ul>
+<li><strong>多租户隔离</strong>：用 partition/namespace，别用 filter；</li>
+</ul>
+<ul>
+<li><strong>增量更新</strong>：选支持 upsert + compaction 的库，FAISS 只适合静态数据；</li>
+</ul>
+<ul>
+<li><strong>元数据过滤</strong>：必须选支持 filter 下推的后端，否则 <code>fetch_k</code> 会把你拖垮；</li>
+</ul>
+<ul>
+<li><strong>水平扩展</strong>：千万级以上直接上 Milvus 或云托管，别硬扛单机。</li>
+</ul>
+<p><strong>LangChain 的 <code>VectorStore</code> 抽象是双刃剑</strong>：它让 Demo 变得极其简单，也让"不同后端语义差异"被隐藏到生产才爆发。作为架构师，你要做的不是拒绝抽象，而是<strong>看穿抽象之下的实现</strong>——知道 <code>filter</code> 是函数还是表达式、<code>score</code> 是距离还是相似度、<code>fetch_k</code> 什么时候会救你、什么时候会害你。</p>
+<p>最后留一个延伸思考：随着 <strong>稀疏向量（SPLADE）、多向量（ColBERT）、混合检索（Dense+Sparse+RRF）</strong> 的普及，下一代向量库的竞争焦点正在从"ANN 快不快"转向"<strong>混合检索的表达力强不强</strong>"。Milvus 2.4+ 原生支持 sparse vector，Qdrant 支持 hybrid query，pgvector 也能配合 <code>tsvector</code> 做混合。选型时，把"混合检索能力"纳入评估清单，会是你比同行早半步的地方。</p>
+<p>技术选型没有银弹，只有<strong>对场景的诚实</strong>。想清楚你的读写比、数据量、过滤选择性、运维预算，答案自然浮现。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

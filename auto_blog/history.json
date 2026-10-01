@@ -482,6 +482,13 @@
       "subtopic": "分布式ID生成方案：雪花算法、Leaf、美团方案对比",
       "date": "2026-09-30",
       "url": "/2026/10/01/分布式ID生成方案：雪花算法、Leaf、美团方案对比/"
+    },
+    {
+      "title": "向量数据库选型与LangChain VectorStore集成",
+      "category": "ai-ml",
+      "subtopic": "向量数据库选型与LangChain VectorStore集成",
+      "date": "2026-10-01",
+      "url": "/2026/10/02/向量数据库选型与LangChain VectorStore集成/"
     }
   ],
   "used_subtopics": {
@@ -521,7 +528,8 @@
       "LangChain核心架构：Chain、Agent、Tool三大组件剖析",
       "Prompt Engineering最佳实践与链式推理",
       "LangChain Memory模块：对话历史管理最佳实践",
-      "大模型微调技术对比：LoRA、QLoRA、全参微调"
+      "大模型微调技术对比：LoRA、QLoRA、全参微调",
+      "向量数据库选型与LangChain VectorStore集成"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -625,6 +633,7 @@
     "大模型微调技术对比：LoRA、QLoRA、全参微调": "97fd14237637374a0a8253945abb023c227cb20d97e339e0c1822bd67e089c49",
     "AQS框架源码解读——从ReentrantLock说起": "9bb44537b089c501d04b7be37297b7fe95f6b86b6a9c12cdb88cc8f62f5cc252",
     "Zap + Lumberjack高性能日志架构": "535311df2897a36d6cf26bfbe8b7128ba52dd894b8941f37b231c6edfb6545f7",
-    "分布式ID生成方案：雪花算法、Leaf、美团方案对比": "302cc0b8e4aa9557eb6339ecc13f1a673c9659a56c1c64f9c9f990e6492082f9"
+    "分布式ID生成方案：雪花算法、Leaf、美团方案对比": "302cc0b8e4aa9557eb6339ecc13f1a673c9659a56c1c64f9c9f990e6492082f9",
+    "向量数据库选型与LangChain VectorStore集成": "101f956ddff8b3a4291dd8e58792679a97eb78c1e180dbb0136822b2ab0fb36c"
   }
 }
