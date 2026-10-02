@@ -489,6 +489,13 @@
       "subtopic": "向量数据库选型与LangChain VectorStore集成",
       "date": "2026-10-01",
       "url": "/2026/10/02/向量数据库选型与LangChain VectorStore集成/"
+    },
+    {
+      "title": "Nacos服务注册与配置中心原理",
+      "category": "java",
+      "subtopic": "Nacos服务注册与配置中心原理",
+      "date": "2026-10-02",
+      "url": "/2026/10/03/Nacos服务注册与配置中心原理/"
     }
   ],
   "used_subtopics": {
@@ -505,7 +512,8 @@
       "Spring Boot自动配置原理与自定义Starter",
       "Sentinel流控降级源码分析",
       "Java 21虚拟线程（Virtual Threads）深度解析",
-      "AQS框架源码解读——从ReentrantLock说起"
+      "AQS框架源码解读——从ReentrantLock说起",
+      "Nacos服务注册与配置中心原理"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -634,6 +642,7 @@
     "AQS框架源码解读——从ReentrantLock说起": "9bb44537b089c501d04b7be37297b7fe95f6b86b6a9c12cdb88cc8f62f5cc252",
     "Zap + Lumberjack高性能日志架构": "535311df2897a36d6cf26bfbe8b7128ba52dd894b8941f37b231c6edfb6545f7",
     "分布式ID生成方案：雪花算法、Leaf、美团方案对比": "302cc0b8e4aa9557eb6339ecc13f1a673c9659a56c1c64f9c9f990e6492082f9",
-    "向量数据库选型与LangChain VectorStore集成": "101f956ddff8b3a4291dd8e58792679a97eb78c1e180dbb0136822b2ab0fb36c"
+    "向量数据库选型与LangChain VectorStore集成": "101f956ddff8b3a4291dd8e58792679a97eb78c1e180dbb0136822b2ab0fb36c",
+    "Nacos服务注册与配置中心原理": "0a353e69e94bd2c374b2d8163d146c82a3ac4c24c9f401cd1182a8c4eaeb6a89"
   }
 }

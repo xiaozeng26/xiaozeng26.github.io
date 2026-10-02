@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nacos服务注册与配置中心原理 | 小曾博客</title>
+  <meta name="description" content="Nacos服务注册与配置中心原理 引言 2018年之前，我维护过一套基于Eureka + Spring Cloud Config + RabbitMQ手动刷新的微服务架构。服务上线要改三处配置，配置变更要重启或者调 /actuator/bus-refresh，注册中心挂了整个调用链跟着雪崩。那会儿最怕的不是写业务代码，而是周五下午改配置。 后来阿里把内部用了多年的ConfigServer和VIPS">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Nacos服务注册与配置中心原理">
+  <meta name="twitter:description" content="Nacos服务注册与配置中心原理 引言 2018年之前，我维护过一套基于Eureka + Spring Cloud Config + RabbitMQ手动刷新的微服务架构。服务上线要改三处配置，配置变更要重启或者调 /actuator/bus-refresh，注册中心挂了整个调用链跟着雪崩。那会儿最怕的不是写业务代码，而是周五下午改配置。 后来阿里把内部用了多年的ConfigServer和VIPS">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=4447">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Nacos服务注册与配置中心原理">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Nacos服务注册与配置中心原理 引言 2018年之前，我维护过一套基于Eureka + Spring Cloud Config + RabbitMQ手动刷新的微服务架构。服务上线要改三处配置，配置变更要重启或者调 /actuator/bus-refresh，注册中心挂了整个调用链跟着雪崩。那会儿最怕的不是写业务代码，而是周五下午改配置。 后来阿里把内部用了多年的ConfigServer和VIPS">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=4447">
+  <meta property="article:published_time" content="2026-10-03T01:01:53.000Z">
+  <meta property="article:modified_time" content="2026-10-03T01:01:53.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Nacos服务注册与配置中心原理"><span class="toc-text">Nacos服务注册与配置中心原理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-用小区物业来理解-Nacos"><span class="toc-text">核心概念：用小区物业来理解 Nacos</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#两个核心数据模型"><span class="toc-text">两个核心数据模型</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一-服务注册-心跳-健康检查与推空保护"><span class="toc-text">一、服务注册：心跳、健康检查与推空保护</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#二-配置中心-长轮询如何做到-准实时"><span class="toc-text">二、配置中心：长轮询如何做到"准实时"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三-集群一致性-Raft-与-Distro"><span class="toc-text">三、集群一致性：Raft 与 Distro</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-服务提供者注册-优雅上下线"><span class="toc-text">示例 1：服务提供者注册 + 优雅上下线</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-配置动态刷新-原生-Listener-Spring-RefreshScope"><span class="toc-text">示例 2：配置动态刷新（原生 Listener + Spring @RefreshScope）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-基于权重的灰度发布-自定义负载均衡"><span class="toc-text">示例 3：基于权重的灰度发布 + 自定义负载均衡</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Nacos-vs-Eureka-vs-Consul-vs-Apollo"><span class="toc-text">Nacos vs Eureka vs Consul vs Apollo</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-1-直接-kill-9-导致调用失败"><span class="toc-text">kill -9 导致调用失败">坑 1：直接 kill -9 导致调用失败</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-2-namespace-和-group-用混"><span class="toc-text">坑 2：namespace 和 group 用混</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-3-配置读到了但没生效"><span class="toc-text">坑 3：配置读到了但没生效</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-4-集群部署时数据不一致"><span class="toc-text">坑 4：集群部署时数据不一致</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-5-长轮询把-Tomcat-线程打满"><span class="toc-text">坑 5：长轮询把 Tomcat 线程打满</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=4447)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Nacos服务注册与配置中心原理</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-03"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-03</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-03"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-03</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Nacos服务注册与配置中心原理"><a href="#Nacos服务注册与配置中心原理" class="headerlink" title="Nacos服务注册与配置中心原理"></a>Nacos服务注册与配置中心原理</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>2018年之前，我维护过一套基于Eureka + Spring Cloud Config + RabbitMQ手动刷新的微服务架构。服务上线要改三处配置，配置变更要重启或者调 <code>/actuator/bus-refresh</code>，注册中心挂了整个调用链跟着雪崩。那会儿最怕的不是写业务代码，而是周五下午改配置。</p>
+<p>后来阿里把内部用了多年的ConfigServer和VIPServer合并开源成Nacos（<strong>Na</strong>ming and <strong>Co</strong>nfiguration <strong>S</strong>ervice），一个组件同时解决服务发现和配置管理，还自带控制台、健康检查、权重路由、命名空间隔离。很多团队换过来之后，架构图直接少了一半组件。</p>
+<p>但用得爽不代表理解得深。我见过太多项目把 Nacos 当黑盒：注册上去了不知道为什么心跳会掉，配置改了不知道客户端怎么感知的，集群部署了不知道 CP/AP 模式在哪切换。这篇文章就带你把 Nacos 的两大核心能力——<strong>服务注册发现</strong>和<strong>配置中心</strong>——从源码层面拆开看，搞清楚它到底怎么跑起来的。</p>
+<hr>
+<h2 id="核心概念-用小区物业来理解-Nacos"><a href="#核心概念-用小区物业来理解-Nacos" class="headerlink" title="核心概念：用小区物业来理解 Nacos"></a>核心概念：用小区物业来理解 Nacos</h2>
+<p>先建立一个直觉模型。</p>
+<p>把整个微服务集群想象成一个<strong>大型小区</strong>：</p>
+<ul>
+<li><strong>服务提供者</strong> = 小区里的住户，搬进来要<strong>在物业登记</strong>（注册），并定期<strong>报个到证明还活着</strong>（心跳）。</li>
+</ul>
+<ul>
+<li><strong>服务消费者</strong> = 想找某户人家办事的人，去<strong>物业查通讯录</strong>（服务发现），拿到门牌号（IP:Port）直接上门。</li>
+</ul>
+<ul>
+<li><strong>Nacos Server</strong> = 物业公司，维护住户名册，住户搬走或失联就划掉。</li>
+</ul>
+<ul>
+<li><strong>配置中心</strong> = 物业公告栏，物业改了通知（配置），所有订阅的住户会<strong>主动收到更新</strong>，不用每天自己跑去看。</li>
+</ul>
+<p>这个模型里有两个关键点，也是本文要深挖的：</p>
+<ol>
+<li><strong>心跳机制</strong>：住户怎么报到？物业多久没收到报到就认为他失联？——对应 Nacos 的 <strong>临时实例（ephemeral）</strong> 与健康检查。</li>
+<li><strong>推送机制</strong>：公告栏更新了，物业怎么通知到每一户？——对应 Nacos 配置变更的 <strong>长轮询（Long Polling）</strong> 推送。</li>
+</ol>
+<h3 id="两个核心数据模型"><a href="#两个核心数据模型" class="headerlink" title="两个核心数据模型"></a>两个核心数据模型</h3>
+<p><strong>服务注册（Naming）</strong> 的核心结构：</p>
+<figure class="highlight "><pre><code>Namespace（命名空间，隔离环境：dev/test/prod）
+  └── Group（分组，隔离业务线）
+        └── Service（服务，如 order-service）
+              └── Cluster（集群，如同一机房的机器）
+                    └── Instance（实例，一个 IP:Port + 元数据）</code></pre></figure>
+<p><strong>配置（Config）</strong> 的核心结构：</p>
+<figure class="highlight "><pre><code>Namespace
+  └── Group
+        └── DataId（配置文件名，如 order-service-prod.yaml）
+              └── Content + MD5 + Type + ...</code></pre></figure>
+<p>命名空间的隔离是<strong>物理级</strong>的（不同 namespace 的数据互相看不到），而 Group 的隔离是<strong>逻辑级</strong>的（同一张表里靠字段区分）。这是设计上很实用的一点：多租户/多环境用 namespace，业务分组用 Group。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="一-服务注册-心跳-健康检查与推空保护"><a href="#一-服务注册-心跳-健康检查与推空保护" class="headerlink" title="一、服务注册：心跳、健康检查与推空保护"></a>一、服务注册：心跳、健康检查与推空保护</h3>
+<p>#### 1.1 临时实例 vs 持久实例</p>
+<p>Nacos 的实例分两种，这是理解整个注册发现机制的钥匙：</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th><code>ephemeral</code></th>
+<th>存储位置</th>
+<th>健康检查方式</th>
+<th>客户端宕机后果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>临时实例</td>
+<td><code>true</code>（默认）</td>
+<td>内存（<code>ClientBeatCheckTask</code>）</td>
+<td>客户端主动上报心跳</td>
+<td>心跳超时后被<strong>自动剔除</strong></td>
+</tr><tr>
+<td>持久实例</td>
+<td><code>false</code></td>
+<td>磁盘（Derby/MySQL）</td>
+<td>服务端主动探活（TCP/HTTP）</td>
+<td>需<strong>手动</strong>下线，不会被自动删</td>
+</tr></tbody></table>
+<p><strong>为什么默认用临时实例？</strong> 因为微服务场景下，实例本身是弹性的、可替换的，我们要的是"活的实例清单"，而不是"永久档案"。心跳模式天然契合这种弹性。</p>
+<p>#### 1.2 心跳与健康检查源码</p>
+<p>客户端注册后，会启动一个定时任务，默认每 <strong>5 秒</strong>发一次心跳（<code>BeatReactor</code>）：</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.client.naming.beat.BeatReactor
+public void addBeatInfo(String serviceName, BeatInfo beatInfo) {
+    String key = buildKey(serviceName, beatInfo.getIp(), beatInfo.getPort());
+    // 每个实例一个定时任务，周期默认 5000ms
+    executorService.schedule(new BeatTask(beatInfo), 0, beatInfo.getPeriod(), TimeUnit.MILLISECONDS);
+}
+
+class BeatTask implements Runnable {
+    BeatInfo beatInfo;
+    public void run() {
+        // 发送 PUT /nacos/v1/ns/instance/beat
+        JSONObject result = serverProxy.sendBeat(beatInfo, BeatInfo.INTERNAL_BEAT);
+        // 服务端返回的 clientBeatInterval 可动态调整下次心跳周期
+        long nextTime = result.getLongValue(&quot;clientBeatInterval&quot;);
+        if (nextTime &gt; 0) {
+            beatInfo.setPeriod(nextTime);
+        }
+        // 递归把自己再调度一次，形成循环心跳
+        executorService.schedule(new BeatTask(beatInfo), beatInfo.getPeriod(), TimeUnit.MILLISECONDS);
+    }
+}</code></pre></figure>
+<p>服务端收到心跳后，不是简单地"刷新时间戳"，而是把它转成一个<strong>延迟任务</strong>——这才是精髓（<code>ClientBeatCheckTask</code> / <code>HealthCheckTask</code>）：</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.naming.healthcheck.heartbeat.ClientBeatCheckTask
+public void run() {
+    // 遍历该实例所属服务的所有实例
+    for (Instance instance : instances) {
+        // 距离上次心跳超过 15 秒（默认）则标记不健康
+        if (System.currentTimeMillis() - instance.getLastBeat() &gt; clientBeatTimeout) {
+            if (!instance.isHealthy()) {
+                // 第一次超时，标记不健康，推送变更
+                instance.setHealthy(false);
+                pushService.setChanged(...);
+                // 再注册一个 15 秒的延迟任务，仍无心跳就删除
+                clientBeatCheckTask.scheduleDelete(instance);
+            } else {
+                // 已经判定不健康，直接删除实例
+                serviceManager.removeInstance(...);
+            }
+        }
+    }
+}</code></pre></figure>
+<p><strong>关键参数</strong>（实际生产环境经常调）：</p>
+<ul>
+<li><code>nacos.naming.health.check.timeout</code>：心跳超时，默认 <strong>15 秒</strong>。</li>
+</ul>
+<ul>
+<li>心跳间隔默认 <strong>5 秒</strong>。</li>
+</ul>
+<ul>
+<li>所以从实例真正挂掉到被剔除，最坏情况约 <strong>30 秒</strong>（15s 判不健康 + 15s 删除）。</li>
+</ul>
+<p>这就是为什么"服务挂了，调用方还打了一会儿"——不是 Nacos 慢，是这套机制本身就有一段容忍窗口。要更快可以调小超时，但代价是网络抖动时误判增加。</p>
+<p>#### 1.3 服务发现的推送模型</p>
+<p>消费者怎么知道实例列表变了？Nacos 用的是<strong>"服务端主动推送 + 客户端定时拉取"</strong>的混合模式。</p>
+<div class="mermaid">
+graph TD
+    A[服务提供者实例] -->|1 注册/心跳| B[Nacos Server]
+    B -->|2 维护实例列表| C[Service 内存数据结构]
+    C -->|3 实例变更| D[PushService]
+    D -->|4 UDP 推送 / gRPC 连接| E[消费者客户端]
+    E -->|5 更新本地缓存| F[ServiceInfoHolder]
+    E -->|6 定时拉取兜底 每10s| B
+    D -->|推送失败降级| G[客户端下次拉取时感知]
+</div>
+<p>具体来说，Nacos 2.x 之后推送从 UDP 改成了 <strong>gRPC 长连接</strong>，可靠性大幅提升。客户端这边有个 <code>ServiceInfoUpdateService</code> 做定时拉取兜底：</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.client.naming.core.ServiceInfoUpdateService
+// 每个服务一个定时任务，默认 10 秒（1秒起步的退避策略）
+private void scheduleUpdate(String serviceName, ServiceInfo serviceInfo) {
+    // 如果服务端推送的时间戳比本地新，说明推送丢了，触发一次拉取
+    if (serviceInfo.getServerTimestamp() &gt; lastRefTime) {
+        // 拉取最新实例列表
+        updateServiceNow(serviceName, clusters);
+    }
+    // 再次调度自己
+    executor.schedule(new UpdateTask(...), delay, TimeUnit.MILLISECONDS);
+}</code></pre></figure>
+<p><strong>推空保护</strong>：当 Nacos 拿到的实例列表为空时（可能是服务端故障或数据异常），客户端<strong>不会</strong>把本地缓存清空，而是保留旧列表。这个机制叫"推空保护"，在 <code>ServiceInfoHolder.processServiceInfo</code> 里实现。没有它，一次服务端抖动可能让所有消费者瞬间"发现不到任何实例"，酿成全局雪崩。</p>
+<h3 id="二-配置中心-长轮询如何做到-准实时"><a href="#二-配置中心-长轮询如何做到-准实时" class="headerlink" title="二、配置中心：长轮询如何做到"准实时""></a>二、配置中心：长轮询如何做到"准实时"</h3>
+<p>配置变更的推送，是 Nacos 最经典的设计。很多人的第一反应是"是不是用了 WebSocket？"——不是。Nacos 用的是 <strong>长轮询（Long Polling）</strong>，一个在实时性和资源消耗之间取得极佳平衡的方案。</p>
+<p>#### 2.1 长轮询 vs 短轮询 vs 推送</p>
+<p>先对比三种方案：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>实时性</th>
+<th>服务端压力</th>
+<th>实现复杂度</th>
+<th>代表</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>短轮询</td>
+<td>差（取决于间隔）</td>
+<td>高（大量无效请求）</td>
+<td>低</td>
+<td>早期版本</td>
+</tr><tr>
+<td>长轮询</td>
+<td>好（秒级）</td>
+<td>中（连接挂起不占CPU）</td>
+<td>中</td>
+<td><strong>Nacos</strong></td>
+</tr><tr>
+<td>WebSocket/SSE</td>
+<td>最好</td>
+<td>低</td>
+<td>高（需维护连接状态）</td>
+<td>Apollo（部分）</td>
+</tr></tbody></table>
+<p>长轮询的巧妙在于：客户端发起请求后，服务端<strong>不立即返回</strong>，而是把这个请求"挂起"（hold）一段时间（默认 29.5 秒）。如果这期间配置变了，立即返回；如果没变，29.5 秒后返回一个"无变更"，客户端再发起下一轮。</p>
+<p>这样既避免了短轮询的高频无效请求，又不用维护复杂的双向连接状态。</p>
+<p>#### 2.2 源码级剖析：客户端长轮询</p>
+<p>客户端（<code>nacos-client</code>）的实现核心在 <code>ClientWorker</code> 和 <code>LongPollingRunnable</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.client.config.impl.ClientWorker.LongPollingRunnable
+class LongPollingRunnable implements Runnable {
+    public void run() {
+        // 1. 先检查本地缓存的配置，找出 MD5 与服务端不一致的
+        List&lt;String&gt; changedGroupKeys = checkUpdateDataIds(cacheDatas, inInitializingCacheList);
+        
+        // 2. 对变更的配置重新拉取全量内容
+        for (String groupKey : changedGroupKeys) {
+            String[] key = GroupKey.parseKey(groupKey);
+            String dataId = key[0];
+            String group = key[1];
+            // 真正拉取配置内容
+            String[] ct = getServerConfig(dataId, group, tenant, 3000L);
+            // 写入本地缓存 + 磁盘
+            CacheData cache = cacheMap.get(GroupKey.getKeyTenant(dataId, group, tenant));
+            cache.setContent(ct[0]);
+            // 3. 触发监听器回调（Spring 的 @RefreshScope 就在这里生效）
+            for (Listener listener : cache.getListeners()) {
+                listener.receiveConfigInfo(ct[0]);
+            }
+        }
+        
+        // 4. 发起长轮询请求，服务端最多挂起 30 秒
+        //    注意：这一步是阻塞的，返回后才继续下一轮
+        List&lt;String&gt; updateList = checkUpdateDataIds(...); // 内部走 /v1/cs/configs/listener
+        
+        // 5. 无论如何，递归调度下一轮（30秒一次）
+        executorService.schedule(new LongPollingRunnable(), 30000L, TimeUnit.MILLISECONDS);
+    }
+}</code></pre></figure>
+<p>关键点：<strong>长轮询请求本身携带的是所有关注配置的 MD5 列表</strong>，服务端只需要比对 MD5，不用传全量内容，带宽极小。有变更才返回变更的 DataId 列表，客户端再按需拉全量。</p>
+<p>#### 2.3 源码级剖析：服务端挂起与触发</p>
+<p>服务端收到长轮询请求后，进入 <code>LongPollingService</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.config.server.service.LongPollingService
+public void addLongPollingClient(HttpServletRequest req, HttpServletResponse rsp,
+                                 Map&lt;String, String&gt; clientMd5Map, ...) {
+    // 1. 先立即比对一次，如果已经有变更，直接返回
+    String changedGroupStr = LongPollingService.getChangeGroups(clientMd5Map);
+    if (StringUtils.isNotBlank(changedGroupStr)) {
+        generateResponse(rsp, changedGroupStr);
+        return;
+    }
+    
+    // 2. 没有变更，挂起请求
+    //    用 Servlet 3.0 的 AsyncContext 异步化，释放容器线程
+    AsyncContext asyncContext = req.startAsync();
+    asyncContext.setTimeout(0L);
+    
+    // 3. 计算超时时间：29.5 秒（比客户端 30 秒略短，避免客户端先超时）
+    long timeout = Math.min(ConfigConstant.LONG_POLLING_NO_CHANGE, 
+                            (timeoutTime - System.currentTimeMillis()));
+    
+    // 4. 包装成一个 ClientLongPolling 任务，丢进定时调度器
+    scheduler.execute(new ClientLongPolling(asyncContext, clientMd5Map, ip, probeRequestSize, timeout));
+}
+
+// 当配置发生变更时，发布一个 ConfigDataChangeEvent 事件
+// LongPollingService 监听该事件，遍历所有挂起的 ClientLongPolling，
+// 比对 MD5，命中则立刻 writeResponse 唤醒对应请求</code></pre></figure>
+<p>这里有个工程细节值得学习：<strong>为什么超时是 29.5 秒而不是 30 秒？</strong> 因为客户端设置的读超时是 30 秒，服务端必须比客户端先返回，否则客户端会先抛超时异常，导致这次长轮询"白挂"了。这种"服务端超时略小于客户端超时"的设计，在所有长连接场景都是通用套路。</p>
+<p>#### 2.4 配置变更的完整链路图</p>
+<div class="mermaid">
+sequenceDiagram
+    participant C as 客户端
+    participant S as Nacos Server
+    participant DB as 存储(Derby/MySQL)
+
+    C->>S: 长轮询请求(携带所有DataId的MD5)
+    Note over S: 比对MD5,无变更
+    S-->>S: AsyncContext挂起请求(29.5s)
+    Note over S: 管理员修改配置
+    S->>DB: 写入新配置+新MD5
+    S->>S: 发布ConfigDataChangeEvent
+    S->>S: 遍历挂起请求,MD5命中
+    S-->>C: 立即返回变更的DataId列表
+    C->>S: 拉取变更配置的全量内容
+    S-->>C: 返回配置内容
+    C->>C: 更新本地缓存+磁盘
+    C->>C: 触发Listener回调(@RefreshScope刷新)
+</div>
+<h3 id="三-集群一致性-Raft-与-Distro"><a href="#三-集群一致性-Raft-与-Distro" class="headerlink" title="三、集群一致性：Raft 与 Distro"></a>三、集群一致性：Raft 与 Distro</h3>
+<p>Nacos 集群里，<strong>配置</strong>和<strong>服务</strong>用的一致性协议是不同的，这是很多人忽略的点：</p>
+<ul>
+<li><strong>配置中心</strong>：使用 <strong>Raft</strong>（自己实现的简化版），保证 CP。配置必须是强一致的，否则不同节点读到的配置不一样就出大事了。</li>
+</ul>
+<ul>
+<li><strong>服务发现</strong>：使用 <strong>Distro</strong> 协议，保证 AP。服务列表允许短暂不一致，可用性优先。</li>
+</ul>
+<p>Distro 的核心思想是<strong>"责任分片"</strong>：每个服务根据名字哈希，固定由某个 Nacos 节点负责写，其他节点异步同步。这样避免了写请求在集群里广播，提升了吞吐。</p>
+<figure class="highlight java"><pre><code class="language-java">// com.alibaba.nacos.naming.core.DistroMapper
+public String mapSrv(String key) {
+    // 根据服务名hash，决定由哪个节点负责
+    if (CollectionUtils.isEmpty(healthyList)) {
+        return null;
+    }
+    int index = Math.abs(key.hashCode()) % healthyList.size();
+    return healthyList.get(index);
+}</code></pre></figure>
+<p>这解释了为什么 Nacos 在服务发现场景下能扛住高并发——写是分片的，读是本地内存的，几乎没有单点瓶颈。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-服务提供者注册-优雅上下线"><a href="#示例-1-服务提供者注册-优雅上下线" class="headerlink" title="示例 1：服务提供者注册 + 优雅上下线"></a>示例 1：服务提供者注册 + 优雅上下线</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.cloud.nacos.NacosDiscoveryProperties;
+import com.alibaba.nacos.api.naming.NamingFactory;
+import com.alibaba.nacos.api.naming.NamingService;
+import com.alibaba.nacos.api.naming.pojo.Instance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.client.serviceregistry.Registration;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
+@SpringBootApplication
+public class ProviderApplication {
+
+    // Nacos 客户端 API（非 Spring Cloud 封装，用于演示底层）
+    private NamingService namingService;
+
+    @Autowired
+    private NacosDiscoveryProperties properties;
+
+    public static void main(String[] args) {
+        SpringApplication.run(ProviderApplication.class, args);
+    }
+
+    @PostConstruct
+    public void register() throws Exception {
+        // 直接使用 Nacos 原生 API 注册，理解底层
+        namingService = NamingFactory.createNamingService(
+                properties.getServerAddr());
+
+        Instance instance = new Instance();
+        instance.setIp(&quot;192.168.1.100&quot;);
+        instance.setPort(8080);
+        instance.setServiceName(&quot;order-service&quot;);
+        instance.setWeight(1.0);           // 权重，用于灰度/负载均衡
+        instance.setEphemeral(true);       // 临时实例，靠心跳保活
+        instance.setHealthy(true);
+        // 元数据：可以放版本号，配合灰度路由
+        instance.getMetadata().put(&quot;version&quot;, &quot;v2&quot;);
+        instance.getMetadata().put(&quot;zone&quot;, &quot;beijing&quot;);
+
+        namingService.registerInstance(&quot;order-service&quot;, &quot;DEFAULT_GROUP&quot;, instance);
+        System.out.println(&quot;服务注册成功&quot;);
+    }
+
+    /**
+     * 关键：优雅下线。
+     * 直接 kill -9 会导致消费者在心跳超时前仍调用到已停实例，
+     * 造成一段时间的请求失败。正确做法是先注销，再等待，再关闭。
+     */
+    @PreDestroy
+    public void deregister() throws Exception {
+        if (namingService != null) {
+            namingService.deregisterInstance(&quot;order-service&quot;, &quot;DEFAULT_GROUP&quot;,
+                    &quot;192.168.1.100&quot;, 8080);
+            // 等待消费者刷新本地实例缓存（避开推空/推送延迟窗口）
+            Thread.sleep(5000);
+            System.out.println(&quot;服务已优雅下线&quot;);
+        }
+    }
+}</code></pre></figure>
+<h3 id="示例-2-配置动态刷新-原生-Listener-Spring-RefreshScope"><a href="#示例-2-配置动态刷新-原生-Listener-Spring-RefreshScope" class="headerlink" title="示例 2：配置动态刷新（原生 Listener + Spring @RefreshScope）"></a>示例 2：配置动态刷新（原生 Listener + Spring @RefreshScope）</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.nacos.api.NacosFactory;
+import com.alibaba.nacos.api.config.ConfigService;
+import com.alibaba.nacos.api.config.listener.Listener;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+import javax.annotation.PostConstruct;
+import java.util.Properties;
+import java.util.concurrent.Executor;
+
+@RefreshScope // Spring Cloud 层面：配置变更时重建该 Bean
+@RestController
+public class ConfigController {
+
+    // 从 Nacos 读取配置项
+    @Value(&quot;${app.timeout:3000}&quot;)
+    private int timeout;
+
+    @Value(&quot;${app.feature.newAlgorithm:false}&quot;)
+    private boolean newAlgorithmEnabled;
+
+    @GetMapping(&quot;/config&quot;)
+    public String getConfig() {
+        return &quot;timeout=&quot; + timeout + &quot;, newAlgorithm=&quot; + newAlgorithmEnabled;
+    }
+
+    /**
+     * 原生 SDK 方式监听配置变更，理解底层推送机制。
+     * 生产中用 Spring Cloud 的 @RefreshScope 即可，但知道底层很有必要。
+     */
+    @PostConstruct
+    public void listenConfig() throws Exception {
+        Properties props = new Properties();
+        props.put(&quot;serverAddr&quot;, &quot;127.0.0.1:8848&quot;);
+        // 命名空间隔离环境
+        props.put(&quot;namespace&quot;, &quot;prod-namespace&quot;);
+
+        ConfigService configService = NacosFactory.createConfigService(props);
+
+        String dataId = &quot;order-service-prod.yaml&quot;;
+        String group = &quot;DEFAULT_GROUP&quot;;
+
+        // 1. 首次拉取
+        String content = configService.getConfig(dataId, group, 5000);
+        System.out.println(&quot;初始配置:\n&quot; + content);
+
+        // 2. 注册监听器：底层就是长轮询，配置变更后回调
+        configService.addListener(dataId, group, new Listener() {
+            @Override
+            public Executor getExecutor() {
+                // 返回 null 表示使用 Nacos 内部线程池执行回调
+                return null;
+            }
+
+            @Override
+            public void receiveConfigInfo(String configInfo) {
+                // 这里拿到的是变更后的全量内容
+                System.out.println(&quot;配置发生变更:\n&quot; + configInfo);
+                // 实际项目中在这里做：重新解析、热更新本地状态等
+            }
+        });
+    }
+}</code></pre></figure>
+<p><strong>对应的 <code>bootstrap.yml</code></strong>（Spring Cloud 场景下配置要先于应用加载，所以放 bootstrap）：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">spring:
+  application:
+    name: order-service
+  cloud:
+    nacos:
+      config:
+        server-addr: 127.0.0.1:8848
+        namespace: prod-namespace
+        group: DEFAULT_GROUP
+        file-extension: yaml
+        # 开启自动刷新（默认 true）
+        refresh-enabled: true
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: prod-namespace
+        # 元数据，可用于灰度
+        metadata:
+          version: v2</code></pre></figure>
+<h3 id="示例-3-基于权重的灰度发布-自定义负载均衡"><a href="#示例-3-基于权重的灰度发布-自定义负载均衡" class="headerlink" title="示例 3：基于权重的灰度发布 + 自定义负载均衡"></a>示例 3：基于权重的灰度发布 + 自定义负载均衡</h3>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.cloud.nacos.NacosDiscoveryProperties;
+import com.alibaba.cloud.nacos.NacosServiceManager;
+import com.alibaba.nacos.api.naming.NamingService;
+import com.alibaba.nacos.api.naming.pojo.Instance;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.DefaultResponse;
+import org.springframework.cloud.client.loadbalancer.Request;
+import org.springframework.cloud.client.loadbalancer.Response;
+import org.springframework.cloud.loadbalancer.core.ReactorServiceInstanceLoadBalancer;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+/**
+ * 自定义负载均衡：优先路由到 version=v2 的实例（灰度），
+ * 其余流量按权重随机。这是 Nacos 元数据 + 权重的典型落地。
+ */
+@Component
+public class GrayLoadBalancer implements ReactorServiceInstanceLoadBalancer {
+
+    @Autowired
+    private NacosServiceManager nacosServiceManager;
+
+    @Autowired
+    private NacosDiscoveryProperties discoveryProperties;
+
+    @Override
+    public Mono&lt;Response&lt;ServiceInstance&gt;&gt; choose(Request request) {
+        return Mono.fromSupplier(() -&gt; {
+            try {
+                NamingService naming = nacosServiceManager.getNamingService(
+                        discoveryProperties.getNacosProperties());
+                // 拿到所有健康实例
+                List&lt;Instance&gt; instances = naming.selectInstances(
+                        &quot;order-service&quot;, &quot;DEFAULT_GROUP&quot;, true);
+
+                // 1. 优先选灰度实例（version=v2）
+                List&lt;Instance&gt; grayList = instances.stream()
+                        .filter(i -&gt; &quot;v2&quot;.equals(i.getMetadata().get(&quot;version&quot;)))
+                        .toList();
+
+                List&lt;Instance&gt; candidates = grayList.isEmpty() ? instances : grayList;
+                if (candidates.isEmpty()) {
+                    return new DefaultResponse(null);
+                }
+
+                // 2. 按权重随机（权重越大被选中概率越高）
+                double totalWeight = candidates.stream()
+                        .mapToDouble(Instance::getWeight).sum();
+                double random = ThreadLocalRandom.current().nextDouble() * totalWeight;
+                double cumulative = 0.0;
+                for (Instance instance : candidates) {
+                    cumulative += instance.getWeight();
+                    if (random &lt;= cumulative) {
+                        return new DefaultResponse(
+                                new NacosServiceInstance(instance));
+                    }
+                }
+                return new DefaultResponse(new NacosServiceInstance(candidates.get(0)));
+            } catch (Exception e) {
+                throw new RuntimeException(&quot;负载均衡选实例失败&quot;, e);
+            }
+        });
+    }
+
+    // 简单的 ServiceInstance 适配器
+    static class NacosServiceInstance implements ServiceInstance {
+        private final Instance instance;
+        NacosServiceInstance(Instance instance) { this.instance = instance; }
+        public String getServiceId() { return instance.getServiceName(); }
+        public String getHost() { return instance.getIp(); }
+        public int getPort() { return instance.getPort(); }
+        public boolean isSecure() { return false; }
+        public java.net.URI getUri() {
+            return java.net.URI.create(&quot;http://&quot; + getHost() + &quot;:&quot; + getPort());
+        }
+        public java.util.Map&lt;String, String&gt; getMetadata() { return instance.getMetadata(); }
+        public String getScheme() { return &quot;http&quot;; }
+    }
+}</code></pre></figure>
+<p>这个示例展示了 Nacos 相比 Eureka 的一个明显优势：<strong>实例权重和元数据是内建能力</strong>，做灰度发布、金丝雀发布时不用自己另起一套路由框架。</p>
+<hr>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<h3 id="Nacos-vs-Eureka-vs-Consul-vs-Apollo"><a href="#Nacos-vs-Eureka-vs-Consul-vs-Apollo" class="headerlink" title="Nacos vs Eureka vs Consul vs Apollo"></a>Nacos vs Eureka vs Consul vs Apollo</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Nacos</th>
+<th>Eureka</th>
+<th>Consul</th>
+<th>Apollo</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>服务发现</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+</tr><tr>
+<td>配置中心</td>
+<td>✅</td>
+<td>❌</td>
+<td>✅（较弱）</td>
+<td>✅</td>
+</tr><tr>
+<td>一致性协议</td>
+<td>Raft(CP)+Distro(AP)</td>
+<td>AP</td>
+<td>Raft</td>
+<td>无（DB为主）</td>
+</tr><tr>
+<td>健康检查</td>
+<td>心跳+服务端探活</td>
+<td>心跳</td>
+<td>多种（TCP/HTTP/gRPC）</td>
+<td>无</td>
+</tr><tr>
+<td>配置实时性</td>
+<td>长轮询（秒级）</td>
+<td>-</td>
+<td>Watch（秒级）</td>
+<td>长轮询+定时</td>
+</tr><tr>
+<td>控制台</td>
+<td>内置</td>
+<td>无</td>
+<td>有</td>
+<td>强大</td>
+</tr><tr>
+<td>多环境隔离</td>
+<td>namespace+group</td>
+<td>无</td>
+<td>namespace</td>
+<td>namespace</td>
+</tr><tr>
+<td>社区活跃度</td>
+<td>高（阿里）</td>
+<td>停止维护</td>
+<td>高</td>
+<td>中</td>
+</tr><tr>
+<td>上手成本</td>
+<td>低</td>
+<td>低</td>
+<td>中</td>
+<td>中</td>
+</tr></tbody></table>
+<p><strong>选型建议</strong>：</p>
+<ul>
+<li><strong>新项目、Spring Cloud Alibaba 体系</strong>：直接 Nacos，一个组件解决两件事，最省心。</li>
+</ul>
+<ul>
+<li><strong>已有 Eureka，只想解决配置</strong>：可以引入 Apollo 或 Nacos 只做配置。但 Eureka 2.x 已停止维护，长期看还是要迁移。</li>
+</ul>
+<ul>
+<li><strong>K8s 体系</strong>：其实用 K8s 原生 Service + ConfigMap 也能覆盖一部分，但 Nacos 在动态性和多语言支持上更灵活。</li>
+</ul>
+<ul>
+<li><strong>强一致要求极高（金融核心）</strong>：配置用 Nacos 的 Raft 模式，或者考虑 Apollo + 数据库事务。</li>
+</ul>
+<p><strong>Nacos 相对 Eureka 的实质提升</strong>：</p>
+<ol>
+<li>Eureka 只有 AP，Nacos 可以按需 CP/AP。</li>
+<li>Eureka 的自我保护模式（网络抖动时保留过期实例）经常导致调用到死实例，Nacos 的健康检查更细粒度。</li>
+<li>Nacos 自带配置中心，架构组件数更少。</li>
+</ol>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑-1-直接-kill-9-导致调用失败"><a href="#坑-1-直接-kill-9-导致调用失败" class="headerlink" title="坑 1：直接 <code>kill -9</code> 导致调用失败"></a>坑 1：直接 <code>kill -9</code> 导致调用失败</h3>
+<p><strong>现象</strong>：服务下线圈，消费者还在打请求，日志里一堆 <code>Connection refused</code>。</p>
+<p><strong>原因</strong>：心跳超时前，Nacos 还不知道实例已经死了，消费者本地缓存的实例列表还没更新。</p>
+<p><strong>解法</strong>：实现优雅下线——先调用 <code>deregisterInstance</code>，等待几秒让消费者刷新缓存，再关闭进程。Spring Boot 可以监听 <code>ContextClosedEvent</code> 来做。</p>
+<h3 id="坑-2-namespace-和-group-用混"><a href="#坑-2-namespace-和-group-用混" class="headerlink" title="坑 2：namespace 和 group 用混"></a>坑 2：namespace 和 group 用混</h3>
+<p><strong>现象</strong>：明明在控制台配了，应用就是读不到。</p>
+<p><strong>原因</strong>：namespace 用 <strong>ID</strong> 而不是名字！很多人填了 namespace 的显示名，结果客户端找不到。<code>namespace</code> 参数应填命名空间的 <strong>ID</strong>（控制台里能看到）。</p>
+<h3 id="坑-3-配置读到了但没生效"><a href="#坑-3-配置读到了但没生效" class="headerlink" title="坑 3：配置读到了但没生效"></a>坑 3：配置读到了但没生效</h3>
+<p><strong>现象</strong>：Nacos 控制台改了配置，应用日志没有刷新。</p>
+<p><strong>原因</strong>：</p>
+<ul>
+<li>没加 <code>@RefreshScope</code>（对于 <code>@Value</code> 注入的配置，Bean 需要这个注解才能重建）。</li>
+</ul>
+<ul>
+<li>配置放在 <code>application.yml</code> 而不是 <code>bootstrap.yml</code>，导致加载顺序不对。</li>
+</ul>
+<ul>
+<li><code>spring.cloud.nacos.config.refresh-enabled=false</code>。</li>
+</ul>
+<h3 id="坑-4-集群部署时数据不一致"><a href="#坑-4-集群部署时数据不一致" class="headerlink" title="坑 4：集群部署时数据不一致"></a>坑 4：集群部署时数据不一致</h3>
+<p><strong>现象</strong>：集群三个节点，从不同节点读到的服务列表不一样。</p>
+<p><strong>原因</strong>：Distro 是最终一致的，同步有延迟；或者某个节点挂了，分片数据没转移。</p>
+<p><strong>解法</strong>：Nacos 2.x 已大幅优化，但仍要保证集群节点网络稳定。生产建议至少 3 节点，且节点间时钟同步（心跳依赖时间戳）。</p>
+<h3 id="坑-5-长轮询把-Tomcat-线程打满"><a href="#坑-5-长轮询把-Tomcat-线程打满" class="headerlink" title="坑 5：长轮询把 Tomcat 线程打满"></a>坑 5：长轮询把 Tomcat 线程打满</h3>
+<p><strong>现象</strong>：Nacos Server 在高并发下 Tomcat 线程耗尽。</p>
+<p><strong>原因</strong>：早期版本长轮询占用容器线程。Nacos 已经用 <code>AsyncContext</code> 异步化解决了，但如果你的客户端版本太老，可能还在用同步阻塞模式。</p>
+<p><strong>解法</strong>：客户端升级到 2.x，服务端也升级，使用 gRPC 长连接替代 UDP，性能更好。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>生产必须集群</strong>：至少 3 节点，配置外部 MySQL（别用内置 Derby，那是单机玩具）。</li>
+<li><strong>临时实例 + 优雅下线</strong>：默认用临时实例，但一定要实现优雅下线。</li>
+<li><strong>namespace 隔离环境，group 隔离业务</strong>：别把所有东西塞 DEFAULT_GROUP。</li>
+<li><strong>配置加版本和灰度</strong>：利用 metadata 和权重做灰度，别全量推。</li>
+<li><strong>监控心跳和长轮询</strong>：Nacos 自带 metrics，接入 Prometheus 监控连接数、请求延迟。</li>
+<li><strong>客户端加本地缓存兜底</strong>：Nacos 客户端本身有磁盘缓存（<code>~/nacos/config</code>），确保 Nacos 挂了应用还能用旧配置启动。别把 <code>fail-fast</code> 开成"连不上就启动失败"。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头的小区物业类比，Nacos 的核心就两件事：</p>
+<ol>
+<li><strong>服务注册发现</strong>：住户登记 + 心跳报到 + 物业维护名册 + 主动通知。临时实例靠心跳保活，健康检查有 15s 容忍窗口，推送失败有定时拉取兜底，还有推空保护防止雪崩。</li>
+</ol>
+<ol>
+<li><strong>配置中心</strong>：公告栏 + 长轮询通知。客户端携带 MD5 列表挂起请求，服务端有变更就立即唤醒，没变更就 29.5 秒后返回。这个设计在实时性和资源消耗之间取得了极佳的平衡。</li>
+</ol>
+<p>从源码层面，你需要记住几个关键点：</p>
+<ul>
+<li><strong>两套一致性协议</strong>：配置用 Raft（CP），服务发现用 Distro（AP），按需选择。</li>
+</ul>
+<ul>
+<li><strong>长轮询的时间设计</strong>：服务端超时（29.5s）必须略小于客户端超时（30s）。</li>
+</ul>
+<ul>
+<li><strong>推空保护</strong>：实例列表为空时不清缓存，是防止雪崩的最后一道防线。</li>
+</ul>
+<ul>
+<li><strong>gRPC 替代 UDP</strong>：Nacos 2.x 的推送可靠性大幅提升，新项目别用 1.x。</li>
+</ul>
+<p><strong>延伸思考</strong>：</p>
+<p>Nacos 的设计哲学是"<strong>在一致性和可用性之间，把选择权交给用户</strong>"。这在微服务基础设施里是很聪明的——服务发现要 AP，配置要 CP，用同一个产品覆盖两种需求。相比之下，Eureka 死守 AP，Consul 强推 CP，都不够灵活。</p>
+<p>如果你已经理解了这套机制，下一步可以深入研究 Nacos 2.x 的 gRPC 双向流实现，以及它如何用 <code>ConnectionManager</code> 管理海量长连接——那是另一个精彩的工程话题。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
