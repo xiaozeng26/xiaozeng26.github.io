@@ -496,6 +496,13 @@
       "subtopic": "Nacos服务注册与配置中心原理",
       "date": "2026-10-02",
       "url": "/2026/10/03/Nacos服务注册与配置中心原理/"
+    },
+    {
+      "title": "asyncio事件循环源码级分析与实战",
+      "category": "python",
+      "subtopic": "asyncio事件循环源码级分析与实战",
+      "date": "2026-10-05",
+      "url": "/2026/10/06/asyncio事件循环源码级分析与实战/"
     }
   ],
   "used_subtopics": {
@@ -523,7 +530,8 @@
       "pytest插件体系与Fixture机制",
       "装饰器与上下文管理器的实现原理",
       "Python GIL的过去、现在与未来（Python 3.13自由线程）",
-      "FastAPI依赖注入系统设计剖析"
+      "FastAPI依赖注入系统设计剖析",
+      "asyncio事件循环源码级分析与实战"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -643,6 +651,7 @@
     "Zap + Lumberjack高性能日志架构": "535311df2897a36d6cf26bfbe8b7128ba52dd894b8941f37b231c6edfb6545f7",
     "分布式ID生成方案：雪花算法、Leaf、美团方案对比": "302cc0b8e4aa9557eb6339ecc13f1a673c9659a56c1c64f9c9f990e6492082f9",
     "向量数据库选型与LangChain VectorStore集成": "101f956ddff8b3a4291dd8e58792679a97eb78c1e180dbb0136822b2ab0fb36c",
-    "Nacos服务注册与配置中心原理": "0a353e69e94bd2c374b2d8163d146c82a3ac4c24c9f401cd1182a8c4eaeb6a89"
+    "Nacos服务注册与配置中心原理": "0a353e69e94bd2c374b2d8163d146c82a3ac4c24c9f401cd1182a8c4eaeb6a89",
+    "asyncio事件循环源码级分析与实战": "b89483243f9dc9517d95bb688aee8a34ff6710df10677c731a4bb345f5f083cf"
   }
 }
