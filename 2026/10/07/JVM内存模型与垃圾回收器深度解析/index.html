@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JVM内存模型与垃圾回收器深度解析 | 小曾博客</title>
+  <meta name="description" content="JVM内存模型与垃圾回收器深度解析 引言 去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是\"机器不够\"，加了两台机器后问题依旧。我登上机器 jstat -gcutil 一看： S0 S1 E O M CCS YGC YGCT FGC FGCT GCT 0.00 99.87 99.99 9">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="JVM内存模型与垃圾回收器深度解析">
+  <meta name="twitter:description" content="JVM内存模型与垃圾回收器深度解析 引言 去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是\"机器不够\"，加了两台机器后问题依旧。我登上机器 jstat -gcutil 一看： S0 S1 E O M CCS YGC YGCT FGC FGCT GCT 0.00 99.87 99.99 9">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=1916">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JVM内存模型与垃圾回收器深度解析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="JVM内存模型与垃圾回收器深度解析 引言 去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是\"机器不够\"，加了两台机器后问题依旧。我登上机器 jstat -gcutil 一看： S0 S1 E O M CCS YGC YGCT FGC FGCT GCT 0.00 99.87 99.99 9">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=1916">
+  <meta property="article:published_time" content="2026-10-07T01:35:48.000Z">
+  <meta property="article:modified_time" content="2026-10-07T01:35:48.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#JVM内存模型与垃圾回收器深度解析"><span class="toc-text">JVM内存模型与垃圾回收器深度解析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把-JVM-想象成一家-餐厅"><span class="toc-text">核心概念：把 JVM 想象成一家"餐厅"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义-JVM-运行时数据区"><span class="toc-text">技术定义：JVM 运行时数据区</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析-从对象分配到-GC-触发"><span class="toc-text">源码深度分析：从对象分配到 GC 触发</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-对象分配的-TLAB-机制"><span class="toc-text">1. 对象分配的 TLAB 机制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-对象何时进入老年代"><span class="toc-text">2. 对象何时进入老年代</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-GC-Roots-与可达性分析"><span class="toc-text">3. GC Roots 与可达性分析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行示例"><span class="toc-text">实战代码：三个可运行示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-亲眼见证对象晋升老年代"><span class="toc-text">示例 1：亲眼见证对象晋升老年代</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-模拟-Metaspace-OOM-方法区溢出"><span class="toc-text">示例 2：模拟 Metaspace OOM（方法区溢出）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-G1-GC-参数调优实测"><span class="toc-text">示例 3：G1 GC 参数调优实测</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-主流垃圾回收器全景"><span class="toc-text">方案对比：主流垃圾回收器全景</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-参数配置黄金法则"><span class="toc-text">1. 参数配置黄金法则</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-五个经典踩坑点"><span class="toc-text">2. 五个经典踩坑点</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-排查工具链"><span class="toc-text">3. 排查工具链</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-容器化环境的特殊处理"><span class="toc-text">4. 容器化环境的特殊处理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结与延伸思考"><span class="toc-text">总结与延伸思考</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=1916)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">JVM内存模型与垃圾回收器深度解析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-07"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-07</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-07"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-07</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="JVM内存模型与垃圾回收器深度解析"><a href="#JVM内存模型与垃圾回收器深度解析" class="headerlink" title="JVM内存模型与垃圾回收器深度解析"></a>JVM内存模型与垃圾回收器深度解析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是"机器不够"，加了两台机器后问题依旧。我登上机器 <code>jstat -gcutil</code> 一看：</p>
+<figure class="highlight "><pre><code>  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT
+  0.00  99.87  99.99  99.98  95.21  93.12  18234  312.451  1523  891.234  1203.685</code></pre></figure>
+<p>老年代（O）利用率 99.98%，Full GC 高达 1523 次，累计 GC 时间 891 秒——也就是说，这台机器有 <strong>近 15 分钟</strong> 的时间在"打扫卫生"，而不是在处理业务。更诡异的是，堆内存总共才 4G，但监控显示 RSS 占了 6G。</p>
+<p>这就是典型的 <strong>JVM 内存模型理解不透 + GC 选型错误</strong> 导致的线上事故。很多工程师写了 5 年代码，对 JVM 的认知还停留在"堆分新生代老年代"这种教科书级别。但当你要做性能调优、排查 OOM、设计高吞吐服务时，这种认知是远远不够的。</p>
+<p>这篇文章，我会带你从 <strong>源码级别</strong> 拆解 JVM 内存布局和主流垃圾回收器的工作机制，并用三个可运行的实战代码帮你把理论落到地上。</p>
+<hr>
+<h2 id="核心概念-把-JVM-想象成一家-餐厅"><a href="#核心概念-把-JVM-想象成一家-餐厅" class="headerlink" title="核心概念：把 JVM 想象成一家"餐厅""></a>核心概念：把 JVM 想象成一家"餐厅"</h2>
+<p>理解 JVM 内存模型，最好的类比是一家 <strong>连锁餐厅</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>餐厅元素</th>
+<th>JVM 对应</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>厨师私人工作台</td>
+<td><strong>程序计数器、虚拟机栈、本地方法栈</strong></td>
+<td>每个厨师（线程）独享，用完即走</td>
+</tr><tr>
+<td>中央厨房大仓库</td>
+<td><strong>堆（Heap）</strong></td>
+<td>所有厨师共享，放食材（对象）</td>
+</tr><tr>
+<td>菜单配方墙</td>
+<td><strong>方法区 / 元空间</strong></td>
+<td>放类结构、常量、静态变量</td>
+</tr><tr>
+<td>传菜窗口</td>
+<td><strong>直接内存（Direct Memory）</strong></td>
+<td>NIO 绕过堆，直接从后门送菜</td>
+</tr><tr>
+<td>保洁团队</td>
+<td><strong>垃圾回收器</strong></td>
+<td>不定时清理过期食材</td>
+</tr></tbody></table>
+<p>关键点在于：<strong>餐厅的翻台率取决于保洁团队的效率</strong>。保洁员怎么找垃圾、什么时候清、用扫帚还是吸尘器，直接决定了餐厅能接待多少客人。</p>
+<h3 id="技术定义-JVM-运行时数据区"><a href="#技术定义-JVM-运行时数据区" class="headerlink" title="技术定义：JVM 运行时数据区"></a>技术定义：JVM 运行时数据区</h3>
+<p>根据《Java 虚拟机规范》，运行时数据区分为：</p>
+<ul>
+<li><strong>线程私有</strong>：程序计数器（PC Register）、虚拟机栈（VM Stack）、本地方法栈（Native Method Stack）</li>
+</ul>
+<ul>
+<li><strong>线程共享</strong>：堆（Heap）、方法区（Method Area，JDK 8 后由元空间 Metaspace 实现）</li>
+</ul>
+<div class="mermaid">
+graph TD
+    subgraph JVM["JVM 运行时数据区"]
+        subgraph Private["线程私有"]
+            PC[程序计数器]
+            VS[虚拟机栈]
+            NMS[本地方法栈]
+        end
+        subgraph Shared["线程共享"]
+            HEAP[堆 Heap]
+            MA[方法区/元空间]
+        end
+    end
+    subgraph Direct["堆外内存"]
+        DM[直接内存 Direct Memory]
+    end
+    TH1[Thread-1] --> PC
+    TH1 --> VS
+    TH2[Thread-2] --> PC
+    TH2 --> VS
+    HEAP --> YG[新生代]
+    HEAP --> OG[老年代]
+    YG --> Eden
+    YG --> S0[Survivor0]
+    YG --> S1[Survivor1]
+</div>
+<p>堆的默认比例（以 JDK 8 为例，Parallel GC 默认）：</p>
+<ul>
+<li>新生代 : 老年代 = <strong>1 : 2</strong>（<code>-XX:NewRatio=2</code>）</li>
+</ul>
+<ul>
+<li>Eden : S0 : S1 = <strong>8 : 1 : 1</strong>（<code>-XX:SurvivorRatio=8</code>）</li>
+</ul>
+<p>一家餐厅如果 2/3 的空间用来放"长期存货"，1/3 用于"当日周转"，这就是 JVM 默认的策略——<strong>假设你的对象大部分活不过一轮 GC</strong>，这就是著名的弱分代假说（Weak Generational Hypothesis）。</p>
+<hr>
+<h2 id="源码深度分析-从对象分配到-GC-触发"><a href="#源码深度分析-从对象分配到-GC-触发" class="headerlink" title="源码深度分析：从对象分配到 GC 触发"></a>源码深度分析：从对象分配到 GC 触发</h2>
+<h3 id="1-对象分配的-TLAB-机制"><a href="#1-对象分配的-TLAB-机制" class="headerlink" title="1. 对象分配的 TLAB 机制"></a>1. 对象分配的 TLAB 机制</h3>
+<p>你以为 <code>new Object()</code> 直接落到 Eden？实际上 HotSpot 会先在 <strong>TLAB（Thread Local Allocation Buffer）</strong> 里分配。TLAB 是每个线程在 Eden 里预占的一小块内存（默认占 Eden 的 1%），避免多线程分配时的指针碰撞锁竞争。</p>
+<p>源码在 <code>hotspot/src/share/vm/gc_implementation/shared/</code> 下，核心逻辑在 <code>CollectedHeap::allocate_new_tlab</code> 和 <code>ThreadLocalAllocBuffer::allocate</code>：</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">// hotspot/src/share/vm/memory/threadLocalAllocBuffer.cpp (简化)
+HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
+  // 1. 检查 TLAB 剩余空间是否够
+  if (_top + size &lt;= _end) {
+    HeapWord* obj = _top;
+    _top += size;
+    return obj;  // 指针碰撞，无锁，极快
+  }
+  return NULL;   // TLAB 用完了
+}</code></pre></figure>
+<p>如果 TLAB 分配失败，会走 <code>refill_waste_limit</code> 策略：要么在 Eden 里重新申请一块 TLAB，要么直接退化到共享 Eden 分配（此时需要 CAS 或加锁）。</p>
+<p><strong>这就是为什么高并发下有些对象的分配会比平时慢</strong>——TLAB 频繁用尽后触发重分配。</p>
+<h3 id="2-对象何时进入老年代"><a href="#2-对象何时进入老年代" class="headerlink" title="2. 对象何时进入老年代"></a>2. 对象何时进入老年代</h3>
+<p>对象晋升老年代有 4 条路径，对应源码 <code>hotspot/src/share/vm/gc_implementation/parallelScavenge/psPromotionManager.cpp</code>：</p>
+<ol>
+<li><strong>年龄达到阈值</strong>：<code>-XX:MaxTenuringThreshold</code>（默认 15），每次 Minor GC 存活 +1</li>
+<li><strong>动态年龄判定</strong>：Survivor 中相同年龄对象总和 > Survivor 一半，直接晋升</li>
+<li><strong>大对象直接进老年代</strong>：<code>-XX:PretenureSizeThreshold</code>（只对 Serial/ParNew 有效）</li>
+<li><strong>Survivor 空间不足</strong>：晋升时发现装不下，直接进老年代</li>
+</ol>
+<p><strong>动态年龄判定</strong>是最容易被忽略的坑。源码逻辑：</p>
+<figure class="highlight cpp"><pre><code class="language-cpp">// hotspot/src/share/vm/gc_implementation/shared/ageTable.cpp
+void AgeTable::compute_tenuring_threshold(size_t survivor_capacity) {
+  size_t desired_survivor_size = (size_t)(survivor_capacity * 
+                                          TargetSurvivorRatio / 100.0);
+  size_t total = 0;
+  uint age = 1;
+  for (; age &lt; table_size; age++) {
+    total += sizes[age];
+    if (total &gt; desired_survivor_size) break;  // 累计超过目标就停
+  }
+  // 最终晋升年龄取 min(age, MaxTenuringThreshold)
+  _tenuring_threshold = MIN2(age, MaxTenuringThreshold);
+}</code></pre></figure>
+<p><code>TargetSurvivorRatio</code> 默认 50%。也就是说，<strong>如果 Survivor 里年龄为 1 的对象占了超过 50%，那么所有年龄 ≥1 的对象下次 GC 直接进老年代</strong>。这会导致老年代对象暴增，提前触发 Full GC。</p>
+<h3 id="3-GC-Roots-与可达性分析"><a href="#3-GC-Roots-与可达性分析" class="headerlink" title="3. GC Roots 与可达性分析"></a>3. GC Roots 与可达性分析</h3>
+<p>JVM 判断对象存活用的是 <strong>可达性分析</strong>，从 GC Roots 出发遍历引用链。GC Roots 包括：</p>
+<ul>
+<li>虚拟机栈中局部变量表引用的对象</li>
+</ul>
+<ul>
+<li>方法区静态属性引用的对象</li>
+</ul>
+<ul>
+<li>方法区常量引用的对象</li>
+</ul>
+<ul>
+<li>本地方法栈 JNI 引用的对象</li>
+</ul>
+<ul>
+<li>同步锁 <code>synchronized</code> 持有的对象</li>
+</ul>
+<ul>
+<li>JVM 内部引用（基本类型 Class 对象、常驻异常对象、系统类加载器）</li>
+</ul>
+<p>注意：<strong>不是所有对象都能被 GC 掉</strong>，即使不可达，如果重写了 <code>finalize()</code> 且未被调用过，会先进入 F-Queue 等待一次"死缓"。</p>
+<hr>
+<h2 id="实战代码-三个可运行示例"><a href="#实战代码-三个可运行示例" class="headerlink" title="实战代码：三个可运行示例"></a>实战代码：三个可运行示例</h2>
+<h3 id="示例-1-亲眼见证对象晋升老年代"><a href="#示例-1-亲眼见证对象晋升老年代" class="headerlink" title="示例 1：亲眼见证对象晋升老年代"></a>示例 1：亲眼见证对象晋升老年代</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryPoolMXBean;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 演示：对象年龄晋升与动态年龄判定
+ * 
+ * 启动参数建议：
+ * java -Xms200m -Xmx200m -Xmn100m -XX:SurvivorRatio=8 
+ *      -XX:+PrintGCDetails -XX:+PrintTenuringDistribution 
+ *      -XX:MaxTenuringThreshold=15 PromotionDemo
+ */
+public class PromotionDemo {
+
+    private static final int _1MB = 1024 * 1024;
+
+    public static void main(String[] args) throws InterruptedException {
+        printMemoryPools(&quot;初始状态&quot;);
+        
+        // 分配 3 个 1MB 的对象，反复分配触发 Minor GC
+        // 每个对象经历一次 Minor GC 年龄 +1
+        byte[] obj1 = new byte[_1MB];
+        byte[] obj2 = new byte[_1MB];
+        byte[] obj3 = new byte[_1MB];
+        
+        // 手动触发多次 Minor GC 来增加对象年龄
+        for (int i = 0; i &lt; 16; i++) {
+            byte[] temp = new byte[_1MB];
+            // 让 temp 快速死掉，制造 GC 压力
+            temp = null;
+            System.gc(); // 提示 GC（仅用于演示，生产环境禁用）
+            Thread.sleep(100);
+            
+            if (i % 4 == 0) {
+                printMemoryPools(&quot;第 &quot; + (i + 1) + &quot; 轮 GC 后&quot;);
+            }
+        }
+        
+        // 观察 obj1~obj3 是否已晋升到老年代
+        printMemoryPools(&quot;最终状态&quot;);
+        System.out.println(&quot;obj1=&quot; + obj1.length + &quot;, obj2=&quot; + obj2.length 
+                           + &quot;, obj3=&quot; + obj3.length);
+    }
+
+    private static void printMemoryPools(String stage) {
+        System.out.println(&quot;\n===== &quot; + stage + &quot; =====&quot;);
+        List&lt;MemoryPoolMXBean&gt; pools = ManagementFactory.getMemoryPoolMXBeans();
+        for (MemoryPoolMXBean pool : pools) {
+            if (pool.getName().contains(&quot;Eden&quot;) 
+                || pool.getName().contains(&quot;Survivor&quot;)
+                || pool.getName().contains(&quot;Old&quot;)) {
+                System.out.printf(&quot;%-30s used=%-10d committed=%-10d max=%d%n&quot;,
+                        pool.getName(),
+                        pool.getUsage().getUsed(),
+                        pool.getUsage().getCommitted(),
+                        pool.getUsage().getMax());
+            }
+        }
+    }
+}</code></pre></figure>
+<p><strong>观察要点</strong>：运行后看 <code>PS Eden Space</code> 的 used 是否周期性归零（Minor GC），<code>PS Old Gen</code> 的 used 是否逐步上升（对象晋升）。配合 <code>-XX:+PrintTenuringDistribution</code> 能看到每次 GC 后各年龄段的对象大小。</p>
+<h3 id="示例-2-模拟-Metaspace-OOM-方法区溢出"><a href="#示例-2-模拟-Metaspace-OOM-方法区溢出" class="headerlink" title="示例 2：模拟 Metaspace OOM（方法区溢出）"></a>示例 2：模拟 Metaspace OOM（方法区溢出）</h3>
+<figure class="highlight java"><pre><code class="language-java">import net.sf.cglib.proxy.Enhancer;
+import net.sf.cglib.proxy.MethodInterceptor;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 演示：JDK 8 元空间（Metaspace）OOM
+ * 
+ * 依赖：cglib-nodep:3.3.0
+ * 
+ * 启动参数：
+ * java -XX:MaxMetaspaceSize=32m -XX:+HeapDumpOnOutOfMemoryError MetaspaceOOMDemo
+ * 
+ * 预期输出：java.lang.OutOfMemoryError: Metaspace
+ */
+public class MetaspaceOOMDemo {
+
+    public static void main(String[] args) {
+        List&lt;Class&lt;?&gt;&gt; classes = new ArrayList&lt;&gt;();
+        int count = 0;
+        
+        try {
+            while (true) {
+                // 每次用 CGLib 动态生成一个新类，永久驻留在 Metaspace
+                Enhancer enhancer = new Enhancer();
+                enhancer.setSuperclass(MetaspaceOOMDemo.class);
+                enhancer.setUseCache(false); // 关键：禁用缓存，每次生成新类
+                enhancer.setCallback((MethodInterceptor) (obj, method, 
+                        args1, proxy) -&gt; proxy.invokeSuper(obj, args1));
+                
+                Class&lt;?&gt; clazz = enhancer.create().getClass();
+                classes.add(clazz);
+                count++;
+                
+                if (count % 500 == 0) {
+                    System.out.println(&quot;已生成 &quot; + count + &quot; 个类&quot;);
+                }
+            }
+        } catch (OutOfMemoryError e) {
+            System.err.println(&quot;OOM 出现！共生成 &quot; + count + &quot; 个类&quot;);
+            e.printStackTrace();
+        }
+    }
+}</code></pre></figure>
+<p><strong>关键知识点</strong>：JDK 7 之前字符串常量池在永久代，JDK 8 后字符串常量池移到堆，而<strong>类元数据</strong>放到本地内存的 Metaspace。所以 <code>java.lang.OutOfMemoryError: PermGen space</code> 在 JDK 8 已经消失，取而代之的是 <code>Metaspace</code>。</p>
+<h3 id="示例-3-G1-GC-参数调优实测"><a href="#示例-3-G1-GC-参数调优实测" class="headerlink" title="示例 3：G1 GC 参数调优实测"></a>示例 3：G1 GC 参数调优实测</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * 演示：模拟真实业务场景下的内存分配
+ * 
+ * 对比测试参数：
+ * 
+ * [Parallel GC]
+ * java -Xms4g -Xmx4g -XX:+UseParallelGC 
+ *      -XX:+PrintGCDetails -XX:+PrintGCDateStamps 
+ *      -Xloggc:gc-parallel.log G1TuningDemo
+ * 
+ * [G1 GC]
+ * java -Xms4g -Xmx4g -XX:+UseG1GC 
+ *      -XX:MaxGCPauseMillis=200 
+ *      -XX:InitiatingHeapOccupancyPercent=45 
+ *      -XX:+PrintGCDetails -XX:+PrintGCDateStamps 
+ *      -Xloggc:gc-g1.log G1TuningDemo
+ * 
+ * 观察两个日志文件的吞吐量和停顿时间差异
+ */
+public class G1TuningDemo {
+
+    // 模拟订单对象：一部分短命，一部分长命
+    static class Order {
+        long orderId;
+        String userId;
+        double amount;
+        byte[] payload = new byte[1024]; // 1KB 模拟业务数据
+    }
+
+    private static final List&lt;Order&gt; longLivedCache = new ArrayList&lt;&gt;();
+    private static final Random RANDOM = new Random();
+
+    public static void main(String[] args) throws InterruptedException {
+        long start = System.currentTimeMillis();
+        long totalAllocated = 0;
+        
+        // 模拟 60 秒业务流量
+        for (int second = 0; second &lt; 60; second++) {
+            // 每秒处理 5000 个订单
+            for (int i = 0; i &lt; 5000; i++) {
+                Order order = new Order();
+                order.orderId = RANDOM.nextLong();
+                order.userId = &quot;user-&quot; + RANDOM.nextInt(10000);
+                order.amount = RANDOM.nextDouble() * 1000;
+                totalAllocated += 1024;
+                
+                // 5% 的订单进入长生命周期缓存（模拟热点数据）
+                if (RANDOM.nextInt(100) &lt; 5) {
+                    longLivedCache.add(order);
+                }
+                // 其他 95% 处理完即丢，成为垃圾
+            }
+            
+            // 控制缓存大小，避免真正的 OOM
+            if (longLivedCache.size() &gt; 100_000) {
+                longLivedCache.subList(0, 50_000).clear();
+            }
+            
+            Thread.sleep(1000); // 模拟 1 秒的时间片
+        }
+        
+        long cost = System.currentTimeMillis() - start;
+        System.out.printf(&quot;总耗时: %d ms, 总分配: %.2f GB, 缓存对象数: %d%n&quot;,
+                cost, totalAllocated / 1024.0 / 1024 / 1024, longLivedCache.size());
+    }
+}</code></pre></figure>
+<p><strong>如何分析结果</strong>：用 <code>GCViewer</code> 或 <code>gceasy.io</code> 打开生成的 gc 日志。G1 通常表现为停顿更均匀（每次 50-200ms），而 Parallel GC 是<strong>吞吐量优先</strong>，单次停顿可能 500ms+ 但总 GC 时间更短。</p>
+<p>选择依据：</p>
+<ul>
+<li>追求<strong>低延迟</strong>（P99 < 200ms）→ G1 / ZGC</li>
+</ul>
+<ul>
+<li>追求<strong>高吞吐</strong>（批处理、离线计算）→ Parallel GC</li>
+</ul>
+<ul>
+<li>堆 > 32G 且停顿要求 < 10ms → ZGC / Shenandoah</li>
+</ul>
+<hr>
+<h2 id="方案对比-主流垃圾回收器全景"><a href="#方案对比-主流垃圾回收器全景" class="headerlink" title="方案对比：主流垃圾回收器全景"></a>方案对比：主流垃圾回收器全景</h2>
+<div class="mermaid">
+graph LR
+    subgraph 分代式["分代式 GC"]
+        Serial[Serial<br/>单线程,新生代]
+        ParNew[ParNew<br/>多线程,新生代]
+        ParallelScavenge[Parallel Scavenge<br/>吞吐优先]
+        SerialOld[Serial Old<br/>单线程,老年代]
+        ParallelOld[Parallel Old<br/>吞吐优先]
+        CMS[CMS<br/>并发标记清除,低延迟]
+    end
+    subgraph 分区式["分区式 GC"]
+        G1[G1<br/>Region 化,可预测停顿]
+    end
+    subgraph 全并发["全并发 GC"]
+        ZGC[ZGC<br/>染色指针,<10ms]
+        Shenandoah[Shenandoah<br/>Brooks 指针]
+    end
+</div>
+<table>
+<thead>
+<tr>
+<th>回收器</th>
+<th>停顿模型</th>
+<th>适用堆大小</th>
+<th>吞吐量</th>
+<th>延迟</th>
+<th>JDK 版本</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Serial</td>
+<td>STW 全停顿</td>
+<td>< 100M</td>
+<td>中</td>
+<td>高（秒级）</td>
+<td>全版本</td>
+</tr><tr>
+<td>Parallel</td>
+<td>STW 全停顿</td>
+<td>1G ~ 8G</td>
+<td><strong>最高</strong></td>
+<td>高</td>
+<td>JDK 8 默认</td>
+</tr><tr>
+<td>CMS</td>
+<td>并发标记 + STW 清理</td>
+<td>4G ~ 16G</td>
+<td>中</td>
+<td>低（< 100ms）</td>
+<td>9 已废弃，14 移除</td>
+</tr><tr>
+<td>G1</td>
+<td>Region + 可预测停顿</td>
+<td>4G ~ 32G</td>
+<td>中高</td>
+<td>低（可设目标）</td>
+<td>JDK 9+ 默认</td>
+</tr><tr>
+<td>ZGC</td>
+<td>全并发，染色指针</td>
+<td>8G ~ 16T</td>
+<td>中</td>
+<td><strong>极低（< 10ms）</strong></td>
+<td>JDK 15+ 生产就绪</td>
+</tr><tr>
+<td>Shenandoah</td>
+<td>全并发，Brooks 指针</td>
+<td>8G ~ 1T</td>
+<td>中</td>
+<td>极低</td>
+<td>JDK 12+</td>
+</tr></tbody></table>
+<p><strong>CMS 为什么被淘汰</strong>：三大致命问题——浮动垃圾（并发清理时新产生的垃圾）、Concurrent Mode Failure（并发失败退化为 Serial Old 全停顿）、内存碎片（标记清除不整理）。</p>
+<p><strong>ZGC 的核心创新</strong>：染色指针（Colored Pointers）。在 64 位指针里，高 4 位存储 GC 状态信息（Marked0/Marked1/Remapped/Finalizable），GC 阶段只需修改指针颜色，无需遍历对象。这就是它能把停顿压到 10ms 以内的原因。</p>
+<p>源码层面看，ZGC 的指针布局：</p>
+<figure class="highlight "><pre><code>// hotspot/src/hotspot/share/gc/z/zAddress.hpp
+// 64位指针布局：
+// [63-46] 预留 | [45-42] 元数据位 | [41-0] 对象地址
+//
+// 42位地址空间 = 4TB 堆
+// 元数据位：Marked0, Marked1, Remapped, Finalizable</code></pre></figure>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="1-参数配置黄金法则"><a href="#1-参数配置黄金法则" class="headerlink" title="1. 参数配置黄金法则"></a>1. 参数配置黄金法则</h3>
+<figure class="highlight bash"><pre><code class="language-bash"># 生产环境推荐模板（G1, 8G 堆）
+java -server \
+     -Xms8g -Xmx8g \                    # 堆大小固定，避免动态调整引发 Full GC
+     -XX:+UseG1GC \
+     -XX:MaxGCPauseMillis=200 \         # 目标停顿时间
+     -XX:InitiatingHeapOccupancyPercent=45 \  # 触发并发标记的阈值
+     -XX:G1HeapRegionSize=8m \          # Region 大小，通常自动即可
+     -XX:MetaspaceSize=256m \
+     -XX:MaxMetaspaceSize=256m \        # 元空间也建议固定
+     -XX:+HeapDumpOnOutOfMemoryError \
+     -XX:HeapDumpPath=/data/dump/ \
+     -Xloggc:/data/gc/gc-%t.log \
+     -XX:+UseGCLogFileRotation \
+     -XX:NumberOfGCLogFiles=10 \
+     -XX:GCLogFileSize=100M \
+     -XX:+PrintGCDetails \
+     -XX:+PrintGCDateStamps \
+     -XX:+PrintTenuringDistribution</code></pre></figure>
+<h3 id="2-五个经典踩坑点"><a href="#2-五个经典踩坑点" class="headerlink" title="2. 五个经典踩坑点"></a>2. 五个经典踩坑点</h3>
+<p><strong>坑 1：<code>-Xms</code> 和 <code>-Xmx</code> 不相等</strong></p>
+<p>JVM 会在运行时动态扩缩堆，每次扩容都会触发 Full GC。生产环境必须固定。</p>
+<p><strong>坑 2：堆外内存未限制</strong></p>
+<p>Netty 的 DirectByteBuffer、Metaspace、JVM 自身开销都会占用堆外内存。<strong>容器环境下 JVM 感知不到 cgroup 限制</strong>（JDK 8u191 之前），导致容器被 OOM Killer 干掉。解决方案：<code>-XX:+UseContainerSupport</code>（JDK 10+ 默认开启）。</p>
+<p><strong>坑 3：<code>System.gc()</code> 被显式调用</strong></p>
+<p>代码中任何 <code>System.gc()</code> 或 <code>Runtime.getRuntime().gc()</code> 都会触发 Full GC。用 <code>-XX:+DisableExplicitGC</code> 屏蔽，但注意 NIO 的 DirectMemory 依赖 GC 回收，屏蔽后需要手动 <code>Cleaner</code>。</p>
+<p><strong>坑 4：<code>finalize()</code> 方法滥用</strong></p>
+<p><code>finalize()</code> 会拖慢 GC 速度，且可能让对象"复活"。JDK 9 起标记为 deprecated，JDK 18 起彻底禁用。用 <code>Cleaner</code> 或 <code>AutoCloseable</code> 替代。</p>
+<p><strong>坑 5：日志框架的字符串拼接</strong></p>
+<figure class="highlight java"><pre><code class="language-java">// 错误：每次日志都会创建 StringBuilder + String
+logger.debug(&quot;user &quot; + userId + &quot; order &quot; + orderId);
+
+// 正确：占位符延迟求值
+logger.debug(&quot;user {} order {}&quot;, userId, orderId);</code></pre></figure>
+<p>在高 QPS 服务里，这种字符串拼接能贡献 20% 以上的垃圾对象。</p>
+<h3 id="3-排查工具链"><a href="#3-排查工具链" class="headerlink" title="3. 排查工具链"></a>3. 排查工具链</h3>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>工具</th>
+<th>命令示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>实时 GC 统计</td>
+<td>jstat</td>
+<td><code>jstat -gcutil <pid> 1000</code></td>
+</tr><tr>
+<td>堆对象直方图</td>
+<td>jmap + jhat</td>
+<td><code>jmap -histo:live <pid></code></td>
+</tr><tr>
+<td>堆转储分析</td>
+<td>MAT / JProfiler</td>
+<td><code>jmap -dump:live,format=b,file=heap.hprof <pid></code></td>
+</tr><tr>
+<td>火焰图</td>
+<td>async-profiler</td>
+<td><code>./profiler.sh -d 30 -f out.html <pid></code></td>
+</tr><tr>
+<td>GC 日志可视化</td>
+<td>GCViewer / gceasy.io</td>
+<td>上传 gc.log</td>
+</tr></tbody></table>
+<h3 id="4-容器化环境的特殊处理"><a href="#4-容器化环境的特殊处理" class="headerlink" title="4. 容器化环境的特殊处理"></a>4. 容器化环境的特殊处理</h3>
+<p>在 Kubernetes 里跑 Java 服务，务必：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># Pod 资源配置
+resources:
+  requests:
+    memory: &quot;4Gi&quot;
+  limits:
+    memory: &quot;4Gi&quot;    # 与 requests 相同，避免被驱逐</code></pre></figure>
+<figure class="highlight bash"><pre><code class="language-bash"># JVM 参数（JDK 11+）
+-XX:MaxRAMPercentage=70.0 \   # 堆占容器内存 70%，剩下 30% 给堆外
+-XX:InitialRAMPercentage=70.0 \
+-XX:+UseContainerSupport</code></pre></figure>
+<p><strong>为什么是 70%</strong>：Metaspace + 线程栈 + DirectMemory + JVM 内部结构通常占 20-30%。设成 80% 以上容易触发容器 OOM Killer。</p>
+<hr>
+<h2 id="总结与延伸思考"><a href="#总结与延伸思考" class="headerlink" title="总结与延伸思考"></a>总结与延伸思考</h2>
+<p>回到文章开头那个事故——最终我们做了什么？</p>
+<ol>
+<li><strong>换 GC</strong>：从 CMS 切到 G1，<code>MaxGCPauseMillis=150</code></li>
+<li><strong>调参数</strong>：<code>-Xms/-Xmx</code> 从 4G 调到 8G 并固定，<code>InitiatingHeapOccupancyPercent</code> 从 45 调到 35</li>
+<li><strong>改代码</strong>：找到一段缓存用户画像的 <code>HashMap</code>，没有淘汰策略，用 Caffeine 替换后老年代对象下降 60%</li>
+<li><strong>加监控</strong>：接入 Prometheus + Micrometer，对 GC 停顿、堆使用率做告警</li>
+</ol>
+<p>P99 从 3.2s 降到 85ms，Full GC 从每天 1500 次降到 3 次。</p>
+<p><strong>核心要点回顾</strong>：</p>
+<ul>
+<li>JVM 内存模型的分代设计基于<strong>弱分代假说</strong>，理解它才能理解 GC 行为</li>
+</ul>
+<ul>
+<li>对象晋升路径有 4 条，<strong>动态年龄判定</strong>是最容易踩的坑</li>
+</ul>
+<ul>
+<li>TLAB 是分配性能的关键，高并发场景要关注</li>
+</ul>
+<ul>
+<li>选 GC 不是"越新越好"，而是<strong>匹配业务特征</strong>：延迟敏感选 G1/ZGC，吞吐优先选 Parallel</li>
+</ul>
+<ul>
+<li>容器环境下必须用 <code>UseContainerSupport</code> + <code>MaxRAMPercentage</code></li>
+</ul>
+<ul>
+<li>调优的终极手段是<strong>减少对象分配</strong>，而不是调参数</li>
+</ul>
+<p><strong>延伸思考方向</strong>：</p>
+<ol>
+<li><strong>Project Lilliput</strong>：JDK 正在研究把对象头从 12 字节压缩到 4 字节，未来堆内存利用率能提升 20%+</li>
+<li><strong>Project Valhalla</strong>：值类型（Value Types）落地后，<code>List<Point></code> 将不再有对象头开销，GC 压力会大幅下降</li>
+<li><strong>ZGC 的分代化</strong>：JDK 21 已引入分代 ZGC（<code>-XX:+UseZGC -XX:+ZGenerational</code>），吞吐量提升 30%+，延迟仍保持 <1ms</li>
+<li><strong>GraalVM Native Image</strong>：AOT 编译后无需 JVM，启动时间从秒级降到毫秒级，但 GC 策略受限</li>
+</ol>
+<p>JVM 是一个 30 年持续进化的工程奇迹。理解它，不只是为了面试，更是为了在线上出问题时，你能在 5 分钟内定位到根因，而不是盲目加机器。</p>
+<p>愿你写的每一行代码，都不再被 GC 拖累。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

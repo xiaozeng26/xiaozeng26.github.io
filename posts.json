@@ -1,5 +1,23 @@
 [
  {
+  "title": "JVM内存模型与垃圾回收器深度解析",
+  "url": "/2026/10/07/JVM%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/",
+  "date": "2026-10-07",
+  "year": 2026,
+  "month": 10,
+  "day": 7,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=1916",
+  "excerpt": "引言 去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是\\"
+ },
+ {
   "title": "asyncio事件循环源码级分析与实战",
   "url": "/2026/10/06/asyncio%E4%BA%8B%E4%BB%B6%E5%BE%AA%E7%8E%AF%E6%BA%90%E7%A0%81%E7%BA%A7%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E6%88%98/",
   "date": "2026-10-06",
