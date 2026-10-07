@@ -1,5 +1,25 @@
 [
  {
+  "title": "LangGraph状态图驱动Agent的实现原理",
+  "url": "/2026/10/08/LangGraph%E7%8A%B6%E6%80%81%E5%9B%BE%E9%A9%B1%E5%8A%A8Agent%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/",
+  "date": "2026-10-08",
+  "year": 2026,
+  "month": 10,
+  "day": 8,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=7931",
+  "excerpt": "引言 去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 AgentExecutor 搭建,几十行代码就能跑通一个\\"
+ },
+ {
   "title": "JVM内存模型与垃圾回收器深度解析",
   "url": "/2026/10/07/JVM%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90/",
   "date": "2026-10-07",

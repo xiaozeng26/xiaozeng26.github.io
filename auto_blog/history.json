@@ -510,6 +510,13 @@
       "subtopic": "JVM内存模型与垃圾回收器深度解析",
       "date": "2026-10-06",
       "url": "/2026/10/07/JVM内存模型与垃圾回收器深度解析/"
+    },
+    {
+      "title": "LangGraph状态图驱动Agent的实现原理",
+      "category": "ai-ml",
+      "subtopic": "LangGraph状态图驱动Agent的实现原理",
+      "date": "2026-10-07",
+      "url": "/2026/10/08/LangGraph状态图驱动Agent的实现原理/"
     }
   ],
   "used_subtopics": {
@@ -553,7 +560,8 @@
       "Prompt Engineering最佳实践与链式推理",
       "LangChain Memory模块：对话历史管理最佳实践",
       "大模型微调技术对比：LoRA、QLoRA、全参微调",
-      "向量数据库选型与LangChain VectorStore集成"
+      "向量数据库选型与LangChain VectorStore集成",
+      "LangGraph状态图驱动Agent的实现原理"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -573,20 +581,7 @@
       "Docker网络模式：bridge、host、overlay深入对比"
     ],
     "go": [
-      "Go泛型的设计哲学与实战应用",
-      "Go Embed静态资源嵌入实战",
-      "Testify + GoMock单元测试最佳实践",
-      "Go内存管理：栈与堆、逃逸分析",
-      "Go调度器GMP模型深度剖析",
-      "Go Context的设计与链路追踪实践",
-      "Go错误处理范式与errors包源码",
-      "sync.Mutex源码解读与锁优化",
-      "net/http包架构与中间件链实现",
-      "Go GC的演进与调优策略",
-      "Channel底层实现与select多路复用",
-      "protobuf + gRPC拦截器链实现",
-      "Go项目工程化：wire依赖注入与分层架构",
-      "Zap + Lumberjack高性能日志架构"
+      "Go Context的设计与链路追踪实践"
     ]
   },
   "content_hashes": {
@@ -661,6 +656,7 @@
     "向量数据库选型与LangChain VectorStore集成": "101f956ddff8b3a4291dd8e58792679a97eb78c1e180dbb0136822b2ab0fb36c",
     "Nacos服务注册与配置中心原理": "0a353e69e94bd2c374b2d8163d146c82a3ac4c24c9f401cd1182a8c4eaeb6a89",
     "asyncio事件循环源码级分析与实战": "b89483243f9dc9517d95bb688aee8a34ff6710df10677c731a4bb345f5f083cf",
-    "JVM内存模型与垃圾回收器深度解析": "3399175238c345faef40d1b8eab06df7cfd97d4e4e3cee084d885a53064b9b46"
+    "JVM内存模型与垃圾回收器深度解析": "3399175238c345faef40d1b8eab06df7cfd97d4e4e3cee084d885a53064b9b46",
+    "LangGraph状态图驱动Agent的实现原理": "5eac21f2552dcf984e9931b8b40af2652c9c1a27bc3b6dca8f6601f562a113f5"
   }
 }

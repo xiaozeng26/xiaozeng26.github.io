@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LangGraph状态图驱动Agent的实现原理 | 小曾博客</title>
+  <meta name="description" content="LangGraph状态图驱动Agent的实现原理 引言 去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 AgentExecutor 搭建,几十行代码就能跑通一个\"查订单 + 退款\"的流程,上线初期效果不错。但随着业务复杂度上升,问题接踵而至: 用户说\"帮我查下上周那笔订单,如果还没发货就取消\"——这需要先查询、再根据结果条">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="LangGraph状态图驱动Agent的实现原理">
+  <meta name="twitter:description" content="LangGraph状态图驱动Agent的实现原理 引言 去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 AgentExecutor 搭建,几十行代码就能跑通一个\"查订单 + 退款\"的流程,上线初期效果不错。但随着业务复杂度上升,问题接踵而至: 用户说\"帮我查下上周那笔订单,如果还没发货就取消\"——这需要先查询、再根据结果条">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=7931">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="LangGraph状态图驱动Agent的实现原理">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="LangGraph状态图驱动Agent的实现原理 引言 去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 AgentExecutor 搭建,几十行代码就能跑通一个\"查订单 + 退款\"的流程,上线初期效果不错。但随着业务复杂度上升,问题接踵而至: 用户说\"帮我查下上周那笔订单,如果还没发货就取消\"——这需要先查询、再根据结果条">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=7931">
+  <meta property="article:published_time" content="2026-10-08T02:07:25.000Z">
+  <meta property="article:modified_time" content="2026-10-08T02:07:25.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#LangGraph状态图驱动Agent的实现原理"><span class="toc-text">LangGraph状态图驱动Agent的实现原理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-用-餐厅后厨-理解状态图"><span class="toc-text">核心概念:用"餐厅后厨"理解状态图</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级原理深度分析"><span class="toc-text">源码级原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-状态契约-TypedDict-Annotated-Reducer"><span class="toc-text">1. 状态契约:TypedDict + Annotated + Reducer</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-Pregel-执行模型-超步-Super-step-与消息传递"><span class="toc-text">2. Pregel 执行模型:超步(Super-step)与消息传递</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-条件边与路由-控制流如何被-编译"><span class="toc-text">3. 条件边与路由:控制流如何被"编译"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-Checkpointer-状态持久化与时间旅行"><span class="toc-text">4. Checkpointer:状态持久化与时间旅行</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#5-状态更新合并的时序细节"><span class="toc-text">5. 状态更新合并的时序细节</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-最小可运行的状态图-Agent"><span class="toc-text">示例 1:最小可运行的状态图 Agent</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-带-Checkpointer-的多轮对话-人工介入"><span class="toc-text">示例 2:带 Checkpointer 的多轮对话 + 人工介入</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-并行节点-自定义-Reducer-带错误聚合"><span class="toc-text">示例 3:并行节点 + 自定义 Reducer(带错误聚合)</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-LangGraph-vs-其他-Agent-编排方案"><span class="toc-text">方案对比:LangGraph vs 其他 Agent 编排方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=7931)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">LangGraph状态图驱动Agent的实现原理</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-08"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-08</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-08"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-08</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="LangGraph状态图驱动Agent的实现原理"><a href="#LangGraph状态图驱动Agent的实现原理" class="headerlink" title="LangGraph状态图驱动Agent的实现原理"></a>LangGraph状态图驱动Agent的实现原理</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 <code>AgentExecutor</code> 搭建,几十行代码就能跑通一个"查订单 + 退款"的流程,上线初期效果不错。但随着业务复杂度上升,问题接踵而至:</p>
+<ul>
+<li>用户说"帮我查下上周那笔订单,如果还没发货就取消"——这需要<strong>先查询、再根据结果条件分支、再执行操作</strong>,<code>AgentExecutor</code> 的 ReAct 循环里 Agent 经常"忘记"自己查过什么,或者在中途被 LLM 的自由发挥带偏;</li>
+</ul>
+<ul>
+<li>客服流程要求"退款前必须人工审核",但 Agent 有时直接跳过了审核节点;</li>
+</ul>
+<ul>
+<li>出了问题想复现某次对话的决策路径,发现日志里只有一串松散的 tool call,根本还原不出控制流;</li>
+</ul>
+<ul>
+<li>想给流程加一个"超时重试"和"断点续跑",几乎要把整个 Agent 重写。</li>
+</ul>
+<p>这些痛点的本质是:<strong>当 Agent 从"一问一答"进化到"多步骤、有条件、有状态、需要人工介入"的复杂流程时,靠 LLM 自由编排控制流是不可靠的</strong>。你需要的不是更聪明的 Prompt,而是一套<strong>显式的、可持久化的、可被程序精确控制的状态机</strong>。</p>
+<p>LangGraph 就是为解决这个问题而生的。它的核心思想可以用一句话概括:<strong>把 Agent 的执行过程建模成一张有向图,节点是计算单元,边是控制流,而整张图共享一份可持久化的状态</strong>。这篇文章我会从源码级别拆解它的实现原理,并给出可直接运行的实战代码。</p>
+<hr>
+<h2 id="核心概念-用-餐厅后厨-理解状态图"><a href="#核心概念-用-餐厅后厨-理解状态图" class="headerlink" title="核心概念:用"餐厅后厨"理解状态图"></a>核心概念:用"餐厅后厨"理解状态图</h2>
+<p>先别急着看代码。想象一家餐厅的后厨:</p>
+<ul>
+<li><strong>State(状态)</strong> 是那张<strong>流水线订单票</strong>。从"下单"到"出餐",这张票在后厨各个工位之间传递,上面记录着:点了什么菜、做到哪一步了、有没有特殊要求。每个工位都能读到它、修改它。</li>
+</ul>
+<ul>
+<li><strong>Node(节点)</strong> 是<strong>每个工位</strong>:切菜台、炒锅、摆盘台。每个工位是一个独立的"处理单元",接收订单票,干活,更新票上的信息。</li>
+</ul>
+<ul>
+<li><strong>Edge(边)</strong> 是<strong>工位之间的传送带</strong>:切完菜传给炒锅,这是普通边;但如果订单里是"凉菜",就绕过炒锅直接去摆盘台,这就是<strong>条件边</strong>。</li>
+</ul>
+<ul>
+<li><strong>Checkpointer(检查点)</strong> 是<strong>后厨的监控录像 + 存档</strong>。每经过一个工位,系统自动快照一次订单票的状态。厨师突然晕倒了?换个厨师,从上次快照继续做。顾客中途要加菜?从当前状态改一下继续。</li>
+</ul>
+<p>对比一下 LangChain 的 <code>AgentExecutor</code>:那更像是<strong>一个厨师包办所有事</strong>。他既切菜又炒菜又摆盘,你觉得他累了想换人,或者想在中途插一个"质检员",就很难办——因为流程在他脑子里,不在系统里。</p>
+<p>而 LangGraph 把"流程"从 LLM 的脑子里<strong>外化</strong>成了一张图:</p>
+<div class="mermaid">
+graph TD
+    A[__start__] --> B[理解意图节点]
+    B --> C{路由判断}
+    C -->|查询类| D[查询订单节点]
+    C -->|操作类| E[执行操作节点]
+    D --> F{是否可退款}
+    F -->|是| G[人工审核节点]
+    F -->|否| H[返回结果节点]
+    G --> H
+    E --> H
+    H --> I[__end__]
+</div>
+<p>这张图有几个关键特性,是它区别于传统 Agent 框架的根本:</p>
+<ol>
+<li><strong>控制流是显式的</strong>:分支条件写在代码里(一个普通函数),不是靠 LLM "猜"。LLM 只负责它擅长的语义理解,流程编排交给确定性代码。</li>
+<li><strong>状态是共享且可合并的</strong>:所有节点读写同一个 State 对象,通过 <strong>reducer</strong> 决定如何合并(比如消息是追加还是覆盖)。</li>
+<li><strong>执行是可中断、可恢复的</strong>:配合 Checkpointer,图可以在任意节点暂停,持久化,之后从断点继续——这是"人工介入(Human-in-the-loop)"的实现基础。</li>
+</ol>
+<hr>
+<h2 id="源码级原理深度分析"><a href="#源码级原理深度分析" class="headerlink" title="源码级原理深度分析"></a>源码级原理深度分析</h2>
+<p>这一节是重点。我会基于 LangGraph 的核心源码(以 <code>langgraph</code> 的 Python 实现为主,Pregel 执行模型)来拆解它是怎么跑起来的。</p>
+<h3 id="1-状态契约-TypedDict-Annotated-Reducer"><a href="#1-状态契约-TypedDict-Annotated-Reducer" class="headerlink" title="1. 状态契约:TypedDict + Annotated + Reducer"></a>1. 状态契约:TypedDict + Annotated + Reducer</h3>
+<p>LangGraph 的 State 本质上是一个 <strong>TypedDict</strong>,而每个字段可以带一个 <code>Annotated</code> 注解来指定 <strong>reducer</strong>(归约函数),决定多个节点更新同一个字段时如何合并。</p>
+<figure class="highlight python"><pre><code class="language-python">from typing import TypedDict, Annotated
+from operator import add
+from langgraph.graph.message import add_messages
+
+class AgentState(TypedDict):
+    # 消息列表:用 add_messages 作为 reducer
+    # 语义是&quot;追加&quot;,而不是&quot;覆盖&quot;
+    messages: Annotated[list, add_messages]
+    # 计数器:用 operator.add 作为 reducer
+    step_count: Annotated[int, add]
+    # 普通字段:没有 Annotated,默认行为是&quot;后写覆盖&quot;
+    current_intent: str</code></pre></figure>
+<p>为什么需要 reducer?这是 LangGraph 状态模型最关键的设计之一。在并发或多次更新场景下,如果每个节点都返回完整的新 State,会带来两个问题:一是节点必须知道"别人改了什么",耦合太强;二是无法表达"追加""累加"这类语义。</p>
+<p><strong>源码视角</strong>:在 LangGraph 内部,State 被抽象成 <code>StateGraph</code> 持有一个 <code>channels</code> 字典。每个字段对应一个 <strong>Channel</strong>(通道),Channel 决定了如何接收和合并更新:</p>
+<ul>
+<li>没有 reducer 的字段 → 对应 <code>LastValue</code> 通道,新值直接覆盖旧值;</li>
+</ul>
+<ul>
+<li><code>Annotated[list, add_messages]</code> → 对应 <code>Topic</code>/<code>BinaryOperatorAggregate</code> 通道,新值通过 reducer 函数与旧值合并。</li>
+</ul>
+<p>当节点函数返回 <code>{"messages": [new_msg]}</code> 这样一个<strong>部分更新(partial update)</strong> 时,执行引擎并不会把它当成完整 State,而是把它喂给对应 Channel 的 reducer,与当前 State 合并。这就是为什么节点可以只返回它关心的那部分字段。</p>
+<h3 id="2-Pregel-执行模型-超步-Super-step-与消息传递"><a href="#2-Pregel-执行模型-超步-Super-step-与消息传递" class="headerlink" title="2. Pregel 执行模型:超步(Super-step)与消息传递"></a>2. Pregel 执行模型:超步(Super-step)与消息传递</h3>
+<p>LangGraph 的执行引擎借鉴了 Google 的 <strong>Pregel 图计算模型</strong>。理解这一点,你就理解了它的调度本质。</p>
+<p>Pregel 的核心是 <strong>BSP(Bulk Synchronous Parallel,整体同步并行)</strong> 模型。执行被切成一个个 <strong>超步(Super-step)</strong>,每个超步里:</p>
+<ol>
+<li>所有被"激活"的节点<strong>并行</strong>执行;</li>
+<li>每个节点读取当前 State,计算,产出一个更新;</li>
+<li>所有更新在超步结束时<strong>统一</strong>通过 reducer 合并进 State;</li>
+<li>引擎根据合并后的 State 和边定义,决定下一个超步激活哪些节点。</li>
+</ol>
+<p>用生活类比:这就像<strong>快递分拣中心的传送带</strong>。每一"轮"传送带上,所有该处理的包裹被并行处理;处理完的包裹统一汇入下一段传送带;系统根据每个包裹的目的地(条件边)决定它流向哪个分拣口。关键是<strong>同一轮里大家看到的都是本轮开始时的状态</strong>,不会出现"我读的时候你还没写完"的竞态。</p>
+<p><strong>源码视角</strong>:核心调度逻辑在 <code>langgraph/pregel/__init__.py</code> 的 <code>PregelLoop</code> 中。它维护一个 <code>loop.tasks</code> 集合,代表当前超步待执行的节点。每一轮循环大致是:</p>
+<figure class="highlight "><pre><code>while loop.tasks:                      # 还有待执行任务
+    # 1. 并行执行所有 task,收集 writes(写入)
+    # 2. 将 writes 通过 channels 的 reducer 合并进 state
+    # 3. 根据 state 和边,计算出下一轮的 tasks</code></pre></figure>
+<p>这里有个精妙之处:节点产出的不是直接修改全局 State,而是写到一个 <strong>writes 缓冲</strong>里,超步结束时才 apply。这保证了<strong>超步内的确定性</strong>——并行节点之间不会互相看到中间状态,避免了难以调试的时序问题。</p>
+<h3 id="3-条件边与路由-控制流如何被-编译"><a href="#3-条件边与路由-控制流如何被-编译" class="headerlink" title="3. 条件边与路由:控制流如何被"编译""></a>3. 条件边与路由:控制流如何被"编译"</h3>
+<p>条件边(<code>add_conditional_edges</code>)的机制是:你提供一个<strong>路由函数</strong>,它接收当前 State,返回一个字符串(或多个字符串),引擎据此决定激活哪个后继节点。</p>
+<p><strong>源码视角</strong>:路由函数在编译期被包装成一个特殊的 task。当一个超步结束,引擎会:</p>
+<ol>
+<li>找到所有从当前节点出发的边;</li>
+<li>对条件边,调用路由函数,拿到返回的节点名;</li>
+<li>把这些节点名加入下一超步的 tasks。</li>
+</ol>
+<p>这里有个常被忽略的细节:路由函数<strong>必须是纯函数式的</strong>(只依赖 State,不产生副作用),因为它在引擎的调度逻辑里被调用,可能被执行多次(比如配合 checkpointer 重放时)。很多人把 <code>print</code> 或者 API 调用写进路由函数,导致重放时行为不一致——这是个大坑,后面会细讲。</p>
+<h3 id="4-Checkpointer-状态持久化与时间旅行"><a href="#4-Checkpointer-状态持久化与时间旅行" class="headerlink" title="4. Checkpointer:状态持久化与时间旅行"></a>4. Checkpointer:状态持久化与时间旅行</h3>
+<p>Checkpointer 是 LangGraph 从"玩具"走向"生产"的分水岭。它的工作是:<strong>在每一个超步结束后,把当前 State 快照持久化</strong>。每个快照关联一个 <code>thread_id</code> 和一个 <code>checkpoint_id</code>。</p>
+<div class="mermaid">
+graph LR
+    S0[初始状态] -->|超步1| S1[快照1]
+    S1 -->|超步2| S2[快照2]
+    S2 -->|超步3| S3[快照3]
+    S3 -.中断.-> H[人工介入]
+    H -->|恢复| S3
+    S3 -->|超步4| S4[快照4]
+</div>
+<p>有了它,你可以:</p>
+<ul>
+<li><strong>断点续跑</strong>:进程崩了,传同样的 <code>thread_id</code>,从最后一个快照继续;</li>
+</ul>
+<ul>
+<li><strong>时间旅行</strong>:传一个历史 <code>checkpoint_id</code>,从任意历史状态重新分叉执行;</li>
+</ul>
+<ul>
+<li><strong>人工介入</strong>:在某个节点前 <code>interrupt</code>,等人审批后 <code>resume</code>;</li>
+</ul>
+<ul>
+<li><strong>多轮对话</strong>:同一个 <code>thread_id</code> 天然就是一段会话记忆。</li>
+</ul>
+<p><strong>源码视角</strong>:Checkpointer 是一个接口(<code>BaseCheckpointSaver</code>),内置实现有 <code>MemorySaver</code>(内存)、<code>SqliteSaver</code>、<code>PostgresSaver</code>。核心方法有四个:<code>put</code>(写快照)、<code>get_tuple</code>(读快照)、<code>list</code>(列历史)、<code>put_writes</code>(写中间写入)。生产环境一定要用 <code>PostgresSaver</code> 这类外部存储,<code>MemorySaver</code> 重启即丢。</p>
+<h3 id="5-状态更新合并的时序细节"><a href="#5-状态更新合并的时序细节" class="headerlink" title="5. 状态更新合并的时序细节"></a>5. 状态更新合并的时序细节</h3>
+<p>再深挖一层。假设一个超步里,节点 A 和节点 B 都被激活,它们都更新了 <code>messages</code> 字段。会发生什么?</p>
+<p>由于 <code>messages</code> 用的是 <code>add_messages</code> reducer,合并逻辑是<strong>按顺序追加</strong>。LangGraph 内部给每个写入分配了 <code>(task_id, idx)</code> 这种可排序的标识,保证合并顺序是<strong>确定性的</strong>——即使 A、B 并行执行,它们的写入合并顺序也是可复现的。这个设计直接支撑了"时间旅行重放"的正确性:同样的输入,重放会得到同样的结果。</p>
+<p>这点非常关键。如果你自己实现一个并行 Agent 调度器,用 <code>asyncio.gather</code> 收集结果然后 <code>list.extend</code>,你会发现顺序是不确定的(取决于谁先完成),导致<strong>同样的对话重放两次结果不一样</strong>。LangGraph 通过给写入排序解决了这个经典难题。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面给三个完整可运行的示例,层层递进。</p>
+<h3 id="示例-1-最小可运行的状态图-Agent"><a href="#示例-1-最小可运行的状态图-Agent" class="headerlink" title="示例 1:最小可运行的状态图 Agent"></a>示例 1:最小可运行的状态图 Agent</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+最小状态图 Agent:理解意图 -&gt; 条件路由 -&gt; 执行 -&gt; 结束
+依赖: pip install langgraph langchain-openai
+&quot;&quot;&quot;
+from typing import TypedDict, Literal
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from typing import Annotated
+from langchain_openai import ChatOpenAI
+
+# ---------- 1. 定义状态契约 ----------
+class State(TypedDict):
+    # add_messages reducer:保证消息是&quot;追加&quot;语义,而非覆盖
+    messages: Annotated[list, add_messages]
+    # 意图识别结果,普通字段,后写覆盖
+    intent: str
+
+# ---------- 2. 初始化 LLM ----------
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+
+# ---------- 3. 定义节点 ----------
+def classify_intent(state: State) -&gt; dict:
+    &quot;&quot;&quot;节点:让 LLM 判断用户意图,返回部分更新&quot;&quot;&quot;
+    user_msg = state[&quot;messages&quot;][-1].content
+    # 用一个极简 prompt 做分类,真实场景可以用结构化输出
+    resp = llm.invoke(
+        f&quot;判断下面这句话的意图,只回复&#x27;query&#x27;或&#x27;action&#x27;其中一个词:\n{user_msg}&quot;
+    )
+    intent = resp.content.strip().lower()
+    # 只返回需要更新的字段,引擎会通过 reducer 合并
+    return {&quot;intent&quot;: intent}
+
+def handle_query(state: State) -&gt; dict:
+    &quot;&quot;&quot;节点:处理查询类意图&quot;&quot;&quot;
+    return {&quot;messages&quot;: [(&quot;assistant&quot;, &quot;已为您查询到订单信息:状态为已发货。&quot;)]}
+
+def handle_action(state: State) -&gt; dict:
+    &quot;&quot;&quot;节点:处理操作类意图&quot;&quot;&quot;
+    return {&quot;messages&quot;: [(&quot;assistant&quot;, &quot;操作已受理,正在为您取消订单。&quot;)]}
+
+# ---------- 4. 定义路由函数(必须是纯函数) ----------
+def route_by_intent(state: State) -&gt; Literal[&quot;handle_query&quot;, &quot;handle_action&quot;]:
+    &quot;&quot;&quot;根据意图决定走哪条分支&quot;&quot;&quot;
+    if state[&quot;intent&quot;] == &quot;query&quot;:
+        return &quot;handle_query&quot;
+    return &quot;handle_action&quot;
+
+# ---------- 5. 组装图 ----------
+builder = StateGraph(State)
+builder.add_node(&quot;classify_intent&quot;, classify_intent)
+builder.add_node(&quot;handle_query&quot;, handle_query)
+builder.add_node(&quot;handle_action&quot;, handle_action)
+
+builder.add_edge(START, &quot;classify_intent&quot;)
+# 条件边:从 classify_intent 出发,由 route_by_intent 决定去向
+builder.add_conditional_edges(
+    &quot;classify_intent&quot;,
+    route_by_intent,
+    # 显式声明可能的目标,便于引擎校验和可视化
+    {&quot;handle_query&quot;: &quot;handle_query&quot;, &quot;handle_action&quot;: &quot;handle_action&quot;},
+)
+builder.add_edge(&quot;handle_query&quot;, END)
+builder.add_edge(&quot;handle_action&quot;, END)
+
+# 编译成可执行图
+graph = builder.compile()
+
+# ---------- 6. 运行 ----------
+if __name__ == &quot;__main__&quot;:
+    result = graph.invoke(
+        {&quot;messages&quot;: [(&quot;user&quot;, &quot;帮我查一下我的订单&quot;)]}
+    )
+    print(result[&quot;messages&quot;][-1].content)
+    # 输出: 已为您查询到订单信息:状态为已发货。</code></pre></figure>
+<p>这个例子展示了骨架:State 契约、节点、条件边、编译运行。注意节点返回的都是<strong>部分更新</strong>,而不是完整 State。</p>
+<h3 id="示例-2-带-Checkpointer-的多轮对话-人工介入"><a href="#示例-2-带-Checkpointer-的多轮对话-人工介入" class="headerlink" title="示例 2:带 Checkpointer 的多轮对话 + 人工介入"></a>示例 2:带 Checkpointer 的多轮对话 + 人工介入</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+带持久化和人工介入的 Agent
+依赖: pip install langgraph langchain-openai
+&quot;&quot;&quot;
+from typing import TypedDict, Annotated
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt, Command
+from langchain_openai import ChatOpenAI
+
+class State(TypedDict):
+    messages: Annotated[list, add_messages]
+    # 记录审批结果
+    approved: bool
+
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+
+def draft_refund(state: State) -&gt; dict:
+    &quot;&quot;&quot;节点:起草退款方案&quot;&quot;&quot;
+    return {&quot;messages&quot;: [(&quot;assistant&quot;, &quot;拟退款金额 ¥299,请审批。&quot;)]}
+
+def human_approval(state: State) -&gt; dict:
+    &quot;&quot;&quot;
+    节点:人工审批。
+    interrupt 会在此处暂停图执行,把控制权交还给调用方。
+    恢复时,resume 传入的值会作为 interrupt() 的返回值。
+    &quot;&quot;&quot;
+    decision = interrupt(&quot;是否批准本次退款?(yes/no)&quot;)
+    approved = str(decision).lower() == &quot;yes&quot;
+    return {&quot;approved&quot;: approved}
+
+def execute_refund(state: State) -&gt; dict:
+    if state.get(&quot;approved&quot;):
+        return {&quot;messages&quot;: [(&quot;assistant&quot;, &quot;退款已执行。&quot;)]}
+    return {&quot;messages&quot;: [(&quot;assistant&quot;, &quot;退款被驳回。&quot;)]}
+
+builder = StateGraph(State)
+builder.add_node(&quot;draft_refund&quot;, draft_refund)
+builder.add_node(&quot;human_approval&quot;, human_approval)
+builder.add_node(&quot;execute_refund&quot;, execute_refund)
+
+builder.add_edge(START, &quot;draft_refund&quot;)
+builder.add_edge(&quot;draft_refund&quot;, &quot;human_approval&quot;)
+builder.add_edge(&quot;human_approval&quot;, &quot;execute_refund&quot;)
+builder.add_edge(&quot;execute_refund&quot;, END)
+
+# 关键:挂上 checkpointer,interrupt/resume 才能工作
+memory = MemorySaver()
+graph = builder.compile(checkpointer=memory)
+
+if __name__ == &quot;__main__&quot;:
+    config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;user-42-order-1001&quot;}}
+
+    # 第一次运行:会在 human_approval 处中断
+    graph.invoke({&quot;messages&quot;: [(&quot;user&quot;, &quot;我要退款&quot;)]}, config)
+    snapshot = graph.get_state(config)
+    print(&quot;中断点:&quot;, snapshot.next)  # (&#x27;human_approval&#x27;,)
+
+    # 恢复执行,传入审批结果
+    graph.invoke(Command(resume=&quot;yes&quot;), config)
+    final = graph.get_state(config)
+    print(&quot;最终输出:&quot;, final.values[&quot;messages&quot;][-1].content)
+    # 输出: 退款已执行。</code></pre></figure>
+<p>这个例子的核心是 <code>interrupt</code> + <code>Command(resume=...)</code>。注意 <code>thread_id</code> 就是这段会话的"存档位",同一个 <code>thread_id</code> 可以在任意时刻恢复。生产环境把 <code>MemorySaver</code> 换成 <code>PostgresSaver</code> 即可。</p>
+<h3 id="示例-3-并行节点-自定义-Reducer-带错误聚合"><a href="#示例-3-并行节点-自定义-Reducer-带错误聚合" class="headerlink" title="示例 3:并行节点 + 自定义 Reducer(带错误聚合)"></a>示例 3:并行节点 + 自定义 Reducer(带错误聚合)</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+并行执行多个检查节点,并用自定义 reducer 聚合结果
+依赖: pip install langgraph
+&quot;&quot;&quot;
+from typing import TypedDict, Annotated
+from langgraph.graph import StateGraph, START, END
+
+# ---------- 自定义 reducer:合并多个检查结果 ----------
+def merge_checks(left: dict, right: dict) -&gt; dict:
+    &quot;&quot;&quot;
+    把多个并行节点的检查结果合并成一个字典。
+    注意:reducer 必须是纯函数、可交换且幂等的(在合并语义上)。
+    &quot;&quot;&quot;
+    return {**left, **right}
+
+class State(TypedDict):
+    user_input: str
+    # 用自定义 reducer,把并行节点的 dict 结果合并
+    checks: Annotated[dict, merge_checks]
+
+# ---------- 三个可并行执行的检查节点 ----------
+def check_profanity(state: State) -&gt; dict:
+    ok = &quot;脏话&quot; not in state[&quot;user_input&quot;]
+    return {&quot;checks&quot;: {&quot;profanity&quot;: ok}}
+
+def check_length(state: State) -&gt; dict:
+    ok = len(state[&quot;user_input&quot;]) &lt;= 200
+    return {&quot;checks&quot;: {&quot;length&quot;: ok}}
+
+def check_spam(state: State) -&gt; dict:
+    ok = &quot;http://&quot; not in state[&quot;user_input&quot;]
+    return {&quot;checks&quot;: {&quot;spam&quot;: ok}}
+
+def summarize(state: State) -&gt; dict:
+    &quot;&quot;&quot;汇总节点:读取合并后的 checks&quot;&quot;&quot;
+    failed = [k for k, v in state[&quot;checks&quot;].items() if not v]
+    verdict = &quot;通过&quot; if not failed else f&quot;未通过: {failed}&quot;
+    print(f&quot;审核结论: {verdict}&quot;)
+    return {}
+
+builder = StateGraph(State)
+builder.add_node(&quot;check_profanity&quot;, check_profanity)
+builder.add_node(&quot;check_length&quot;, check_length)
+builder.add_node(&quot;check_spam&quot;, check_spam)
+builder.add_node(&quot;summarize&quot;, summarize)
+
+# 从 START 扇出到三个检查节点 —— 它们会在同一个超步并行执行
+builder.add_edge(START, &quot;check_profanity&quot;)
+builder.add_edge(START, &quot;check_length&quot;)
+builder.add_edge(START, &quot;check_spam&quot;)
+
+# 三个检查节点扇入到 summarize
+builder.add_edge(&quot;check_profanity&quot;, &quot;summarize&quot;)
+builder.add_edge(&quot;check_length&quot;, &quot;summarize&quot;)
+builder.add_edge(&quot;check_spam&quot;, &quot;summarize&quot;)
+builder.add_edge(&quot;summarize&quot;, END)
+
+graph = builder.compile()
+
+if __name__ == &quot;__main__&quot;:
+    graph.invoke({&quot;user_input&quot;: &quot;这是一条正常留言&quot;})
+    # 输出: 审核结论: 通过
+    graph.invoke({&quot;user_input&quot;: &quot;这是脏话内容 http://spam.com&quot;})
+    # 输出: 审核结论: 未通过: [&#x27;profanity&#x27;, &#x27;spam&#x27;]</code></pre></figure>
+<p>这个例子演示了 <strong>扇出/扇入(fan-out/fan-in)</strong> 模式。从 <code>START</code> 出发的三条边让三个检查节点在<strong>同一超步并行</strong>执行,引擎会等它们全部完成后,再用 <code>merge_checks</code> 把结果合并,然后统一触发 <code>summarize</code>。这正是 Pregel BSP 模型的直观体现。</p>
+<hr>
+<h2 id="方案对比-LangGraph-vs-其他-Agent-编排方案"><a href="#方案对比-LangGraph-vs-其他-Agent-编排方案" class="headerlink" title="方案对比:LangGraph vs 其他 Agent 编排方案"></a>方案对比:LangGraph vs 其他 Agent 编排方案</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>控制流</th>
+<th>状态管理</th>
+<th>持久化/中断</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LangChain AgentExecutor</strong></td>
+<td>LLM 自由 ReAct 循环</td>
+<td>松散,靠 memory</td>
+<td>弱</td>
+<td>简单问答、单轮工具调用</td>
+</tr><tr>
+<td><strong>LangGraph</strong></td>
+<td>显式状态图</td>
+<td>共享 State + Reducer</td>
+<td>强(checkpointer)</td>
+<td>复杂多步、需人工介入、需可复现</td>
+</tr><tr>
+<td><strong>AutoGen</strong></td>
+<td>多 Agent 对话驱动</td>
+<td>会话消息</td>
+<td>中</td>
+<td>多智能体协作、群聊式</td>
+</tr><tr>
+<td><strong>CrewAI</strong></td>
+<td>角色/任务编排</td>
+<td>任务级</td>
+<td>中</td>
+<td>角色分工明确的流水线</td>
+</tr><tr>
+<td><strong>手写状态机</strong></td>
+<td>完全自定义</td>
+<td>完全自定义</td>
+<td>自己实现</td>
+<td>流程固定、极致可控</td>
+</tr></tbody></table>
+<p>几个关键判断:</p>
+<ul>
+<li><strong>如果你的流程是"一次工具调用就结束"</strong>,别用 LangGraph,<code>AgentExecutor</code> 或直接 function calling 足够,引入状态图是过度设计。</li>
+</ul>
+<ul>
+<li><strong>如果流程需要"条件分支 + 人工审批 + 断点续跑 + 可复现"</strong>,LangGraph 几乎是目前 Python 生态里最成熟的选择。</li>
+</ul>
+<ul>
+<li><strong>如果是"多个平等 Agent 互相讨论"</strong>,AutoGen 的对话模型更自然;LangGraph 也能做(用 messages 状态 + 循环边),但要多写一些编排代码。</li>
+</ul>
+<ul>
+<li><strong>如果流程极其固定、对延迟极度敏感</strong>,手写状态机反而更轻量,LangGraph 的抽象层会带来一点开销。</li>
+</ul>
+<p>LangGraph 的独特价值在于:<strong>它把"Agent 流程"当成一等公民来建模,而不是当成 LLM 的副产品</strong>。这是它和"更聪明的 Prompt"路线的根本分野。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. Reducer 选错是头号坑。</strong> 消息列表务必用 <code>add_messages</code>,否则每次节点返回都会把历史消息覆盖掉,多轮对话直接失忆。反过来,如果你确实想要"覆盖"语义,就别加 <code>Annotated</code>。</p>
+<p><strong>2. 路由函数必须是纯函数。</strong> 不要在条件边路由函数里调用 API、写数据库、打日志依赖外部状态。因为它可能在重放时被多次调用,副作用会导致行为不一致。所有副作用放到节点里。</p>
+<p><strong>3. 节点返回"部分更新",不要返回完整 State。</strong> 返回完整 State 会绕过 reducer 的语义,还容易覆盖掉其他并行节点的写入。养成"只返回我改动的字段"的习惯。</p>
+<p><strong>4. 并行节点的写入顺序是确定性的,但别依赖它做业务逻辑。</strong> 引擎会给写入排序保证可复现,但你的业务不应该假设"A 一定在 B 之前合并"。需要顺序就串行连边。</p>
+<p><strong>5. 生产环境必须用外部 Checkpointer。</strong> <code>MemorySaver</code> 只适合本地调试。<code>PostgresSaver</code> 是生产首选,注意定期清理老 checkpoint,否则表会膨胀。</p>
+<p><strong>6. <code>thread_id</code> 的设计就是会话隔离的设计。</strong> 一个用户一次会话一个 <code>thread_id</code>,别复用。跨会话共享状态要用其他机制(如外部 KV),不要靠 <code>thread_id</code>。</p>
+<p><strong>7. 控制图规模。</strong> 节点太多、边太乱时,可视化(<code>graph.get_graph().draw_mermaid()</code>)会帮你发现"绕圈"和"死路"。给循环边一定要配<strong>终止条件</strong>,否则 Agent 会在两个节点间无限循环烧 token。</p>
+<p><strong>8. 用 <code>stream_mode</code> 做可观测性。</strong> <code>graph.stream(..., stream_mode="updates")</code> 能实时吐出每个节点的更新,接上日志系统就是天然的决策链路追踪,比事后翻 tool call 日志强太多。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个客服团队的问题。他们最终把流程迁到了 LangGraph:意图识别、查询、条件分支、人工审核、执行,全部显式建模成节点和边;用 Postgres Checkpointer 做持久化,退款这种敏感操作走 <code>interrupt</code> 人工审批;出了问题直接用 <code>thread_id</code> + <code>checkpoint_id</code> 重放,决策路径一目了然。代码量没有暴增,但<strong>可控性和可维护性完全是两个量级</strong>。</p>
+<p>回顾本文的核心要点:</p>
+<ul>
+<li>LangGraph 的本质是 <strong>Pregel 风格的状态图执行引擎</strong>,把 Agent 流程从 LLM 的"脑子"里外化成显式的图;</li>
+</ul>
+<ul>
+<li><strong>State + Reducer</strong> 是共享状态的契约,决定了多个节点更新如何合并,<code>add_messages</code> 是最常用的 reducer;</li>
+</ul>
+<ul>
+<li><strong>超步(BSP)模型</strong> 保证了并行执行的确定性和可复现性,这是"时间旅行"和"断点续跑"的基石;</li>
+</ul>
+<ul>
+<li><strong>Checkpointer</strong> 是生产化的分水岭,支撑人工介入、断点续跑、多轮记忆;</li>
+</ul>
+<ul>
+<li>路由函数要纯、节点返回部分更新、生产用外部 Checkpointer——这几条是避坑重点。</li>
+</ul>
+<p>延伸思考:状态图这套抽象其实<strong>不限于 Agent</strong>。任何"多步骤、有状态、需要人工介入、要求可复现"的业务流程(工作流引擎、审批流、数据管道)都能用同样的模型表达。LangGraph 真正的贡献,是让 LLM 的语义能力与确定性流程编排<strong>各司其职</strong>——LLM 负责它擅长的理解与生成,状态图负责它不擅长的流程控制。想清楚这条边界,你就能设计出既聪明又可靠的 Agent 系统。</p>
+<p>下一步值得研究的方向:子图(subgraph)组合、多 Agent 之间的状态传递、以及 <code>Send</code> API 实现的 Map-Reduce 式动态扇出。这些会在你处理更复杂的生产流程时派上大用场。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
