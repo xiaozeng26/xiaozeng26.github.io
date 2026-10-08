@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比 | 小曾博客</title>
+  <meta name="description" content="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比 引言 先讲一个我真实踩过的坑。 三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。 事后复盘时我们发现一个残酷的事实：问题">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比">
+  <meta name="twitter:description" content="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比 引言 先讲一个我真实踩过的坑。 三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。 事后复盘时我们发现一个残酷的事实：问题">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=9110">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比 引言 先讲一个我真实踩过的坑。 三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。 事后复盘时我们发现一个残酷的事实：问题">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=9110">
+  <meta property="article:published_time" content="2026-10-09T02:09:35.000Z">
+  <meta property="article:modified_time" content="2026-10-09T02:09:35.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#事件驱动架构-Kafka-RabbitMQ-Pulsar选型对比"><span class="toc-text">事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把消息队列想象成快递系统"><span class="toc-text">核心概念：把消息队列想象成快递系统</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#原理深度分析-从源码看本质"><span class="toc-text">原理深度分析：从源码看本质</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Kafka-日志即一切"><span class="toc-text">Kafka：日志即一切</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#RabbitMQ-Erlang-的-Actor-模型"><span class="toc-text">RabbitMQ：Erlang 的 Actor 模型</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Pulsar-计算存储分离的架构"><span class="toc-text">Pulsar：计算存储分离的架构</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的示例"><span class="toc-text">实战代码：三个可运行的示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-Kafka-精确一次消费-幂等-事务"><span class="toc-text">示例 1：Kafka 精确一次消费（幂等 + 事务）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-RabbitMQ-死信队列-延迟重试"><span class="toc-text">示例 2：RabbitMQ 死信队列 + 延迟重试</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-Pulsar-多主题订阅-精确一次"><span class="toc-text">示例 3：Pulsar 多主题订阅 + 精确一次</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-什么场景选什么"><span class="toc-text">方案对比：什么场景选什么</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Kafka-的坑"><span class="toc-text">Kafka 的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#RabbitMQ-的坑"><span class="toc-text">RabbitMQ 的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#Pulsar-的坑"><span class="toc-text">Pulsar 的坑</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#通用原则"><span class="toc-text">通用原则</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=9110)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-09"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-09</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-09"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-09</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="事件驱动架构-Kafka-RabbitMQ-Pulsar选型对比"><a href="#事件驱动架构-Kafka-RabbitMQ-Pulsar选型对比" class="headerlink" title="事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比"></a>事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先讲一个我真实踩过的坑。</p>
+<p>三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。</p>
+<p>事后复盘时我们发现一个残酷的事实：<strong>问题不在于 RabbitMQ 不好，而在于我们用错了场景</strong>。我们把它当成了一个"高吞吐的日志管道"来用，但 RabbitMQ 的设计哲学其实是"智能代理 + 精确路由"。</p>
+<p>这件事让我意识到，消息中间件选型不是比谁的 benchmark 数字更漂亮，而是要理解每个系统在<strong>存储模型、投递语义、扩展方式</strong>上的根本差异。这篇文章，我会从源码和架构层面把 Kafka、RabbitMQ、Pulsar 这三个主流方案拆开讲清楚，并给出可以直接落地的选型决策树。</p>
+<hr>
+<h2 id="核心概念-把消息队列想象成快递系统"><a href="#核心概念-把消息队列想象成快递系统" class="headerlink" title="核心概念：把消息队列想象成快递系统"></a>核心概念：把消息队列想象成快递系统</h2>
+<p>在深入之前，先用一个生活化类比把三者的本质差异说透。</p>
+<p>假设你要寄快递：</p>
+<ul>
+<li><strong>RabbitMQ 像顺丰的智能分拣中心</strong>。你把包裹交给它，它根据地址（Routing Key）、面单类型（Exchange Type）决定送到哪个网点。每个包裹送出去后，分拣中心就把它"忘掉"了。它关心的是<strong>精确投递</strong>，不是长期存储。</li>
+</ul>
+<ul>
+<li><strong>Kafka 像一条高速公路上的传送带</strong>。所有包裹按顺序放上传送带，永远不删除（除非超过保留期）。谁想看哪一段就自己去看，传送带本身不关心谁在看。它关心的是<strong>吞吐和顺序</strong>。</li>
+</ul>
+<ul>
+<li><strong>Pulsar 像顺丰 + 传送带的混合体</strong>。包裹存在一个巨大的中央仓库（BookKeeper），分拣中心（Broker）只是无状态的调度层。谁要看就临时去仓库取，取完打个标记。它关心的是<strong>存储与计算分离带来的弹性</strong>。</li>
+</ul>
+<p>技术定义上：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Kafka</th>
+<th>RabbitMQ</th>
+<th>Pulsar</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>存储模型</td>
+<td>分区日志（Partitioned Log）</td>
+<td>队列（Queue）</td>
+<td>分区日志 + 分层存储</td>
+</tr><tr>
+<td>消费模型</td>
+<td>Pull</td>
+<td>Push</td>
+<td>Pull（兼容 Push 语义）</td>
+</tr><tr>
+<td>消息语义</td>
+<td>至少一次 / 精确一次</td>
+<td>至少一次 / 精确一次（需插件）</td>
+<td>至少一次 / 精确一次</td>
+</tr><tr>
+<td>顺序保证</td>
+<td>分区内有序</td>
+<td>队列内有序</td>
+<td>分区内有序</td>
+</tr><tr>
+<td>存储与计算</td>
+<td>耦合</td>
+<td>耦合</td>
+<td>分离</td>
+</tr></tbody></table>
+<hr>
+<h2 id="原理深度分析-从源码看本质"><a href="#原理深度分析-从源码看本质" class="headerlink" title="原理深度分析：从源码看本质"></a>原理深度分析：从源码看本质</h2>
+<h3 id="Kafka-日志即一切"><a href="#Kafka-日志即一切" class="headerlink" title="Kafka：日志即一切"></a>Kafka：日志即一切</h3>
+<p>Kafka 的核心抽象只有两个：<strong>Log</strong> 和 <strong>Index</strong>。打开 Kafka 的源码，<code>Log.scala</code> 里最核心的字段是：</p>
+<figure class="highlight scala"><pre><code class="language-scala">// core/src/main/scala/kafka/log/Log.scala（简化）
+class Log(@volatile private var _dir: File,
+          @volatile private var config: LogConfig,
+          ...) {
+  // 每个 Partition 对应一个 Log 对象
+  // 底层是多个 LogSegment，每个 Segment 是 .log + .index + .timeindex 三个文件
+  @volatile private var segments: ConcurrentNavigableMap[java.lang.Long, LogSegment]
+}</code></pre></figure>
+<p>写入时，Kafka 只是<strong>顺序追加</strong>到 <code>.log</code> 文件末尾，同时在 <code>.index</code> 里记录 offset 到物理位置的稀疏映射（默认每 4KB 写一条索引）。这就是 Kafka 高吞吐的根源——顺序写 + 零拷贝（<code>sendfile</code>）。</p>
+<p>消费者读取时，Kafka 用 <code>FileRecords</code> 的 <code>slice</code> + <code>transferTo</code> 直接把磁盘数据通过 DMA 送到网卡，全程不经过 JVM 堆。这也是为什么 Kafka 单分区能轻松跑到几十万 TPS。</p>
+<p><strong>代价在哪里？</strong> Kafka 的"智能"全在客户端。Broker 不记录谁消费到哪了（老版本），而是让消费者自己维护 offset。这带来了灵活性，也带来了 rebalance 风暴。</p>
+<h3 id="RabbitMQ-Erlang-的-Actor-模型"><a href="#RabbitMQ-Erlang-的-Actor-模型" class="headerlink" title="RabbitMQ：Erlang 的 Actor 模型"></a>RabbitMQ：Erlang 的 Actor 模型</h3>
+<p>RabbitMQ 用 Erlang 写，核心是 <code>gen_server</code> 进程模型。每个 Queue 是一个 Erlang 进程，消息在进程邮箱里流动。看它的核心模块 <code>rabbit_amqqueue_process.erl</code>：</p>
+<figure class="highlight erlang"><pre><code class="language-erlang">%% src/rabbit_amqqueue_process.erl（简化）
+handle_call({deliver, Delivery}, From, State) -&gt;
+    %% 每个 Queue 是一个独立进程，串行处理投递
+    %% 这就是为什么单队列无法水平扩展
+    ...</code></pre></figure>
+<p>关键点：<strong>一个 Queue 就是一个 Erlang 进程，单线程串行</strong>。这意味着单队列的吞吐上限被单个 Erlang 进程的调度能力锁死。RabbitMQ 的扩展方式是"多队列 + 多消费者"，而不是 Kafka 那种"单分区 + 多消费者组"。</p>
+<p>它的 Exchange 路由逻辑在 <code>rabbit_exchange_type_*.erl</code> 里，Direct、Topic、Fanout、Headers 四种类型本质上是对 Routing Key 的不同匹配算法。Topic 用的是 trie 树匹配，性能是 O(k)，k 是 key 的段数。</p>
+<h3 id="Pulsar-计算存储分离的架构"><a href="#Pulsar-计算存储分离的架构" class="headerlink" title="Pulsar：计算存储分离的架构"></a>Pulsar：计算存储分离的架构</h3>
+<p>Pulsar 的架构是三者里最"现代"的：</p>
+<div class="mermaid">
+graph TD
+    P[Producer] --> B1[Broker - 无状态]
+    B1 --> BK1[BookKeeper Bookie 1]
+    B1 --> BK2[BookKeeper Bookie 2]
+    B1 --> BK3[BookKeeper Bookie 3]
+    C[Consumer] --> B2[Broker - 无状态]
+    B2 --> BK1
+    B2 --> BK2
+    B2 --> BK3
+    Z[ZooKeeper/Etcd] --> B1
+    Z --> B2
+</div>
+<p>Broker 本身不存数据，只做协议解析和路由。真正的存储在 BookKeeper 的 Bookie 节点上。一条消息写入时，Broker 会并发写多个 Bookie（默认 2 写 1 确认，即 <code>ensemble=3, writeQuorum=2, ackQuorum=2</code>），只要满足写入法定人数就返回 ack。</p>
+<p>这种设计的好处是：</p>
+<ol>
+<li><strong>Broker 无状态</strong>，扩缩容秒级完成，不像 Kafka 扩容要迁移分区数据。</li>
+<li><strong>存储独立扩展</strong>，Bookie 可以按容量单独加机器。</li>
+<li><strong>分层存储天然友好</strong>，冷数据自动卸载到 S3。</li>
+</ol>
+<p>代价是：<strong>架构复杂度高</strong>，需要额外运维 BookKeeper 集群，且延迟比 Kafka 略高（多一跳网络）。</p>
+<hr>
+<h2 id="实战代码-三个可运行的示例"><a href="#实战代码-三个可运行的示例" class="headerlink" title="实战代码：三个可运行的示例"></a>实战代码：三个可运行的示例</h2>
+<h3 id="示例-1-Kafka-精确一次消费-幂等-事务"><a href="#示例-1-Kafka-精确一次消费-幂等-事务" class="headerlink" title="示例 1：Kafka 精确一次消费（幂等 + 事务）"></a>示例 1：Kafka 精确一次消费（幂等 + 事务）</h3>
+<p>这个示例演示 Kafka 的 EOS（Exactly Once Semantics），关键点在于 <code>isolation.level=read_committed</code> 和事务性生产者。</p>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.kafka.common.serialization.StringSerializer;
+
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Properties;
+
+/**
+ * Kafka 精确一次消费示例：
+ * 从 input-topic 读取，处理后写入 output-topic，全程在一个事务里。
+ * 保证「消费 offset 提交」和「生产消息」原子性。
+ */
+public class KafkaEosDemo {
+
+    private static final String BOOTSTRAP = &quot;localhost:9092&quot;;
+    private static final String INPUT_TOPIC = &quot;input-topic&quot;;
+    private static final String OUTPUT_TOPIC = &quot;output-topic&quot;;
+    private static final String GROUP_ID = &quot;eos-demo-group&quot;;
+
+    public static void main(String[] args) {
+        // ---------- 生产者配置 ----------
+        Properties producerProps = new Properties();
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        // 关键1：开启幂等，配合事务使用
+        producerProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        // 关键2：设置事务ID，同一个事务ID重启后会 abort 未完成事务
+        producerProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, &quot;tx-eos-demo-1&quot;);
+        // 关键3：所有 ISR 确认，保证不丢
+        producerProps.put(ProducerConfig.ACKS_CONFIG, &quot;all&quot;);
+
+        // ---------- 消费者配置 ----------
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP);
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
+        consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        // 关键4：关闭自动提交，改由事务统一管理
+        consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        // 关键5：只读已提交事务的消息，避免读到未提交数据
+        consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, &quot;read_committed&quot;);
+        // 关键6：消费者必须能感知事务，否则无法参与事务
+        consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, &quot;earliest&quot;);
+
+        KafkaProducer&lt;String, String&gt; producer = new KafkaProducer&lt;&gt;(producerProps);
+        KafkaConsumer&lt;String, String&gt; consumer = new KafkaConsumer&lt;&gt;(consumerProps);
+
+        // 关键7：初始化事务
+        producer.initTransactions();
+        consumer.subscribe(Collections.singletonList(INPUT_TOPIC));
+
+        try {
+            while (true) {
+                ConsumerRecords&lt;String, String&gt; records = consumer.poll(Duration.ofMillis(500));
+                if (records.isEmpty()) continue;
+
+                // 关键8：开启事务
+                producer.beginTransaction();
+                try {
+                    for (ConsumerRecord&lt;String, String&gt; record : records) {
+                        String processed = record.value().toUpperCase();
+                        producer.send(new ProducerRecord&lt;&gt;(OUTPUT_TOPIC, record.key(), processed));
+                    }
+                    // 关键9：把消费位移也纳入事务，实现原子提交
+                    producer.sendOffsetsToTransaction(
+                            currentOffsets(records), consumer.groupMetadata());
+                    producer.commitTransaction();
+                } catch (Exception e) {
+                    // 关键10：任一步失败则回滚，下游看不到任何中间态
+                    producer.abortTransaction();
+                    throw e;
+                }
+            }
+        } finally {
+            producer.close();
+            consumer.close();
+        }
+    }
+
+    /** 提取当前批次的位移，用于纳入事务 */
+    private static java.util.Map&lt;org.apache.kafka.common.TopicPartition, OffsetAndMetadata&gt;
+    currentOffsets(ConsumerRecords&lt;String, String&gt; records) {
+        java.util.Map&lt;org.apache.kafka.common.TopicPartition, OffsetAndMetadata&gt; offsets =
+                new java.util.HashMap&lt;&gt;();
+        for (org.apache.kafka.common.TopicPartition tp : records.partitions()) {
+            long next = records.records(tp).get(records.records(tp).size() - 1).offset() + 1;
+            offsets.put(tp, new OffsetAndMetadata(next));
+        }
+        return offsets;
+    }
+}</code></pre></figure>
+<p><strong>踩坑提醒</strong>：事务 ID 必须全局唯一且稳定（同一个业务实例用同一个 ID）。如果多个实例共用同一事务 ID，Kafka 会互相 abort 对方的事务，导致消息丢失。</p>
+<h3 id="示例-2-RabbitMQ-死信队列-延迟重试"><a href="#示例-2-RabbitMQ-死信队列-延迟重试" class="headerlink" title="示例 2：RabbitMQ 死信队列 + 延迟重试"></a>示例 2：RabbitMQ 死信队列 + 延迟重试</h3>
+<p>RabbitMQ 原生不支持延迟消息，但可以用 TTL + DLX 实现优雅的重试机制。</p>
+<figure class="highlight java"><pre><code class="language-java">import com.rabbitmq.client.*;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * RabbitMQ 延迟重试示例：
+ * 业务队列消费失败 -&gt; 投递到延迟队列（带 TTL）-&gt; 到期后通过 DLX 回到业务队列
+ * 支持多级延迟（5s / 30s / 5min），避免雪崩式重试。
+ */
+public class RabbitMqRetryDemo {
+
+    private static final String EXCHANGE = &quot;biz.exchange&quot;;
+    private static final String BIZ_QUEUE = &quot;biz.queue&quot;;
+    private static final String BIZ_ROUTING_KEY = &quot;biz.route&quot;;
+
+    // 三级延迟队列，TTL 分别为 5s / 30s / 5min
+    private static final long[] RETRY_DELAYS = {5_000, 30_000, 300_000};
+
+    public static void main(String[] args) throws IOException, TimeoutException {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost(&quot;localhost&quot;);
+        factory.setUsername(&quot;guest&quot;);
+        factory.setPassword(&quot;guest&quot;);
+        Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel();
+
+        // 1. 声明业务交换机
+        channel.exchangeDeclare(EXCHANGE, BuiltinExchangeType.DIRECT, true);
+        channel.queueDeclare(BIZ_QUEUE, true, false, false, null);
+        channel.queueBind(BIZ_QUEUE, EXCHANGE, BIZ_ROUTING_KEY);
+
+        // 2. 声明三级延迟队列，各自绑定自己的 DLX（延迟队列本身不消费）
+        for (int i = 0; i &lt; RETRY_DELAYS.length; i++) {
+            String retryQueue = &quot;retry.queue.&quot; + i;
+            Map&lt;String, Object&gt; retryArgs = new HashMap&lt;&gt;();
+            // 消息在队列里停留 TTL 后变成死信
+            retryArgs.put(&quot;x-message-ttl&quot;, RETRY_DELAYS[i]);
+            // 死信路由回业务交换机
+            retryArgs.put(&quot;x-dead-letter-exchange&quot;, EXCHANGE);
+            retryArgs.put(&quot;x-dead-letter-routing-key&quot;, BIZ_ROUTING_KEY);
+            channel.queueDeclare(retryQueue, true, false, false, retryArgs);
+        }
+
+        // 3. 消费业务队列，失败则按重试次数投递到对应延迟队列
+        channel.basicConsume(BIZ_QUEUE, false, new DefaultConsumer(channel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope,
+                                       AMQP.BasicProperties props, byte[] body) throws IOException {
+                // 从 headers 里读取已重试次数
+                int retryCount = 0;
+                Object rc = props.getHeaders() != null ? props.getHeaders().get(&quot;x-retry-count&quot;) : null;
+                if (rc != null) retryCount = Integer.parseInt(rc.toString());
+
+                try {
+                    process(body);
+                    channel.basicAck(envelope.getDeliveryTag(), false);
+                } catch (Exception e) {
+                    if (retryCount &gt;= RETRY_DELAYS.length) {
+                        // 超过最大重试次数，进死信队列人工处理
+                        channel.basicNack(envelope.getDeliveryTag(), false, false);
+                        return;
+                    }
+                    // 投递到对应级别的延迟队列
+                    Map&lt;String, Object&gt; headers = new HashMap&lt;&gt;();
+                    headers.put(&quot;x-retry-count&quot;, retryCount + 1);
+                    AMQP.BasicProperties newProps = new AMQP.BasicProperties.Builder()
+                            .headers(headers)
+                            .deliveryMode(2)  // 持久化
+                            .build();
+                    channel.basicPublish(EXCHANGE, &quot;retry.queue.&quot; + retryCount, newProps, body);
+                    channel.basicAck(envelope.getDeliveryTag(), false);
+                }
+            }
+        });
+
+        System.out.println(&quot;消费者已启动，等待消息...&quot;);
+    }
+
+    private static void process(byte[] body) {
+        // 模拟业务处理，抛异常触发重试
+        System.out.println(&quot;处理消息: &quot; + new String(body));
+    }
+}</code></pre></figure>
+<p><strong>关键设计点</strong>：延迟队列必须<strong>不消费</strong>，只做"等待室"。消息过期后由 RabbitMQ 自动转发到 DLX，这是 RabbitMQ 最经典的重试模式。相比 <code>basicNack(requeue=true)</code> 的立即重试，这种模式可以避免重试风暴。</p>
+<h3 id="示例-3-Pulsar-多主题订阅-精确一次"><a href="#示例-3-Pulsar-多主题订阅-精确一次" class="headerlink" title="示例 3：Pulsar 多主题订阅 + 精确一次"></a>示例 3：Pulsar 多主题订阅 + 精确一次</h3>
+<p>Pulsar 的 EOS 依赖事务 API，配合 <code>SubscriptionType.Exclusive</code> 可以做到端到端精确一次。</p>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.transaction.Transaction;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Pulsar 精确一次示例：
+ * 从 input 主题消费，处理后写入 output 主题，事务保证原子性。
+ * 重点展示 Pulsar 事务 API 与 Kafka 的差异。
+ */
+public class PulsarEosDemo {
+
+    private static final String SERVICE_URL = &quot;pulsar://localhost:6650&quot;;
+    private static final String INPUT_TOPIC = &quot;persistent://public/default/input-topic&quot;;
+    private static final String OUTPUT_TOPIC = &quot;persistent://public/default/output-topic&quot;;
+    private static final String SUBSCRIPTION = &quot;eos-sub&quot;;
+
+    public static void main(String[] args) throws Exception {
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(SERVICE_URL)
+                // 关键1：开启事务，超时时间 1 分钟
+                .enableTransaction(true)
+                .build();
+
+        // ---------- 生产者 ----------
+        Producer&lt;String&gt; producer = client.newProducer(Schema.STRING)
+                .topic(OUTPUT_TOPIC)
+                // 关键2：发送超时，避免事务悬挂
+                .sendTimeout(30, TimeUnit.SECONDS)
+                .create();
+
+        // ---------- 消费者 ----------
+        Consumer&lt;String&gt; consumer = client.newConsumer(Schema.STRING)
+                .topic(INPUT_TOPIC)
+                .subscriptionName(SUBSCRIPTION)
+                // 关键3：Exclusive 订阅才能保证顺序 + 事务
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        while (true) {
+            Message&lt;String&gt; msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg == null) continue;
+
+            // 关键4：开启事务
+            Transaction txn = client.newTransaction()
+                    .withTransactionTimeout(1, TimeUnit.MINUTES)
+                    .build()
+                    .get();
+
+            try {
+                String processed = msg.getValue().toUpperCase();
+                // 关键5：生产消息绑定到事务
+                producer.newMessage(txn)
+                        .value(processed)
+                        .send();
+
+                // 关键6：ack 也绑定到事务
+                consumer.acknowledgeAsync(msg.getMessageId(), txn).get();
+
+                // 关键7：提交事务，此时生产 + ack 才真正生效
+                txn.commit().get();
+            } catch (Exception e) {
+                // 回滚后消息会被重新投递
+                txn.abort().get();
+                throw e;
+            }
+        }
+    }
+}</code></pre></figure>
+<p><strong>与 Kafka 的差异</strong>：Pulsar 事务是<strong>显式对象</strong>，可以跨多个 topic 组合；Kafka 事务是<strong>隐式绑定到 producer 会话</strong>的。Pulsar 的粒度更细，但也更容易写出"忘记 commit"的 bug。</p>
+<hr>
+<h2 id="方案对比-什么场景选什么"><a href="#方案对比-什么场景选什么" class="headerlink" title="方案对比：什么场景选什么"></a>方案对比：什么场景选什么</h2>
+<div class="mermaid">
+graph TD
+    A[业务需求] --> B{是否需要消息回溯/重放?}
+    B -->|是| C{是否要求超大规模/多租户?}
+    B -->|否| D{是否要求复杂路由?}
+    C -->|是| E[Pulsar]
+    C -->|否| F[Kafka]
+    D -->|是| G[RabbitMQ]
+    D -->|否| H{吞吐量级?}
+    H -->|万级以下| G
+    H -->|十万级以上| F
+</div>
+<p>更细粒度的对比：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>日志采集、埋点、流处理</td>
+<td>Kafka</td>
+<td>高吞吐、顺序写、生态成熟（Flink/Spark）</td>
+</tr><tr>
+<td>订单、支付等业务解耦</td>
+<td>RabbitMQ</td>
+<td>精确路由、灵活 ACK、延迟队列</td>
+</tr><tr>
+<td>任务队列、RPC 异步化</td>
+<td>RabbitMQ</td>
+<td>单条消息确认模型天然匹配</td>
+</tr><tr>
+<td>多租户 SaaS 事件总线</td>
+<td>Pulsar</td>
+<td>租户隔离、分层存储、geo-replication</td>
+</tr><tr>
+<td>需要消息回溯的 CQRS</td>
+<td>Kafka/Pulsar</td>
+<td>日志模型天然支持重放</td>
+</tr><tr>
+<td>消息量大但冷数据多</td>
+<td>Pulsar</td>
+<td>分层存储自动卸载到 S3</td>
+</tr><tr>
+<td>超低延迟（<1ms）</td>
+<td>RabbitMQ</td>
+<td>内存队列，无刷盘</td>
+</tr><tr>
+<td>跨地域复制</td>
+<td>Pulsar</td>
+<td>原生 geo-replication，Kafka 需 MirrorMaker</td>
+</tr></tbody></table>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="Kafka-的坑"><a href="#Kafka-的坑" class="headerlink" title="Kafka 的坑"></a>Kafka 的坑</h3>
+<ol>
+<li><strong>分区数不是越多越好</strong>。每个分区对应一个文件句柄 + 一个副本线程，1000 分区以上 rebalance 会明显变慢。经验值：单 Broker 分区数控制在 2000 以内。</li>
+<li><strong><code>acks=1</code> 是丢数据的元凶</strong>。哪怕只丢一条订单，赔偿成本也远高于那点延迟。生产环境请用 <code>acks=all</code> + <code>min.insync.replicas=2</code>。</li>
+<li><strong>消费者 rebalance 风暴</strong>。用 <code>CooperativeStickyAssignor</code> 替代 <code>RangeAssignor</code>，配合 <code>max.poll.interval.ms</code> 合理设置，避免"消费慢导致被踢出组"。</li>
+<li><strong>不要用 Kafka 做延迟消息</strong>。原生不支持，硬做只能靠时间轮 + 外部存储，不如直接用 RabbitMQ 或 Pulsar。</li>
+</ol>
+<h3 id="RabbitMQ-的坑"><a href="#RabbitMQ-的坑" class="headerlink" title="RabbitMQ 的坑"></a>RabbitMQ 的坑</h3>
+<ol>
+<li><strong>单队列是性能天花板</strong>。一个队列一个 Erlang 进程，单队列 5 万 TPS 基本到顶。要么拆队列，要么换 Kafka。</li>
+<li><strong><code>basicNack(requeue=true)</code> 会导致无限重试</strong>。必须配合重试计数或死信队列，否则一条毒消息能拖垮整个消费者。</li>
+<li><strong>镜像队列在 3.8 之后被 Quorum Queue 取代</strong>。新项目直接上 Quorum Queue，基于 Raft，一致性和性能都更好。</li>
+<li><strong>连接数比消息量更致命</strong>。每个 Channel 都有内存开销，建议用连接池，单连接多 Channel。</li>
+</ol>
+<h3 id="Pulsar-的坑"><a href="#Pulsar-的坑" class="headerlink" title="Pulsar 的坑"></a>Pulsar 的坑</h3>
+<ol>
+<li><strong>BookKeeper 运维复杂度高</strong>。没有专业 SRE 团队慎入，否则出问题排查成本极高。</li>
+<li><strong>事务性能有损耗</strong>。事务消息比普通消息慢 30%~50%，非必要不开事务。</li>
+<li><strong>消费位点管理要小心</strong>。<code>SubscriptionType.Shared</code> 不保证顺序，需要顺序时用 <code>Exclusive</code> 或 <code>Failover</code>。</li>
+<li><strong>分层存储配置不当会导致读放大</strong>。冷数据读回要经过 S3 -> Bookie -> Broker 三段，延迟可能到秒级，不适合交互式场景。</li>
+</ol>
+<h3 id="通用原则"><a href="#通用原则" class="headerlink" title="通用原则"></a>通用原则</h3>
+<ul>
+<li><strong>消息幂等是底线</strong>。任何 MQ 都可能重复投递，消费端必须做幂等（唯一键 + 去重表 / Redis SETNX）。</li>
+</ul>
+<ul>
+<li><strong>监控滞后指标</strong>。Kafka 看 <code>consumer_lag</code>，RabbitMQ 看 <code>queue_messages_ready</code>，Pulsar 看 <code>msgBacklog</code>。</li>
+</ul>
+<ul>
+<li><strong>压测要压到雪崩点</strong>。只测正常流量没意义，要测"消费者挂掉后积压 1 小时再恢复"的场景。</li>
+</ul>
+<ul>
+<li><strong>Schema 演进要设计</strong>。用 Avro/Protobuf + Schema Registry，避免上下游字段不兼容导致的线上事故。</li>
+</ul>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个大促雪崩的案例。如果让我重新选型：</p>
+<ul>
+<li><strong>订单主链路</strong>（要求精确路由 + 延迟重试）→ RabbitMQ，Quorum Queue。</li>
+</ul>
+<ul>
+<li><strong>埋点与流处理</strong>（要求高吞吐 + 回溯）→ Kafka。</li>
+</ul>
+<ul>
+<li><strong>跨地域事件总线</strong>（要求多租户 + geo-replication）→ Pulsar。</li>
+</ul>
+<p>三者不是替代关系，而是<strong>不同抽象层次的工具</strong>。Kafka 是"分布式日志"，RabbitMQ 是"消息代理"，Pulsar 是"流存储平台"。选型的本质是问自己：<strong>我的业务需要的是"日志"、"队列"还是"流"？</strong></p>
+<p>最后留一个延伸思考：随着云原生和 Serverless 的普及，未来消息中间件的竞争点可能不再是吞吐和延迟，而是<strong>弹性伸缩能力</strong>和<strong>存储成本</strong>。Pulsar 的计算存储分离架构在这个维度上有先天优势，但 Kafka 的 KRaft + Tiered Storage 也在快速追赶。下一个五年的格局，值得持续关注。</p>
+<hr>
+<p><strong>参考资料</strong></p>
+<ul>
+<li>Kafka 源码：<code>core/src/main/scala/kafka/log/Log.scala</code></li>
+</ul>
+<ul>
+<li>RabbitMQ 源码：<code>src/rabbit_amqqueue_process.erl</code></li>
+</ul>
+<ul>
+<li>Pulsar 官方文档：Transaction API 与 BookKeeper 架构</li>
+</ul>
+<ul>
+<li>《Kafka: The Definitive Guide》第 2 版</li>
+</ul>
+<ul>
+<li>《RabbitMQ in Depth》</li>
+</ul>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

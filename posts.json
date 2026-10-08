@@ -1,5 +1,23 @@
 [
  {
+  "title": "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
+  "url": "/2026/10/09/%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E6%9E%B6%E6%9E%84%EF%BC%9AKafka-RabbitMQ-Pulsar%E9%80%89%E5%9E%8B%E5%AF%B9%E6%AF%94/",
+  "date": "2026-10-09",
+  "year": 2026,
+  "month": 10,
+  "day": 9,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=9110",
+  "excerpt": "引言 先讲一个我真实踩过的坑。 三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。 事后复盘时我们发现一个残"
+ },
+ {
   "title": "LangGraph状态图驱动Agent的实现原理",
   "url": "/2026/10/08/LangGraph%E7%8A%B6%E6%80%81%E5%9B%BE%E9%A9%B1%E5%8A%A8Agent%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/",
   "date": "2026-10-08",
