@@ -1,5 +1,23 @@
 [
  {
+  "title": "高并发秒杀系统架构设计演进",
+  "url": "/2026/10/13/%E9%AB%98%E5%B9%B6%E5%8F%91%E7%A7%92%E6%9D%80%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%BC%94%E8%BF%9B/",
+  "date": "2026-10-13",
+  "year": 2026,
+  "month": 10,
+  "day": 13,
+  "category": "architecture",
+  "tags": [
+   "architecture",
+   "distributed-systems",
+   "high-availability",
+   "design-patterns",
+   "microservices"
+  ],
+  "cover": "https://loremflickr.com/800/400?lock=3175",
+  "excerpt": "引言 2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。 这不是一个\\"
+ },
+ {
   "title": "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
   "url": "/2026/10/09/%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E6%9E%B6%E6%9E%84%EF%BC%9AKafka-RabbitMQ-Pulsar%E9%80%89%E5%9E%8B%E5%AF%B9%E6%AF%94/",
   "date": "2026-10-09",

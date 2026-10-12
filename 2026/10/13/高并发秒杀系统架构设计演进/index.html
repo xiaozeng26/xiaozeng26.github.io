@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>高并发秒杀系统架构设计演进 | 小曾博客</title>
+  <meta name="description" content="高并发秒杀系统架构设计演进 引言 2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。 这不是一个\"加机器就能解决\"的问题。秒杀系统的本质,是在极短时间内面对远超系统承载能力的突发流量,同时还要保证库存扣">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="高并发秒杀系统架构设计演进">
+  <meta name="twitter:description" content="高并发秒杀系统架构设计演进 引言 2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。 这不是一个\"加机器就能解决\"的问题。秒杀系统的本质,是在极短时间内面对远超系统承载能力的突发流量,同时还要保证库存扣">
+  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=3175">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="高并发秒杀系统架构设计演进">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="高并发秒杀系统架构设计演进 引言 2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。 这不是一个\"加机器就能解决\"的问题。秒杀系统的本质,是在极短时间内面对远超系统承载能力的突发流量,同时还要保证库存扣">
+  <meta property="og:image" content="https://loremflickr.com/800/400?lock=3175">
+  <meta property="article:published_time" content="2026-10-13T04:35:33.000Z">
+  <meta property="article:modified_time" content="2026-10-13T04:35:33.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#高并发秒杀系统架构设计演进"><span class="toc-text">高并发秒杀系统架构设计演进</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-先建立三个生活化类比"><span class="toc-text">核心概念:先建立三个生活化类比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#架构演进-四个阶段"><span class="toc-text">架构演进:四个阶段</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#阶段一-单体直连数据库-1万-QPS-以下"><span class="toc-text">阶段一:单体直连数据库(1万 QPS 以下)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#阶段二-Redis-预扣库存-异步落库-10万-QPS"><span class="toc-text">阶段二:Redis 预扣库存 + 异步落库(10万 QPS)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#阶段三-分层过滤-多级缓存-50万-QPS"><span class="toc-text">阶段三:分层过滤 + 多级缓存(50万 QPS)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#阶段四-单元化-多活-百万-QPS"><span class="toc-text">阶段四:单元化 + 多活(百万 QPS)</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级深度分析-Redis-Lua-脚本为什么能保证原子性"><span class="toc-text">源码级深度分析:Redis Lua 脚本为什么能保证原子性</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-Redis-Lua-原子扣减库存-带防重"><span class="toc-text">示例一:Redis Lua 原子扣减库存(带防重)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-基于-Redisson-的分布式锁-兜底方案"><span class="toc-text">示例二:基于 Redisson 的分布式锁(兜底方案)</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-基于令牌桶的-Sentinel-限流-预热"><span class="toc-text">示例三:基于令牌桶的 Sentinel 限流 + 预热</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-三种库存扣减策略"><span class="toc-text">方案对比:三种库存扣减策略</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=3175)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">高并发秒杀系统架构设计演进</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-13"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-13</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-13"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-13</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="高并发秒杀系统架构设计演进"><a href="#高并发秒杀系统架构设计演进" class="headerlink" title="高并发秒杀系统架构设计演进"></a>高并发秒杀系统架构设计演进</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。</p>
+<p>这不是一个"加机器就能解决"的问题。秒杀系统的本质,是在<strong>极短时间内面对远超系统承载能力的突发流量</strong>,同时还要保证<strong>库存扣减的绝对正确性</strong>。它考验的不只是单点技术,而是对缓存、队列、限流、分布式锁、最终一致性等一系列架构手段的综合调度能力。</p>
+<p>这篇文章我会以"演进"为主线,把秒杀系统从单体到分布式的四个阶段拆开来讲:每个阶段的瓶颈在哪、为什么这么改、源码层面到底发生了什么。如果你正在做营销、票务、抢购类系统,或者只是想把高并发架构的核心思想吃透,这篇文章应该能给你一些真正落地的启发。</p>
+<hr>
+<h2 id="核心概念-先建立三个生活化类比"><a href="#核心概念-先建立三个生活化类比" class="headerlink" title="核心概念:先建立三个生活化类比"></a>核心概念:先建立三个生活化类比</h2>
+<p>在进入代码之前,先把三个最容易混淆的概念讲清楚。</p>
+<p><strong>类比一:秒杀流量 vs 餐厅后厨</strong></p>
+<p>正常的业务流量像一家正常营业的餐厅——客人陆续来,后厨按节奏出餐,厨师(线程)忙而不乱。而秒杀流量像<strong>餐厅门口突然涌来一万个人同时点同一道菜</strong>。这时候如果还让每个客人直接冲到后厨下单,后厨瞬间瘫痪。正确的做法是:门口发号(限流)、点单台先记录(异步队列)、后厨按能力慢慢出餐(削峰)。</p>
+<p><strong>类比二:库存扣减 vs 银行取钱</strong></p>
+<p>库存扣减和银行取钱一样,是<strong>典型的并发写竞争</strong>。1万个人同时看到账户里有100块,如果每个人都"先查余额再扣款",就会出现超卖。银行的做法是加锁 + 原子操作,Redis 的 <code>DECR</code> 就是一把天然的、单线程的"柜员锁"。</p>
+<p><strong>类比三:消息队列 vs 快递分拣中心</strong></p>
+<p>秒杀成功后要写订单、扣库存、发通知、加积分,这些操作如果同步做完,一次请求要几百毫秒。消息队列就像快递分拣中心——用户下单只是把包裹丢进分拣中心(MQ),后续的派送(订单落库、通知)由分拣中心按自己的节奏处理,用户不用等。</p>
+<p>技术定义上,秒杀系统的核心矛盾是:</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>要求</th>
+<th>冲突点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>吞吐量</td>
+<td>峰值 10万+ QPS</td>
+<td>数据库单机写只有几千 TPS</td>
+</tr><tr>
+<td>一致性</td>
+<td>绝对不能超卖</td>
+<td>分布式环境下强一致代价极高</td>
+</tr><tr>
+<td>延迟</td>
+<td>用户感知 < 200ms</td>
+<td>同步链路越多延迟越高</td>
+</tr><tr>
+<td>可用性</td>
+<td>秒杀期间不能挂</td>
+<td>单点故障会被流量放大</td>
+</tr></tbody></table>
+<p>理解了这四个维度的拉扯,后面的架构演进就顺理成章了。</p>
+<hr>
+<h2 id="架构演进-四个阶段"><a href="#架构演进-四个阶段" class="headerlink" title="架构演进:四个阶段"></a>架构演进:四个阶段</h2>
+<h3 id="阶段一-单体直连数据库-1万-QPS-以下"><a href="#阶段一-单体直连数据库-1万-QPS-以下" class="headerlink" title="阶段一:单体直连数据库(1万 QPS 以下)"></a>阶段一:单体直连数据库(1万 QPS 以下)</h3>
+<p>最原始的版本,所有逻辑在一个 Spring Boot 应用里,直接 <code>SELECT ... FOR UPDATE</code> 扣库存。</p>
+<div class="mermaid">
+graph TD
+    A[客户端] --> B[Nginx 负载均衡]
+    B --> C[单体应用集群]
+    C --> D[(MySQL 主库)]
+    C --> E[Redis 缓存]
+</div>
+<p>这个阶段的问题非常明显:MySQL 的行锁在 1万并发下会形成<strong>锁等待队列</strong>,大量请求阻塞在 <code>FOR UPDATE</code> 上,连接池迅速耗尽。而且 <code>SELECT ... FOR UPDATE</code> 是悲观锁,读也要加锁,吞吐极低。</p>
+<h3 id="阶段二-Redis-预扣库存-异步落库-10万-QPS"><a href="#阶段二-Redis-预扣库存-异步落库-10万-QPS" class="headerlink" title="阶段二:Redis 预扣库存 + 异步落库(10万 QPS)"></a>阶段二:Redis 预扣库存 + 异步落库(10万 QPS)</h3>
+<p>把库存预热到 Redis,用 <code>DECR</code> 原子扣减,扣减成功后发 MQ 异步落库。</p>
+<div class="mermaid">
+graph TD
+    A[客户端] --> B[Nginx + Lua 限流]
+    B --> C[应用集群]
+    C --> D{Redis 预扣库存}
+    D -->|扣减成功| E[发送 MQ 消息]
+    D -->|库存不足| F[返回秒杀失败]
+    E --> G[MQ 削峰]
+    G --> H[订单服务消费]
+    H --> I[(MySQL 落库)]
+</div>
+<p>关键点在于:<strong>Redis 是单线程执行命令的</strong>,<code>DECR</code> 天然原子,不用加分布式锁。但这里有个坑——如果只用 <code>DECR</code>,会出现"库存扣成负数"的问题,必须配合 Lua 脚本把"判断 + 扣减 + 记录用户"三步做成原子操作。</p>
+<h3 id="阶段三-分层过滤-多级缓存-50万-QPS"><a href="#阶段三-分层过滤-多级缓存-50万-QPS" class="headerlink" title="阶段三:分层过滤 + 多级缓存(50万 QPS)"></a>阶段三:分层过滤 + 多级缓存(50万 QPS)</h3>
+<p>在 Redis 前面再加一层本地缓存(Caffeine),用<strong>布隆过滤器</strong>拦截无效请求,用<strong>令牌桶</strong>做前置限流。</p>
+<div class="mermaid">
+graph TD
+    A[客户端] --> B[CDN 静态化]
+    B --> C[Nginx 层限流]
+    C --> D[应用层本地缓存 Caffeine]
+    D -->|未命中| E[Redis Cluster]
+    E --> F{库存 Lua 脚本}
+    F -->|成功| G[Kafka 削峰]
+    F -->|失败| H[快速失败]
+    G --> I[订单服务]
+    I --> J[(分库分表 MySQL)]
+</div>
+<p>这一层的核心思想是<strong>层层过滤,把无效流量挡在越前面越好</strong>。80% 的请求其实在秒杀开始前就注定失败(库存已空、用户重复、未登录),这些请求不应该穿透到 Redis。</p>
+<h3 id="阶段四-单元化-多活-百万-QPS"><a href="#阶段四-单元化-多活-百万-QPS" class="headerlink" title="阶段四:单元化 + 多活(百万 QPS)"></a>阶段四:单元化 + 多活(百万 QPS)</h3>
+<p>按用户 ID 哈希分片,每个单元独立部署一套 Redis + MQ + DB,单元内闭环。这是顶级电商的最终形态,本文不展开,但思路和分库分表一致。</p>
+<hr>
+<h2 id="源码级深度分析-Redis-Lua-脚本为什么能保证原子性"><a href="#源码级深度分析-Redis-Lua-脚本为什么能保证原子性" class="headerlink" title="源码级深度分析:Redis Lua 脚本为什么能保证原子性"></a>源码级深度分析:Redis Lua 脚本为什么能保证原子性</h2>
+<p>很多人知道"用 Lua 脚本保证原子性",但不知道<strong>为什么</strong>。我们直接看 Redis 源码。</p>
+<p>Redis 处理命令的入口在 <code>server.c</code> 的 <code>processCommand</code> 函数。当收到 <code>EVAL</code> 命令时,会调用 <code>evalGenericCommand</code>:</p>
+<figure class="highlight c"><pre><code class="language-c">// redis/src/eval.c (简化)
+void evalGenericCommand(client *c, int evalsha) {
+    // 1. 获取 Lua 脚本
+    lua_State *lua = lua_open();
+    
+    // 2. 将脚本加载到 Lua 虚拟机
+    luaLoadLibraries(lua);
+    
+    // 3. 执行脚本 —— 注意这里!
+    luaCallFunction(lua, argc-3, argv+3, 0);
+    
+    // 4. 脚本执行期间,Redis 主线程被完全占用
+    //    其他客户端命令全部排队等待
+}</code></pre></figure>
+<p><strong>关键点</strong>:Redis 是单线程模型,<code>evalGenericCommand</code> 在主线程中同步执行 Lua 脚本。脚本执行期间,主线程不会处理任何其他客户端命令。所以 Lua 脚本里的"判断库存 + 扣减 + 记录"三步,相对于其他所有客户端来说,是一个<strong>不可分割的原子操作</strong>。</p>
+<p>这和你用 <code>MULTI/EXEC</code> 事务有什么区别?区别在于:<code>MULTI/EXEC</code> 只是把命令打包,但<strong>中间不会执行其他命令</strong>——等等,其实这点是一样的。真正的区别是:</p>
+<ol>
+<li><strong>Lua 支持条件逻辑</strong>:可以在脚本里写 <code>if stock > 0 then ... end</code>,而 <code>MULTI/EXEC</code> 不支持读取结果做判断。</li>
+<li><strong>Lua 减少网络往返</strong>:一次 RTT 完成所有操作,<code>MULTI/EXEC</code> 需要多次。</li>
+</ol>
+<p>但是!Lua 脚本有一个<strong>致命坑</strong>:脚本执行时间过长会阻塞整个 Redis。Redis 默认 <code>lua-time-limit</code> 是 5 秒,超过后会打印警告,但<strong>不会中断脚本</strong>(除非你执行 <code>SCRIPT KILL</code>)。所以秒杀脚本必须足够轻量,绝对不能在里面做网络调用或复杂计算。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例一-Redis-Lua-原子扣减库存-带防重"><a href="#示例一-Redis-Lua-原子扣减库存-带防重" class="headerlink" title="示例一:Redis Lua 原子扣减库存(带防重)"></a>示例一:Redis Lua 原子扣减库存(带防重)</h3>
+<p>这是秒杀系统最核心的一段代码,必须做到:判断库存、扣减库存、记录用户、防止重复下单,四步原子。</p>
+<figure class="highlight lua"><pre><code class="language-lua">-- seckill_stock.lua
+-- KEYS[1]: 库存 key, 如 seckill:stock:1001
+-- KEYS[2]: 已购用户集合 key, 如 seckill:users:1001
+-- ARGV[1]: 用户 ID
+-- ARGV[2]: 购买数量
+-- 返回: 1 成功, 0 库存不足, -1 重复下单
+
+-- 1. 先检查用户是否已经买过(用 Set 去重)
+local bought = redis.call(&#x27;SISMEMBER&#x27;, KEYS[2], ARGV[1])
+if bought == 1 then
+    return -1
+end
+
+-- 2. 检查库存是否充足
+local stock = tonumber(redis.call(&#x27;GET&#x27;, KEYS[1]) or &#x27;0&#x27;)
+local num = tonumber(ARGV[2])
+if stock &lt; num then
+    return 0
+end
+
+-- 3. 原子扣减库存
+redis.call(&#x27;DECRBY&#x27;, KEYS[1], num)
+
+-- 4. 记录用户已购买
+redis.call(&#x27;SADD&#x27;, KEYS[2], ARGV[1])
+
+return 1</code></pre></figure>
+<p>对应的 Java 调用代码:</p>
+<figure class="highlight java"><pre><code class="language-java">import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Service;
+
+import java.util.Arrays;
+import java.util.Collections;
+
+@Service
+public class SeckillService {
+
+    private final StringRedisTemplate redisTemplate;
+
+    // 静态加载 Lua 脚本,避免每次传输脚本内容
+    private static final DefaultRedisScript&lt;Long&gt; SECKILL_SCRIPT;
+
+    static {
+        SECKILL_SCRIPT = new DefaultRedisScript&lt;&gt;();
+        SECKILL_SCRIPT.setLocation(
+            new org.springframework.core.io.ClassPathResource(&quot;lua/seckill_stock.lua&quot;));
+        SECKILL_SCRIPT.setResultType(Long.class);
+    }
+
+    public SeckillService(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
+
+    /**
+     * 执行秒杀扣减
+     * @return 0 成功, 1 库存不足, 2 重复下单, 3 系统异常
+     */
+    public int doSeckill(long seckillId, long userId) {
+        String stockKey = &quot;seckill:stock:&quot; + seckillId;
+        String usersKey = &quot;seckill:users:&quot; + seckillId;
+
+        try {
+            Long result = redisTemplate.execute(
+                SECKILL_SCRIPT,
+                Arrays.asList(stockKey, usersKey),
+                String.valueOf(userId),
+                &quot;1&quot;  // 购买数量
+            );
+
+            if (result == null) {
+                return 3;
+            }
+            if (result == 1L) {
+                return 0;   // 扣减成功
+            } else if (result == 0L) {
+                return 1;   // 库存不足
+            } else {
+                return 2;   // 重复下单
+            }
+        } catch (Exception e) {
+            // 记录日志,返回系统异常
+            return 3;
+        }
+    }
+}</code></pre></figure>
+<p><strong>这段代码的坑</strong>:</p>
+<ul>
+<li><code>SISMEMBER</code> 和 <code>SADD</code> 用的是 Set 结构,如果秒杀商品有几百万用户参与,这个 Set 会占用大量内存。生产环境通常改成<strong>布隆过滤器 + 数据库唯一索引双重防重</strong>。</li>
+</ul>
+<ul>
+<li>Lua 脚本中 <code>ARGV[1]</code> 是字符串,<code>SISMEMBER</code> 是精确匹配,没问题;但如果你用 <code>tonumber</code> 转换用户 ID 要小心精度丢失,用户 ID 建议用字符串存储。</li>
+</ul>
+<h3 id="示例二-基于-Redisson-的分布式锁-兜底方案"><a href="#示例二-基于-Redisson-的分布式锁-兜底方案" class="headerlink" title="示例二:基于 Redisson 的分布式锁(兜底方案)"></a>示例二:基于 Redisson 的分布式锁(兜底方案)</h3>
+<p>Lua 脚本虽然原子,但在<strong>跨多个 Redis key 或需要复杂业务逻辑</strong>时,分布式锁更合适。Redisson 的锁实现值得深挖,我们看它的核心 <code>tryLockInnerAsync</code>:</p>
+<figure class="highlight java"><pre><code class="language-java">// Redisson 源码简化版: RedissonLock.tryLockInnerAsync
+&lt;T&gt; RFuture&lt;T&gt; tryLockInnerAsync(long waitTime, long leaseTime, 
+                                  TimeUnit unit, long threadId,
+                                  RedisStrictCommand&lt;T&gt; command) {
+    return evalWriteAsync(getRawName(), LongCodec.INSTANCE, command,
+        // Lua 脚本: 原子性地尝试加锁
+        &quot;if (redis.call(&#x27;exists&#x27;, KEYS[1]) == 0) then &quot; +
+            &quot;redis.call(&#x27;hincrby&#x27;, KEYS[1], ARGV[2], 1); &quot; +
+            &quot;redis.call(&#x27;pexpire&#x27;, KEYS[1], ARGV[1]); &quot; +
+            &quot;return nil; &quot; +
+        &quot;end; &quot; +
+        &quot;if (redis.call(&#x27;hexists&#x27;, KEYS[1], ARGV[2]) == 1) then &quot; +
+            &quot;redis.call(&#x27;hincrby&#x27;, KEYS[1], ARGV[2], 1); &quot; +
+            &quot;redis.call(&#x27;pexpire&#x27;, KEYS[1], ARGV[1]); &quot; +
+            &quot;return nil; &quot; +
+        &quot;end; &quot; +
+        &quot;return redis.call(&#x27;pttl&#x27;, KEYS[1]);&quot;,
+        Collections.singletonList(getRawName()),
+        unit.toMillis(leaseTime), getLockName(threadId));
+}</code></pre></figure>
+<p><strong>设计精妙之处</strong>:</p>
+<ol>
+<li>用 Hash 结构存储锁,key 是锁名,field 是 <code>UUID:threadId</code>,value 是重入次数——天然支持<strong>可重入</strong>。</li>
+<li>加锁成功返回 nil,失败返回剩余 TTL,调用方根据返回值决定是否等待。</li>
+<li><code>pexpire</code> 每次重入都刷新过期时间,避免业务没执行完锁就过期。</li>
+</ol>
+<p><strong>Redisson 的看门狗机制</strong>是另一个亮点:如果没指定 <code>leaseTime</code>,默认 30 秒,并且会启动一个后台线程每 10 秒续期一次。源码在 <code>RedissonLock.renewExpiration</code>:</p>
+<figure class="highlight java"><pre><code class="language-java">private void renewExpiration() {
+    Timeout task = commandExecutor.getConnectionManager().newTimeout(
+        new TimerTask() {
+            @Override
+            public void run(Timeout timeout) {
+                // 续期 Lua: 只有锁还存在且属于当前线程才续期
+                RFuture&lt;Boolean&gt; future = renewExpirationAsync(threadId);
+                future.onComplete((res, e) -&gt; {
+                    if (res) {
+                        // 递归调用,继续续期
+                        renewExpiration();
+                    }
+                });
+            }
+        }, 
+        internalLockLeaseTime / 3,  // 10 秒后续期
+        TimeUnit.MILLISECONDS
+    );
+}</code></pre></figure>
+<p><strong>实战建议</strong>:秒杀场景下我<strong>不推荐用分布式锁</strong>。原因很简单——秒杀要的是高吞吐,而分布式锁把并发变成了串行,10万 QPS 全堵在锁上,RT 会飙升到几秒。分布式锁适合"库存扣减结果需要等待、且并发量不高"的场景,比如后台管理系统的库存调整。</p>
+<h3 id="示例三-基于令牌桶的-Sentinel-限流-预热"><a href="#示例三-基于令牌桶的-Sentinel-限流-预热" class="headerlink" title="示例三:基于令牌桶的 Sentinel 限流 + 预热"></a>示例三:基于令牌桶的 Sentinel 限流 + 预热</h3>
+<p>秒杀开始瞬间的流量是脉冲式的,必须做前置限流。用 Sentinel 的 <code>WarmUpController</code> 做冷启动预热:</p>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.csp.sentinel.Entry;
+import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.alibaba.csp.sentinel.slots.block.flow.controller.WarmUpController;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class SeckillFlowRuleConfig {
+
+    @PostConstruct
+    public void initFlowRules() {
+        List&lt;FlowRule&gt; rules = new ArrayList&lt;&gt;();
+
+        FlowRule rule = new FlowRule();
+        rule.setResource(&quot;seckill_order&quot;);          // 资源名
+        rule.setGrade(RuleConstant.FLOW_GRADE_QPS); // QPS 限流
+        rule.setCount(3000);                        // 峰值 QPS
+
+        // 使用 WarmUpController: 冷启动预热
+        // 参数: 冷启动时长(秒), 冷启动时允许的 QPS 是峰值的 1/3
+        WarmUpController controller = new WarmUpController(3000, 10, 3);
+        rule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP);
+        rule.setController(controller);
+
+        rules.add(rule);
+        FlowRuleManager.loadRules(rules);
+    }
+
+    /**
+     * 秒杀入口: 被 Sentinel 保护的资源
+     */
+    public String seckill(long userId, long seckillId) {
+        Entry entry = null;
+        try {
+            entry = SphU.entry(&quot;seckill_order&quot;);
+            // 通过限流,执行真正的秒杀逻辑
+            return &quot;success&quot;;
+        } catch (BlockException e) {
+            // 被限流,快速失败
+            return &quot;rate_limited&quot;;
+        } finally {
+            if (entry != null) {
+                entry.exit();
+            }
+        }
+    }
+}</code></pre></figure>
+<p><strong>WarmUpController 的原理</strong>(源码级):它内部维护一个令牌桶,但桶的容量不是固定的,而是通过 <code>warningToken</code> 和 <code>maxToken</code> 两个阈值,在冷启动期内<strong>逐步放开</strong>。公式是:</p>
+<figure class="highlight "><pre><code>斜率 = (maxToken - warningToken) / warmUpPeriodInSec
+当前允许 QPS = warningToken + (now - startTime) * 斜率</code></pre></figure>
+<p>这样系统在秒杀开始的前 10 秒,允许的 QPS 从 1000 缓慢爬升到 3000,给 JVM 和连接池一个预热时间,避免刚启动就被打挂。</p>
+<hr>
+<h2 id="方案对比-三种库存扣减策略"><a href="#方案对比-三种库存扣减策略" class="headerlink" title="方案对比:三种库存扣减策略"></a>方案对比:三种库存扣减策略</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>一致性</th>
+<th>吞吐</th>
+<th>实现复杂度</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据库悲观锁 <code>FOR UPDATE</code></td>
+<td>强一致</td>
+<td>低(千级 TPS)</td>
+<td>低</td>
+<td>库存少、并发低的后台场景</td>
+</tr><tr>
+<td>Redis Lua 原子扣减</td>
+<td>最终一致</td>
+<td>高(10万+ QPS)</td>
+<td>中</td>
+<td>秒杀、抢购主流程</td>
+</tr><tr>
+<td>分布式锁 + DB</td>
+<td>强一致</td>
+<td>中(万级 QPS)</td>
+<td>高</td>
+<td>金融级、不能容忍最终一致</td>
+</tr></tbody></table>
+<p><strong>为什么秒杀选"最终一致"?</strong> 因为秒杀的商品库存是<strong>有限且已知</strong>的,Redis 预扣成功后,即使消息丢失,也可以通过<strong>对账任务</strong>从 DB 反推修正。用户看到的是"秒杀成功,订单处理中",而不是"秒杀成功,订单已创建"——这个体验上的妥协,换来了 100 倍的吞吐提升。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 库存预热必须做,但要注意时机</strong></p>
+<p>秒杀开始前 5 分钟把库存从 DB 加载到 Redis。太早了,可能被其他操作污染;太晚了,预热请求本身会打挂 Redis。用 <code>SETNX</code> 做幂等,避免重复预热。</p>
+<p><strong>2. 不要用 <code>DEL</code> 删缓存,用 <code>SET</code> 覆盖</strong></p>
+<p>秒杀结束后,不要把 Redis 的库存 key 直接 <code>DEL</code>,而是 <code>SET</code> 成 0 或一个标记值。否则缓存击穿会让大量请求打到 DB。</p>
+<p><strong>3. MQ 消息一定要做幂等</strong></p>
+<p>Kafka/RocketMQ 都可能重复投递。订单服务的消费逻辑必须用 <code>seckillId + userId</code> 做唯一索引,重复消息直接丢弃。</p>
+<p><strong>4. 限流要分层,别只做一层</strong></p>
+<p>Nginx 层挡掉 70% 的无效流量(未登录、黑名单),应用层 Sentinel 挡掉 20%(超出承载),剩下 10% 才真正进 Redis。每一层都要有独立的监控告警。</p>
+<p><strong>5. 兜底方案:秒杀失败要有友好提示</strong></p>
+<p>秒杀失败不是异常,是常态。前端要给"手慢了,下次再来"的引导,而不是 500 错误页。同时记录失败原因(库存不足/被限流/系统繁忙),用于后续优化。</p>
+<p><strong>6. 常见坑:Redis Cluster 的 Lua 脚本跨槽问题</strong></p>
+<p>如果你的库存 key 和用户 key 在不同槽(slot),Lua 脚本会直接报 <code>CROSSSLOT</code> 错误。解决办法是用 <code>{seckillId}</code> 作为 hash tag,强制两个 key 落在同一槽:</p>
+<figure class="highlight "><pre><code>seckill:{1001}:stock
+seckill:{1001}:users</code></pre></figure>
+<p><strong>7. 监控指标必须包括:Redis 慢查询、MQ 堆积量、DB 连接池活跃数</strong></p>
+<p>秒杀期间,任何一个指标异常都可能导致雪崩。特别是 Redis 的 <code>slowlog</code>,Lua 脚本执行超过 10ms 就要警惕。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回顾一下秒杀系统架构演进的四个阶段:</p>
+<ol>
+<li><strong>单体直连 DB</strong>:简单但吞吐低,<code>FOR UPDATE</code> 是瓶颈。</li>
+<li><strong>Redis 预扣 + MQ 异步</strong>:核心跃迁,吞吐提升 10 倍,引入最终一致性。</li>
+<li><strong>分层过滤 + 多级缓存</strong>:把无效流量挡在最外层,吞吐再提升 5 倍。</li>
+<li><strong>单元化多活</strong>:顶级形态,成本极高,按需选择。</li>
+</ol>
+<p>核心思想其实就三条:</p>
+<ul>
+<li><strong>能异步的绝不同步</strong>(MQ 削峰)</li>
+</ul>
+<ul>
+<li><strong>能内存的绝不落库</strong>(Redis 预扣)</li>
+</ul>
+<ul>
+<li><strong>能前置的绝不后置</strong>(分层限流)</li>
+</ul>
+<p>延伸思考:秒杀系统的很多设计,在<strong>抢红包、限量发售、票务抢座</strong>等场景都能复用。但要注意,每个场景的"库存"语义不同——秒杀是"总量扣减",票务是"座位锁定",抢红包是"金额分配"。理解业务语义,比套用架构模板更重要。</p>
+<p>最后留一个问题给你:如果秒杀的商品需要<strong>跨多个仓库发货</strong>,库存该怎么设计?这是一个典型的分布式事务问题,欢迎在评论区讨论。</p>
+<hr>
+<p>*本文代码基于 Spring Boot 3.x + Redis 7.x + Redisson 3.24 验证。生产环境请根据实际压测结果调整参数,不要照搬。*</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

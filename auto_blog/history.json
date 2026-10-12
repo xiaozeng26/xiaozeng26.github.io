@@ -524,6 +524,13 @@
       "subtopic": "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
       "date": "2026-10-08",
       "url": "/2026/10/09/事件驱动架构：Kafka-RabbitMQ-Pulsar选型对比/"
+    },
+    {
+      "title": "高并发秒杀系统架构设计演进",
+      "category": "architecture",
+      "subtopic": "高并发秒杀系统架构设计演进",
+      "date": "2026-10-12",
+      "url": "/2026/10/13/高并发秒杀系统架构设计演进/"
     }
   ],
   "used_subtopics": {
@@ -582,7 +589,8 @@
       "分布式配置中心架构设计",
       "DDD领域驱动设计落地实践与六边形架构",
       "分布式ID生成方案：雪花算法、Leaf、美团方案对比",
-      "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比"
+      "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
+      "高并发秒杀系统架构设计演进"
     ],
     "docker_kubernetes": [
       "容器化应用的12-Factor原则实践",
@@ -668,6 +676,7 @@
     "asyncio事件循环源码级分析与实战": "b89483243f9dc9517d95bb688aee8a34ff6710df10677c731a4bb345f5f083cf",
     "JVM内存模型与垃圾回收器深度解析": "3399175238c345faef40d1b8eab06df7cfd97d4e4e3cee084d885a53064b9b46",
     "LangGraph状态图驱动Agent的实现原理": "5eac21f2552dcf984e9931b8b40af2652c9c1a27bc3b6dca8f6601f562a113f5",
-    "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比": "e6f83822367d603f200d9a49f66276d1a573fab7752a1618bf862ba74c0cd977"
+    "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比": "e6f83822367d603f200d9a49f66276d1a573fab7752a1618bf862ba74c0cd977",
+    "高并发秒杀系统架构设计演进": "0faa46230f747d2a3472f6ed051724fade46180337e11cf1a9b64570009966a6"
   }
 }
