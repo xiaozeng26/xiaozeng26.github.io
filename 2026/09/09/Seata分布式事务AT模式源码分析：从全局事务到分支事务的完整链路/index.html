@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路">
   <meta name="twitter:description" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（R">
-  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=8633">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8633">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="Seata分布式事务AT模式源码分析：从全局事务到分支事务的完整链路 引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源管理器（R">
-  <meta property="og:image" content="https://loremflickr.com/800/400?lock=8633">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8633">
   <meta property="article:published_time" content="2026-09-09T23:33:04.000Z">
   <meta property="article:modified_time" content="2026-09-09T23:33:04.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -172,7 +172,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=8633)">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8633)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">

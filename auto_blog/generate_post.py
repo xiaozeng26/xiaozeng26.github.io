@@ -633,12 +633,14 @@ def generate_toc(content_html):
     return toc_html
 
 # ============================================================
-# 封面图片（LoremFlickr 免费图库，按标题种子生成，每篇不同；国内可直连）
+# 封面图片（三叶随机风景图 API，国内可直连；免费无需注册）
+# 说明：`_={seed}` 只是去缓存参数，让首页多张封面 URL 互不相同，
+#       否则浏览器会把相同 URL 缓存成同一张图；图片本身每次加载随机。
 # ============================================================
 def get_cover_image(title):
-    """根据文章标题生成唯一的封面图 URL，同一标题始终返回同一张图"""
+    """根据文章标题生成封面图 URL（三叶随机风景图，国内可直连）"""
     seed = int(hashlib.md5(title.encode("utf-8")).hexdigest(), 16) % 10000
-    return f"https://loremflickr.com/800/400?lock={seed}"
+    return f"https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_={seed}"
 
 # ============================================================
 # Markdown → HTML 转换（改进版：正确处理列表组、引用块、段落）

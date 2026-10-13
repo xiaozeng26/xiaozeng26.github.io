@@ -14,7 +14,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3175",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3175",
   "excerpt": "引言 2024年双十一零点,某电商平台一款限量5000台的旗舰手机在开售后的第3秒就被抢购一空,峰值QPS冲到 82万。而就在半年前,同一个团队的系统在 5万 QPS 时就开始出现大面积超卖、Redis 连接池打满、数据库 CPU 100% 的连锁雪崩。 这不是一个\\"
  },
  {
@@ -32,7 +32,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9110",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9110",
   "excerpt": "引言 先讲一个我真实踩过的坑。 三年前我在一家电商公司做订单履约系统。大促前夜，订单服务每秒写入 3 万条消息到一个 RabbitMQ 集群，消费者是库存、积分、风控、通知四个下游服务。结果零点一过，RabbitMQ 的队列积压瞬间冲到千万级，内存告警、磁盘刷盘、连接被打满，最后整个链路雪崩。 事后复盘时我们发现一个残"
  },
  {
@@ -52,7 +52,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7931",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7931",
   "excerpt": "引言 去年我在给一家做智能客服的团队做架构评审时,遇到一个非常典型的问题。他们的 Agent 系统最初用 LangChain 的 AgentExecutor 搭建,几十行代码就能跑通一个\\"
  },
  {
@@ -70,7 +70,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1916",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1916",
   "excerpt": "引言 去年双十一大促前夜，我们一个核心订单服务突然出现诡异现象：QPS 从 8000 骤降到 1200，接口 P99 从 50ms 飙到 3.2s。运维同学第一反应是\\"
  },
  {
@@ -88,7 +88,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7319",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7319",
   "excerpt": "引言 去年双十一大促,我负责的一个订单查询服务突然出现了诡异的性能问题:QPS 从平时的 8000 骤降到 1200,但 CPU 利用率却只有 30%,内存也正常。排查了整整一天,最后定位到一段看起来人畜无害的代码: async def get_order_detail(order_id: int): # 缓存没命中,"
  },
  {
@@ -106,7 +106,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4447",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4447",
   "excerpt": "引言 2018年之前，我维护过一套基于Eureka + Spring Cloud Config + RabbitMQ手动刷新的微服务架构。服务上线要改三处配置，配置变更要重启或者调 /actuator/bus-refresh，注册中心挂了整个调用链跟着雪崩。那会儿最怕的不是写业务代码，而是周五下午改配置。 后来阿里把内"
  },
  {
@@ -126,7 +126,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4229",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4229",
   "excerpt": "引言 去年我负责一个企业级 RAG（检索增强生成）平台的重构。项目初期，团队为了\\"
  },
  {
@@ -144,7 +144,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8852",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8852",
   "excerpt": "引言 去年双十一大促前夜，我们团队接到一个紧急工单：订单中心在凌晨扩容后，出现了大量主键冲突。排查发现，某台机器的系统时钟被 NTP 回拨了 8 毫秒——就这么不起眼的 8 毫秒，让 Snowflake 算法在同一毫秒内产生了重复 ID，直接导致上千笔订单写入失败。 这不是个例。在分布式系统中，ID 生成看似是最基础的"
  },
  {
@@ -162,7 +162,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3434",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3434",
   "excerpt": "引言 先说一个真实的生产事故。某支付系统在大促前压测时，QPS 刚过 8000，服务响应时间突然从 12ms 飙到 400ms，P99 突破 2s。排查了半天，CPU、内存、GC 都正常，最后定位到日志模块——团队用的是标准库 log 包，每条日志都加了一把互斥锁，且每次写盘都是一次系统调用，同步刷盘。在高并发下，这把"
  },
  {
@@ -180,7 +180,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8167",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8167",
   "excerpt": "引言 先看一段极其常见的代码： public class Counter { private final ReentrantLock lock = new ReentrantLock(); private int count = 0; public void increment() { lock.lock(); try"
  },
  {
@@ -200,7 +200,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4550",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4550",
   "excerpt": "引言 去年冬天，我接手了一个企业知识库问答项目。客户是一家大型律所，他们希望把内部十万份合同、判例、法律意见书灌进模型，让律师用自然语言就能检索和推理。一开始我们选了最直接的路子——调用 GPT-4 的 API，配合 RAG 做检索增强。跑了两周，问题来了：律所对数据出境极其敏感，合同文本不允许发往任何第三方 API；"
  },
  {
@@ -218,7 +218,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5098",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5098",
   "excerpt": "引言 凌晨两点，监控告警炸了。一个部署在K8s集群里的微服务突然出现间歇性超时，但容器本身CPU、内存都正常。排查了半天，最后定位到问题：跨节点Pod通信丢包。 这不是玄学，而是网络插件选型埋下的坑。你可能也遇到过： Flannel的VXLAN模式下，跨节点延迟比同节点高出10倍； Calico的BGP模式看起来很美好"
  },
  {
@@ -236,7 +236,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8204",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8204",
   "excerpt": "引言 先讲一个我亲身经历过的项目事故。 三年前我接手一个\\"
  },
  {
@@ -254,7 +254,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5311",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5311",
   "excerpt": "引言 2023年9月，Java 21正式发布，虚拟线程（Virtual Threads）作为JEP 444的正式特性落地。这不是一次普通的API更新，而是Java并发模型自1996年以来最重大的变革。 先看一个真实场景。某电商平台的订单查询服务，采用经典的\\"
  },
  {
@@ -272,7 +272,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9233",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9233",
   "excerpt": "引言 先说一个我亲身经历的故事。 三年前，我接手了一个中型 Go 微服务项目，大约 40 个包、200 多个文件。项目最初只有 3 个人写，两年后扩展到 12 个人。上线时一切正常，但当新同事要加一个\\"
  },
  {
@@ -292,7 +292,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7844",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7844",
   "excerpt": "引言 去年冬天，我帮一家做智能客服的团队做架构评审。他们的系统上线三个月，用户投诉量却一直降不下来。问题很有意思：用户在第一轮对话里说了\\"
  },
  {
@@ -310,7 +310,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9990",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9990",
   "excerpt": "引言 先说一个我亲身经历过的生产事故。 2023年，我负责的一个微服务集群要从中东机房扩展到欧洲机房。运维同学兴高采烈地跑来说：“Chart 都写好了，改个 values.yaml 就能上。” 结果上线当天，Pod 全部 CrashLoopBackOff。排查了三个小时才发现——中东环境的 values-prod.ya"
  },
  {
@@ -328,7 +328,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3236",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3236",
   "excerpt": "引言 去年双十一大促前夜，我所在团队负责的一个订单查询服务突然在压测中出现雪崩：下游库存服务因为一次慢SQL导致响应时间从50ms飙到3s，订单服务线程池瞬间被打满，紧接着整个调用链路像多米诺骨牌一样倒下。事后复盘时我们发现，如果当时在订单服务对库存接口配置了熔断降级规则，这场事故完全可以避免。 这就是流量治理要解决的"
  },
  {
@@ -346,7 +346,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3560",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3560",
   "excerpt": "引言 想象一下这样的场景：你负责的微服务系统有 30 多个服务，某天凌晨告警群炸了——某个服务的 P99 延迟从 20ms 飙升到 2s。你打开日志系统，发现每个服务的日志格式都不一样，有的用 logrus，有的用 zap，有的直接 fmt.Println；你想追踪一个请求的完整链路，却发现 trace ID 在跨服务"
  },
  {
@@ -366,7 +366,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2831",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2831",
   "excerpt": "引言 去年双十一大促前夜，我们的智能客服系统突然集体“降智”：同一个退款问题，上午还能给出准确的三步操作指引，晚上就开始胡编乱造，甚至建议用户“联系火星客服”。排查了半天，模型没换、温度没调、知识库没更新，唯一的变量是——我们在Prompt里加了一句“请尽量简洁地回答用户问题”。 这就是Prompt Engineeri"
  },
  {
@@ -384,7 +384,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2600",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2600",
   "excerpt": "引言 凌晨两点，线上告警群炸了。某个核心服务的数据库连接池被打满，排查发现是一位同事把连接池上限从 200 改成了 20——他改的是配置文件，但忘了通知运维重新发布。更糟的是，这个配置分散在 12 个实例上，运维只能一台台登录机器去改，改完还得一台台重启。 这个场景几乎每个做微服务的团队都经历过。配置，这个看起来最不起"
  },
  {
@@ -402,7 +402,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1339",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1339",
   "excerpt": "引言 去年我接手了一个日活百万的AI服务网关，代码基于FastAPI构建。上线三个月后，一个诡异的线上问题让我彻夜难眠：在QPS突破8000时，部分请求的数据库连接竟然串了——A用户的请求拿到了B用户的租户上下文，导致跨租户数据泄露。 排查了两天，最终定位到问题根源：一个使用了Depends的依赖函数内部持有可变状态，"
  },
  {
@@ -420,7 +420,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4340",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4340",
   "excerpt": "引言 先讲一个我亲身经历的线上事故。 三年前，我负责的一个订单服务在凌晨两点突然出现大量超时告警。排查发现，一个刚入职的同事为了让日志链路追踪生效，在 pom.xml 里引入了公司内部的 trace-log-starter，但忘了在 application.yml 里配置 trace.sample-rate。结果这个 "
  },
  {
@@ -438,7 +438,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1111",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1111",
   "excerpt": "引言 先说一个我真实踩过的坑。 几年前我负责一个订单对账服务，需要同时监听三个上游：Kafka 消费到的订单变更、定时器触发的对账批处理、以及运维下发的紧急停止指令。当时年轻气盛，直接写了三个 goroutine，每个 goroutine 各自处理自己的 channel，然后用一堆 sync.Mutex 和一个共享的 "
  },
  {
@@ -456,7 +456,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4571",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4571",
   "excerpt": "引言 凌晨两点，告警群炸了。某电商核心订单服务在大促预热期间 QPS 从 800 飙升到 12000，Pod 数量却纹丝不动地停在 6 个，CPU 被打到 98%，接口 P99 从 120ms 涨到 8 秒，用户下单页面转圈转到了天亮。运维同学手忙脚乱地 kubectl scale 到 50 个副本，十分钟后流量回落，"
  },
  {
@@ -474,7 +474,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5974",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5974",
   "excerpt": "引言 凌晨两点，手机告警群炸了。某电商平台大促开始后的第 37 秒，订单服务 QPS 从 8000 飙升到 42000，三个数据库连接池瞬间打满，紧接着商品详情、购物车、支付服务像多米诺骨牌一样接连超时。运维同学手忙脚乱地重启服务，但重启后 10 秒内又被新流量打挂——典型的雪崩效应。 事后复盘发现：真正的问题不在于订"
  },
  {
@@ -492,7 +492,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6733",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6733",
   "excerpt": "引言 2024年10月，CPython 3.13 正式发布，带来了一个被讨论了近十年的实验性特性：自由线程（Free-Threaded）模式，也就是官方所称的 \\"
  },
  {
@@ -512,7 +512,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1192",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1192",
   "excerpt": "引言 去年双十一前夕，我接手了一个客服工单自动处理系统的重构。原系统用硬编码的 if-else 串联了十几个 LLM 调用：先分类工单、再查知识库、然后判断是否需要转人工、最后生成回复。上线三个月后，产品经理要求新增\\"
  },
  {
@@ -530,7 +530,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8633",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8633",
   "excerpt": "引言 先想象一个场景：你在电商平台下单，订单服务扣减库存，账户服务扣款，积分服务加积分。这三个操作分属三个微服务，各自使用独立的数据库。如果扣款成功但扣库存失败，用户会收到一笔“幽灵订单”——钱付了，货没发。 这就是典型的分布式事务问题。传统本地事务的ACID在跨服务、跨数据库场景下失效，我们需要一种机制来协调多个资源"
  },
  {
@@ -548,7 +548,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5153",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5153",
   "excerpt": "引言 想象一下，你正在开发一个基于 FastAPI 的支付服务。你的代码里充满了这样的重复逻辑： @app.post(&quot;/api/v1/pay&quot;) async def create_payment(request: Request): # 1. 检查用户是否登录 # 2. 检查用户是否有权限 # 3"
  },
  {
@@ -566,7 +566,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3759",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3759",
   "excerpt": "引言 笔者曾在一次生产事故中，面对一个棘手问题：一个基于Docker Swarm部署的微服务集群，在业务高峰期突然出现大量请求超时。排查后发现，罪魁祸首竟是服务间通信走了host网络模式，导致宿主机网络命名空间成为瓶颈，iptables规则在数千条连接下性能急剧下降。 这次经历让我深刻意识到，Docker网络模式的选择"
  },
  {
@@ -584,7 +584,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8430",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8430",
   "excerpt": "引言 凌晨两点，我盯着监控面板上那条刺眼的红线——P99延迟从8ms飙升到800ms，持续了整整1.2秒。压测环境，50并发，1GB堆内存，Go 1.8。这是三年前我在一家电商公司遇到的真实场景。当时我们的订单服务用Go重写后，吞吐量是Java版本的3倍，但GC停顿像幽灵一样随机出现。 那条红线让我在接下来三个月里，把"
  },
  {
@@ -602,7 +602,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9766",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9766",
   "excerpt": "引言 在微服务架构盛行的今天，分布式事务框架（如Seata、TCC）层出不穷，但绝大多数业务场景下的数据一致性保障，依然要回归到本地事务这个最基础的单元。而Spring事务管理，作为Java后端开发者绕不开的核心技能，其传播行为和失效场景的掌握程度，往往直接决定了一个系统的数据可靠性。 想象这样一个场景：你的系统收到一"
  },
  {
@@ -620,7 +620,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1250",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1250",
   "excerpt": "K8s Operator模式与自定义资源CRD开发：从\\"
  },
  {
@@ -638,7 +638,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3081",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3081",
   "excerpt": "引言 先讲一个我上周刚经历的真实场景。 凌晨两点，我被电话吵醒。监控系统显示订单库的CPU使用率持续100%，慢查询堆积如山。登录服务器一看，单表数据量已经突破1.2亿行，索引深度达到5层，即使走索引也需要多次随机IO。更麻烦的是，报表部门要拉全量数据做分析，一条SELECT COUNT(*)直接把主库拖垮，从库复制延"
  },
  {
@@ -656,7 +656,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2788",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2788",
   "excerpt": "引言 想象一下，你正在开发一个日活百万的API服务。某天，你发现所有请求的响应时间突然飙升，排除了数据库和下游服务的问题后，你开始怀疑自己的HTTP层处理逻辑。你打开了pprof，发现大量goroutine阻塞在某个中间件的channel上。这时你才意识到，虽然你每天都用net/http写接口，但你对它的内部工作机制—"
  },
  {
@@ -674,7 +674,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=673",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=673",
   "excerpt": "引言 你是否曾在测试代码中看到过这样的场景：一个测试函数被十几个 @pytest.fixture 装饰器包裹，每个 fixture 都隐藏着复杂的依赖关系；或者为了复用一套测试环境，在 conftest.py 里写了上千行配置代码，却因 fixture 的作用域理解偏差导致测试数据互相污染，排查到深夜？ 作为 Pyth"
  },
  {
@@ -692,7 +692,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3473",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3473",
   "excerpt": "引言 在微服务架构盛行的今天，分布式锁已经成为解决并发问题的标配工具。我曾在一次线上事故中深刻体会到它的重要性：某电商平台的库存服务在双11大促期间，由于并发扣减库存时没有使用分布式锁，导致超卖现象——数据库显示库存为负，最终造成了数十万元的损失。 事后复盘时我们发现，问题的根源不在于代码逻辑错误，而在于分布式环境下多"
  },
  {
@@ -710,7 +710,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5899",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5899",
   "excerpt": "引言 让我们先从一次真实的“事故”说起。 假设你是一家头部电商平台的架构师，你的微服务数量已经膨胀到3000+。某个周四的深夜，运营团队发起了一场“限时秒杀”活动，瞬间流量暴涨。不到2分钟，监控系统告警：核心交易链路的P99延迟从80ms飙升到2000ms，且呈线性增长趋势。你登录控制台，发现流量并没有打垮数据库，但服"
  },
  {
@@ -728,7 +728,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=13",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=13",
   "excerpt": "引言 假设你是一个 SaaS 平台的运维负责人，某天凌晨三点，一个“租户刺客”突然爆发——他的疯狂循环像一台永不停歇的碎纸机，将宿主机 32 核 CPU 全部打满。更糟的是，这个进程在 top 命令里看起来完全正常，因为它只是某个容器内的孤儿进程，而你的监控系统却因为 namespace 的“信息屏蔽”而瞎了。于是，整"
  },
  {
@@ -746,7 +746,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2887",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2887",
   "excerpt": "引言 想象一下，你是一家餐厅的老板，后厨只有一把菜刀。当两位厨师同时需要使用这把刀时，一位必须等待另一位用完。在Go语言的世界里，sync.Mutex 就是这把菜刀，而等待的厨师们则构成了一个阻塞队列。 在实际的高并发微服务架构中，我们经常遇到这样的场景：多个goroutine同时读写共享资源（如数据库连接池、配置缓存"
  },
  {
@@ -764,7 +764,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4418",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4418",
   "excerpt": "引言 想象一下，你在一家繁忙的餐厅后厨工作。每个服务员（Session）手里都拿着一份订单（Transaction），他们需要协调各个厨师（数据库连接）按照正确的顺序烹饪菜品。如果服务员A正在处理红烧肉，服务员B却把同一份红烧肉端走了，后厨就会陷入混乱。 这就是我在生产环境中遇到的真实场景：一个基于FastAPI的订单"
  },
  {
@@ -782,7 +782,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7162",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7162",
   "excerpt": "引言 想象这样一个场景：你的电商系统正在经历双十一大促，订单量每秒突破5万笔。订单服务调用支付、库存、积分等多个下游系统，任何一个环节抖动都可能导致订单丢失。此时，你突然发现——消息中间件集群的某个Broker节点宕机了。 这不是恐怖故事，而是我曾在某头部电商平台真实经历的运维事件。当时我们的RocketMQ集群承载着"
  },
  {
@@ -800,7 +800,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7126",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7126",
   "excerpt": "引言 先讲个真实的故事。 去年我接手了一个“年久失修”的电商系统，代码库超过 200 万行，部署一次需要 40 分钟，线上事故平均每周 3 起。最要命的是，每次发布都像拆炸弹——你不知道改了一个 UserService 里的静态变量，会不会把 OrderService 里的库存扣减逻辑给炸了。 这个系统不是个例。我见过"
  },
  {
@@ -820,7 +820,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9828",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9828",
   "excerpt": "引言 想象这样一个场景：你正在使用一个复杂的AI代理系统处理一笔银行转账。系统已经完成了用户身份验证、风险评估、合规检查，正准备执行转账操作——突然，进程崩溃了。用户重新发起请求时，整个流程从头开始，用户又被问了一遍“请问您的身份证号是？”。 这不仅仅是体验问题，更是架构问题。在传统的单体应用中，一次请"
  },
  {
@@ -838,7 +838,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1463",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1463",
   "excerpt": "引言 想象一下，你正在运营一家连锁餐厅。每家分店（容器）都需要一套完整的厨房设备（基础镜像），但如果你给每家分店都买一套全新的厨具，成本将高得离谱。聪明的做法是：所有分店共享一个中央仓库（基础镜像层），每家分店只需要在自己需要改动的地方加上自己的专属设备（容器层）。 这正是Docker存储驱动要解决的核心问题。但在生产"
  },
  {
@@ -856,7 +856,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=618",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=618",
   "excerpt": "引言 想象一下：你的Java应用已经上线运行，突然发现某个接口的响应时间从100ms飙升到2秒。你急需知道是哪个方法调用了外部服务导致延迟，但日志里只有业务信息，没有方法调用的时间统计。更糟糕的是，这是一个线上问题，你不能停机、不能改代码、不能重新部署。 面对这个场景，你有几条路可选： 改代码加日志 — 需要重新编译、"
  },
  {
@@ -874,7 +874,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5956",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5956",
   "excerpt": "引言 想象一下，你正在维护一个日请求量千万级的订单系统。某天凌晨，监控告警突然响起：order confirmation failed。你翻遍日志，只找到这行笼统的错误信息——没有订单号、没有失败原因、没有调用链上下文。你只能逐层排查，从API网关到业务逻辑到数据库连接池，花了40分钟才定位到是Redis连接池耗尽。 "
  },
  {
@@ -892,7 +892,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6923",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6923",
   "excerpt": "引言 想象一下，你正在运营一家日订单量百万级的电商平台。某个深夜大促，突然涌入的流量让你的Python服务内存飙升到4GB，紧接着OOM Killer直接干掉了你的进程——更糟糕的是，这只是个简单的列表操作，理论上不该吃掉这么多内存。 如果你在Python开发中遇到过类似问题，或者好奇为什么 [0] * 1000000"
  },
  {
@@ -912,7 +912,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6953",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6953",
   "excerpt": "引言 想象一下，你是一位餐厅老板，生意火爆到后厨完全失控：传菜员（LLM）只知道把菜单丢给厨师，厨师（工具调用）做完一道菜就等着，没人统筹冷菜、热菜、甜品的出餐顺序。结果就是客人等到崩溃，厨房乱成一锅粥。 这就是当前很多LLM应用的缩影——单次调用、无状态、无规划。但真实的业务场景，比如“帮我对比这三份合同的"
  },
  {
@@ -930,7 +930,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9255",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9255",
   "excerpt": "引言 想象一下，你的CI流水线刚刚构建完一个Spring Boot应用镜像，推送到了私有仓库。三天后，生产环境拉取镜像时，运维同事抱怨说：“这个镜像怎么有800MB？部署一台新机器要等5分钟。”你查看了一下Dockerfile，发现基础镜像用的是openjdk:17-jdk，构建时把整个Maven仓库都打进去了——甚至"
  },
  {
@@ -948,7 +948,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6661",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6661",
   "excerpt": "引言 想象一下，你是一家大型餐厅的厨师长。某个周五晚高峰，后厨同时接到30桌订单。突然，前厅经理跑进来说：“第12号桌的顾客取消了订单！”如果你的后厨还在继续烹饪那桌的菜品，不仅浪费食材，还会占用灶台资源，导致其他订单延误。 在分布式系统中，这个“取消订单”的场景每天都在发生：用户刷新页面、请求超时、服务熔断。而Go的"
  },
  {
@@ -966,7 +966,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7465",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7465",
   "excerpt": "引言 想象一下，你是一家连锁餐厅的老板，手下有多个分店（微服务）。每个分店有独立的厨房（服务实例）、独立的菜单（API接口）。但问题来了：当顾客（客户端）想要在A分店点一份B分店的招牌菜时，你需要一套高效的跨店调度系统；当食材供应商（外部事件源）通知某分店食材即将送达时，你需要一套可靠的通知分发机制。 这正是微服务架构"
  },
  {
@@ -986,7 +986,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3643",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3643",
   "excerpt": "引言 想象一下，你负责的客服机器人突然开始对用户说“抱歉，我无法回答这个问题”。用户投诉如潮水般涌来，你打开日志系统，发现一切看起来正常——HTTP 200，无异常堆栈，响应时间正常。但对话质量就是下降了。 这可能是最让人头疼的调试场景：LLM应用的问题往往不是“系统崩溃”，而是“行为异常”。一次糟糕的Prompt拼接"
  },
  {
@@ -1004,7 +1004,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9317",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9317",
   "excerpt": "引言 先讲一个我亲身踩过的坑。 2023年，我当时所在的团队负责一个电商中台的订单服务重构。业务逻辑并不复杂：用户下单后，需要扣减库存、锁定优惠券、增加积分。最初是单机应用，一个本地事务包住所有操作，干干净净。 微服务拆分后，订单、库存、优惠券、积分各成独立服务，各自拥有独立数据库。问题来了：用户下单成功后，如果库存扣"
  },
  {
@@ -1022,7 +1022,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7223",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7223",
   "excerpt": "引言 想象一下，你是一家餐厅的老板，雇了8个厨师（CPU核心）。现在来了1000份订单（goroutine），每份订单都需要切菜、炒菜、装盘。如果你给每个订单都分配一个厨师，那需要雇1000个厨师，成本极高（线程开销）。更聪明的做法是：8个厨师轮流处理这1000份订单，每份订单做完一小步就换下一个。 这正是Go调度器要"
  },
  {
@@ -1040,7 +1040,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2275",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2275",
   "excerpt": "引言 在2026年的今天，容器化早已不是\\"
  },
  {
@@ -1058,7 +1058,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3164",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3164",
   "excerpt": "引言 想象一下，你是一家餐厅的老板，生意火爆到每天有上万桌客人。如果你只有一个服务员，他既要接单、传菜、结账，还要打扫卫生，餐厅不出三天就会崩溃。Netty面对的网络请求，本质上就是这种“高并发客流”——而它的Reactor线程模型，就是一套精密的“后厨管理系统”。 很多同学在项目中使用Netty，能写出能跑的Serv"
  },
  {
@@ -1078,7 +1078,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=4814",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4814",
   "excerpt": "引言 如果你在过去两年里构建过基于大语言模型（LLM）的应用，大概率遇到过这样的场景：你花了一个周末精心设计了一个包含提示词模板、模型调用、输出解析的完整流程，代码逻辑清晰、运行完美。然而当需求从“单轮问答”演变为“多步推理”、“条件分支”或“流式输出”时，你发现自己陷入了一场重构的噩梦——原本简洁的prompt ->"
  },
  {
@@ -1096,7 +1096,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=764",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=764",
   "excerpt": "引言 凌晨两点，我被一通电话从睡梦中拽了起来。运营同事的声音带着哭腔：“大促零点开始，刚过十分钟，用户开始大量反馈下单失败，订单系统CPU已经打满，数据库连接池爆了，我们……我们没扛住。” 这已经不是第一次了。每次大促前，我们都会做常规的性能测试，用JMeter压一压核心接口，看下RT和TPS，感觉“还行”。但一到真正"
  },
  {
@@ -1114,7 +1114,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2718",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2718",
   "excerpt": "引言 凌晨两点，我被一通电话从睡梦中拽了起来——生产环境的Kubernetes集群出现了大量Pending状态的Pod，用户反馈服务已经不可用超过十分钟。 登录集群查看，节点资源明明充足，但Pod就像被施了定身咒一样卡在调度队列里。排查了半天，发现是某个节点被打上了node.kubernetes.io/unschedu"
  },
  {
@@ -1132,7 +1132,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3678",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3678",
   "excerpt": "引言 凌晨两点，我被一通紧急电话叫醒——线上服务突然出现大量 GC pause，P99 延迟从 80ms 飙升到 2.3s。打开火焰图，发现罪魁祸首是一个滥用 fmt.Sprintf 拼接字符串的日志函数，它在每次请求中产生了数十个逃逸到堆上的临时对象。 这不是我第一次被 Go 的内存管理坑到。事实上，很多 Go 开发"
  },
  {
@@ -1150,7 +1150,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=7628",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7628",
   "excerpt": "引言 想象一下，你正在开发一个高并发的秒杀系统。上线第一天，QPS 冲到 5000，一切正常；第二天，运营搞了个大促，QPS 冲到 20000，系统突然卡死。你排查发现，罪魁祸首竟然是 synchronized——这个你用了无数次的\\"
  },
  {
@@ -1168,7 +1168,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=939",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=939",
   "excerpt": "引言 先讲一个真实的故事。 2023年，某头部电商平台在华东机房进行例行运维时，误触了光纤配线架，导致两个可用区之间的专线中断。按照传统“两地三中心”的架构设计，该平台应当自动触发跨城容灾切换。然而，RPO（恢复点目标）校验发现，异步复制的延迟积压了约3.7GB的binlog数据，相当于近2分钟的交易记录。最终，该团队"
  },
  {
@@ -1188,7 +1188,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6395",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6395",
   "excerpt": "引言 想象一下这个场景：你的团队基于Llama 3-70B构建了一个智能客服系统，花了三周时间微调，效果惊艳。结果一上线，8张A100显卡的推理集群在压力测试下，每请求延迟高达800ms，吞吐量不到50 tokens/s。运维总监看着账单——单日GPU成本超过$2000，脸色铁青地丢下一句话：“要么优化，要么砍项目。”"
  },
  {
@@ -1206,7 +1206,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6085",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6085",
   "excerpt": "引言 想象一下这样的场景：你的微服务架构中有一个订单服务，它依赖支付网关、库存服务和用户积分系统。在测试这个订单服务时，你不可能真的去调用真实的支付网关——那会扣真钱；也不可能真的扣减库存——那会影响线上数据。你需要的是一群“替身演员”，它们长得像真实依赖，但行为完全由你控制。 这正是单元测试中Mock（模拟）的核心价"
  },
  {
@@ -1224,7 +1224,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=3908",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3908",
   "excerpt": "引言 想象一下这样的场景：你正在开发一个电商系统的库存服务，使用 HashMap 缓存商品库存信息。上线初期一切正常，但随着双11大促的临近，系统开始频繁出现 CPU 飙升、死循环甚至服务宕机的问题。排查日志时，你发现 HashMap 在高并发写入时内部结构被破坏了。 这不是危言耸听。在 JDK 7 中，HashMap"
  },
  {
@@ -1242,7 +1242,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2692",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2692",
   "excerpt": "引言 想象一下，你的微服务架构已经从几十个服务膨胀到几百个。某个深夜，线上告警突然响起——订单服务超时率飙升。你登录到Kubernetes集群，发现下单链路涉及8个服务调用，但没人能说清楚流量到底经过了哪些节点，更别提快速定位是哪个环节出了问题。 这不是虚构场景，而是微服务规模化的必然阵痛。当服务间通信从\\"
  },
  {
@@ -1262,7 +1262,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=453",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=453",
   "excerpt": "引言：从“文字游戏”到“视觉理解”的质变 假设你正在开发一个智能客服系统。过去，它只能处理纯文本投诉：“我的快递三天没到了”。但现在用户发来一张照片——一个破损的包裹，外包装上有一条明显的撕裂痕迹，运单号清晰可见。 没有多模态能力，系统只能回复：“请描述您的问题”。有了GPT-4V，系统能“看到”破损的包裹、“识别”"
  },
  {
@@ -1280,7 +1280,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=9515",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9515",
   "excerpt": "引言 想象一下，你开发了一个Web应用，需要把前端打包的dist目录、配置文件、甚至SQL迁移脚本都随二进制文件一起分发。在Go 1.16之前，这通常意味着你要么用go-bindata这类第三方工具把文件转成Go代码，要么在部署时手动拷贝目录——前者增加了构建步骤，后者容易漏文件。 我曾在生产环境中遇到过这样的问题：一"
  },
  {
@@ -1298,7 +1298,7 @@
    "microservices",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=6151",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6151",
   "excerpt": "引言 想象一下，你正在开发一个微服务网关，需要实现一个通用的缓存组件。在Go 1.18之前，你只有两个选择：要么为每种数据类型（int、string、User结构体）分别写一套缓存逻辑，要么用interface{}配合类型断言，然后在运行时付出性能代价并忍受代码的丑陋。 // 泛型之前的窘境 type Cache st"
  },
  {
@@ -1316,7 +1316,7 @@
    "devops",
    "container"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=1391",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1391",
   "excerpt": "引言 想象一下这个场景：你是一个大型互联网公司的运维负责人，团队有50个开发人员，每个人都需要访问Kubernetes集群。突然有一天，一个开发误操作删除了生产环境的Deployment，整个系统宕机2小时。老板暴怒，问你：“为什么没有权限控制？” 这不是危言耸听。据我多年的生产环境经验，90%的K8s安全事故都源于权"
  },
  {
@@ -1334,7 +1334,7 @@
    "design-patterns",
    "microservices"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8245",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8245",
   "excerpt": "引言 想象一下，你是一家热门餐厅的老板。每天中午，成百上千的顾客涌进来点餐。你的厨房（数据库）能力有限，所以你在前台设置了一个“今日特价菜”展示板（缓存）。顾客先看展示板，如果有想吃的，直接下单；如果没有，才去问厨房。 一切看起来运转良好，直到发生以下几种情况： 穿透：一个顾客问“有没有红烧鲸鱼肉？”——这道菜压根就不"
  },
  {
@@ -1352,7 +1352,7 @@
    "concurrency",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=2717",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2717",
   "excerpt": "引言 想象一下，你经营一家餐厅。高峰期客人络绎不绝，你不可能每来一个客人就临时去招聘一个服务员——这就是池化思想的由来。在 Java 生态中，线程池就是这家\\"
  },
  {
@@ -1372,7 +1372,7 @@
    "langgraph",
    "rag"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=8113",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8113",
   "excerpt": "引言 想象一下，你正在开发一个企业级知识问答系统。用户问：“我们公司去年Q3的营收数据在哪个报表里？”这个问题看似简单，但背后隐藏着巨大的挑战：大语言模型（LLM）虽然博闻强识，却对你的企业内部数据一无所知。它可能自信满满地编造一个答案，然后你的老板就会收到一份“我们Q3营收是10个亿，在财务报表第42页”的虚假信息—"
  },
  {
@@ -1390,7 +1390,7 @@
    "django",
    "source-code"
   ],
-  "cover": "https://loremflickr.com/800/400?lock=5369",
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5369",
   "excerpt": "引言 想象一下，你刚部署了一个FastAPI服务，用户反馈接口响应越来越慢，服务器内存飙升，最终OOM崩溃。你盯着监控面板，CPU使用率像过山车，内存曲线陡峭如悬崖。问题出在哪？是某个函数太慢，还是内存泄漏？没有数据支撑的优化，就像蒙着眼睛修车——你可能换了个零件，但问题依然存在。 我经历过一个真实案例：一个数据处理服"
  },
  {

@@ -22,13 +22,13 @@
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Channel底层实现与select多路复用">
   <meta name="twitter:description" content="Channel底层实现与select多路复用 引言 先说一个我真实踩过的坑。 几年前我负责一个订单对账服务，需要同时监听三个上游：Kafka 消费到的订单变更、定时器触发的对账批处理、以及运维下发的紧急停止指令。当时年轻气盛，直接写了三个 goroutine，每个 goroutine 各自处理自己的 channel，然后用一堆 sync.Mutex 和一个共享的 bool 标志位来协调退出。 上线">
-  <meta name="twitter:image" content="https://loremflickr.com/800/400?lock=1111">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1111">
   <meta property="og:type" content="article">
   <meta property="og:title" content="Channel底层实现与select多路复用">
   <meta property="og:url" content="https://xiaozeng26.github.io/">
   <meta property="og:site_name" content="小曾博客">
   <meta property="og:description" content="Channel底层实现与select多路复用 引言 先说一个我真实踩过的坑。 几年前我负责一个订单对账服务，需要同时监听三个上游：Kafka 消费到的订单变更、定时器触发的对账批处理、以及运维下发的紧急停止指令。当时年轻气盛，直接写了三个 goroutine，每个 goroutine 各自处理自己的 channel，然后用一堆 sync.Mutex 和一个共享的 bool 标志位来协调退出。 上线">
-  <meta property="og:image" content="https://loremflickr.com/800/400?lock=1111">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1111">
   <meta property="article:published_time" content="2026-09-15T01:14:34.000Z">
   <meta property="article:modified_time" content="2026-09-15T01:14:34.000Z">
   <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
@@ -176,7 +176,7 @@ var GLOBAL_CONFIG = {
   </div>
 </div>
 <div id="body-wrap">
-  <div class="post-bg" id="nav" style="background-image: url(https://loremflickr.com/800/400?lock=1111)">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1111)">
     <div id="page-header">
       <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
       <span class="pull_right menus">
