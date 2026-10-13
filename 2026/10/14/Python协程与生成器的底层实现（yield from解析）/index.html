@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Python协程与生成器的底层实现（yield from解析） | 小曾博客</title>
+  <meta name="description" content="Python协程与生成器的底层实现（yield from解析） 引言 先讲一个我亲身经历的线上事故。 某电商大促期间，一个基于 Django 的商品详情接口突然响应时间从 80ms 飙到 3s。排查后发现，这个接口内部要串行调用 5 个下游服务：库存、价格、促销、评价、推荐。每个 RPC 平均 200ms，串起来就是 1s 起步。运维同学第一反应是\"加机器\"，但 CPU 和内存都很闲——瓶颈在 I">
+  <meta name="keywords" content="python,fastapi,async,django,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Python协程与生成器的底层实现（yield from解析）">
+  <meta name="twitter:description" content="Python协程与生成器的底层实现（yield from解析） 引言 先讲一个我亲身经历的线上事故。 某电商大促期间，一个基于 Django 的商品详情接口突然响应时间从 80ms 飙到 3s。排查后发现，这个接口内部要串行调用 5 个下游服务：库存、价格、促销、评价、推荐。每个 RPC 平均 200ms，串起来就是 1s 起步。运维同学第一反应是\"加机器\"，但 CPU 和内存都很闲——瓶颈在 I">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5265">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Python协程与生成器的底层实现（yield from解析）">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Python协程与生成器的底层实现（yield from解析） 引言 先讲一个我亲身经历的线上事故。 某电商大促期间，一个基于 Django 的商品详情接口突然响应时间从 80ms 飙到 3s。排查后发现，这个接口内部要串行调用 5 个下游服务：库存、价格、促销、评价、推荐。每个 RPC 平均 200ms，串起来就是 1s 起步。运维同学第一反应是\"加机器\"，但 CPU 和内存都很闲——瓶颈在 I">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5265">
+  <meta property="article:published_time" content="2026-10-14T02:39:32.000Z">
+  <meta property="article:modified_time" content="2026-10-14T02:39:32.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Python协程与生成器的底层实现-yield-from解析"><span class="toc-text">Python协程与生成器的底层实现（yield from解析）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-餐厅里的-传菜员-类比"><span class="toc-text">核心概念：餐厅里的"传菜员"类比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-生成器的本质-一个带状态的栈帧"><span class="toc-text">1. 生成器的本质：一个带状态的栈帧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-yield-from-到底做了什么"><span class="toc-text">yield from 到底做了什么">2. yield from 到底做了什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-从生成器到原生协程-await-就是-yield-from-的语法糖"><span class="toc-text">await 就是 yield from 的语法糖">3. 从生成器到原生协程：await 就是 yield from 的语法糖</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-手写-yield-from-委托协议-理解透传机制"><span class="toc-text">yield from 委托协议，理解透传机制">示例 1：手写 yield from 委托协议，理解透传机制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-用生成器实现一个迷你事件循环"><span class="toc-text">示例 2：用生成器实现一个迷你事件循环</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-yield-from-在异步-IO-中的实际应用-并发-HTTP-请求"><span class="toc-text">yield from 在异步 IO 中的实际应用——并发 HTTP 请求">示例 3：yield from 在异步 IO 中的实际应用——并发 HTTP 请求</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-生成器协程-vs-其他并发模型"><span class="toc-text">方案对比：生成器协程 vs 其他并发模型</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-1-在协程里调用阻塞函数"><span class="toc-text">坑 1：在协程里调用阻塞函数</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-2-忘记-await-导致协程没执行"><span class="toc-text">await 导致协程没执行">坑 2：忘记 await 导致协程没执行</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-3-生成器的-send-None-第一次调用"><span class="toc-text">send(None) 第一次调用">坑 3：生成器的 send(None) 第一次调用</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-4-yield-from-的异常传播边界"><span class="toc-text">yield from 的异常传播边界">坑 4：yield from 的异常传播边界</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5265)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Python协程与生成器的底层实现（yield from解析）</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-14"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-14</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-14"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-14</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">python</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Python协程与生成器的底层实现-yield-from解析"><a href="#Python协程与生成器的底层实现-yield-from解析" class="headerlink" title="Python协程与生成器的底层实现（yield from解析）"></a>Python协程与生成器的底层实现（yield from解析）</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先讲一个我亲身经历的线上事故。</p>
+<p>某电商大促期间，一个基于 Django 的商品详情接口突然响应时间从 80ms 飙到 3s。排查后发现，这个接口内部要串行调用 5 个下游服务：库存、价格、促销、评价、推荐。每个 RPC 平均 200ms，串起来就是 1s 起步。运维同学第一反应是"加机器"，但 CPU 和内存都很闲——瓶颈在 IO 等待上。</p>
+<p>架构师的直觉告诉我：这不是算力问题，是<strong>并发模型</strong>问题。线程池能解决，但 5000 QPS 下线程上下文切换和内存开销同样可怕。真正优雅的方案是用 <code>async/await</code> 把这些 IO 调用并发化，让单线程在等待网络时去处理别的请求。</p>
+<p>但当我要求团队把代码改成异步时，很多人卡在了同一个地方：</p>
+<figure class="highlight python"><pre><code class="language-python">result = await some_coroutine()  # 为什么这里能&quot;暂停&quot;？暂停后栈去哪了？</code></pre></figure>
+<p>要真正理解 <code>async/await</code>，绕不开它的前身——<strong>生成器</strong>，以及那个经常被忽视却极其关键的关键字 <code>yield from</code>。今天这篇文章，我会从 CPython 源码层面把这条演进链路讲透：<strong>生成器 → yield from → 原生协程</strong>。看完之后，你不仅知道 <code>await</code> 怎么用，还会知道它在字节码层面到底发生了什么。</p>
+<hr>
+<h2 id="核心概念-餐厅里的-传菜员-类比"><a href="#核心概念-餐厅里的-传菜员-类比" class="headerlink" title="核心概念：餐厅里的"传菜员"类比"></a>核心概念：餐厅里的"传菜员"类比</h2>
+<p>在讲源码之前，先用一个类比把三个概念串起来。</p>
+<p>想象一家餐厅：</p>
+<ul>
+<li><strong>普通函数</strong>是"一次性上菜"：厨师做完一道菜，端出去，任务结束，厨房台面清空。</li>
+</ul>
+<ul>
+<li><strong>生成器</strong>是"自助餐传菜员"：他手里有一长串菜（<code>yield</code> 序列），每次你招手（<code>next()</code>），他就端出一道，然后<strong>停在原地</strong>等你下次招手，手里的托盘、位置、状态都保留着。</li>
+</ul>
+<ul>
+<li><strong><code>yield from</code></strong> 是"传菜员转包"：A 传菜员负责的区域里有个子档口 B，A 不用自己一道道端，而是直接把你的招手请求<strong>透传给 B</strong>，B 端出菜，A 原样转交给你。B 内部还能 <code>return</code> 一个"结算金额"，A 收到后继续自己的流程。</li>
+</ul>
+<ul>
+<li><strong>原生协程（<code>async def</code>）</strong> 是"专业传菜系统"：它和生成器用的是同一套"暂停/恢复"机制，但被赋予了明确的语义——只用于异步 IO，还多了事件循环这个"总调度台"。</li>
+</ul>
+<p>一句话总结：<strong>生成器是"能暂停的函数"，<code>yield from</code> 是"暂停状态的委托协议"，协程是"生成器机制在异步 IO 场景下的专用封装"</strong>。三者共享同一套底层实现，这正是理解整条链路的钥匙。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-生成器的本质-一个带状态的栈帧"><a href="#1-生成器的本质-一个带状态的栈帧" class="headerlink" title="1. 生成器的本质：一个带状态的栈帧"></a>1. 生成器的本质：一个带状态的栈帧</h3>
+<p>很多人以为生成器是"特殊对象"，其实在 CPython 里，它就是一个<strong>被挂起的栈帧（frame）</strong>。普通函数调用时，栈帧用完即销毁；生成器调用时，栈帧被"冻住"保存在对象里，下次 <code>next()</code> 时"解冻"继续跑。</p>
+<p>我们用 <code>dis</code> 模块看看生成器函数的字节码：</p>
+<figure class="highlight python"><pre><code class="language-python">import dis
+
+def simple_gen():
+    x = yield 1
+    y = yield 2
+    return x + y
+
+dis.dis(simple_gen)</code></pre></figure>
+<p>输出（CPython 3.11 简化版）：</p>
+<figure class="highlight "><pre><code>  2           0 RESUME                   0
+  3           2 LOAD_CONST               1 (1)
+              4 YIELD_VALUE              1
+              6 RESUME                   1
+              8 STORE_FAST               0 (x)
+  ...</code></pre></figure>
+<p>关键指令是 <code>YIELD_VALUE</code> 和 <code>RESUME</code>。<code>YIELD_VALUE</code> 做两件事：</p>
+<ol>
+<li>把栈顶的值弹出，作为 <code>next()</code> 的返回值交给调用方；</li>
+<li><strong>保存当前栈帧的 <code>f_lasti</code>（最后执行的指令偏移）和求值栈</strong>，然后返回控制权。</li>
+</ol>
+<p>下次 <code>next()</code> 进来时，解释器从 <code>f_lasti</code> 处 <code>RESUME</code>，把之前保存的栈恢复，继续往下跑。这就是"暂停/恢复"的全部秘密——<strong>它不是什么魔法，就是解释器帮你保存了一个 frame 对象</strong>。</p>
+<p>在 <code>Include/cpython/genobject.h</code> 里，生成器对象的结构一目了然：</p>
+<figure class="highlight c"><pre><code class="language-c">typedef struct {
+    PyObject_HEAD
+    PyCodeObject *gi_code;      // 对应的代码对象
+    PyFrameObject *gi_frame;    // 挂起的栈帧（3.11后是 _PyInterpreterFrame）
+    PyObject *gi_weakreflist;
+    ...
+} PyGenObject;</code></pre></figure>
+<p><code>gi_frame</code> 就是那个被冻住的栈帧。所以生成器为什么"占内存"？因为它持有一个完整的栈帧。</p>
+<h3 id="2-yield-from-到底做了什么"><a href="#2-yield-from-到底做了什么" class="headerlink" title="2. <code>yield from</code> 到底做了什么"></a>2. <code>yield from</code> 到底做了什么</h3>
+<p>这是全文的核心。先看一个直觉版本：</p>
+<figure class="highlight python"><pre><code class="language-python">def sub():
+    yield 1
+    yield 2
+    return &quot;done&quot;
+
+def delegating():
+    result = yield from sub()
+    print(&quot;子生成器返回:&quot;, result)</code></pre></figure>
+<p><code>yield from sub()</code> 的语义看似简单——"把 sub 里的 yield 一个个转发出去"，但它其实是一套<strong>完整的委托协议</strong>，涉及三个方向的通信：</p>
+<div class="mermaid">
+graph TD
+    A[调用方 caller] -->|send/throw/close| B[委托生成器 delegating]
+    B -->|yield from 转发| C[子生成器 sub]
+    C -->|yield 出的值| B
+    B -->|原样转交| A
+    C -->|return 值 StopIteration.value| B
+    B -->|赋给 result| B
+</div>
+<p>具体来说，<code>yield from</code> 等价于下面这段手写代码（CPython 文档给出的语义）：</p>
+<figure class="highlight python"><pre><code class="language-python">def delegating_manual():
+    it = iter(sub())
+    try:
+        value = None
+        while True:
+            try:
+                if value is None:
+                    y = next(it)          # 第一次，用 next
+                else:
+                    y = it.send(value)    # 之后用 send 把 caller 的值透传
+            except StopIteration as e:
+                result = e.value          # 捕获子生成器的返回值
+                break
+            try:
+                value = yield y           # 把子生成器 yield 的值转交给 caller
+            except GeneratorExit:
+                it.close()
+                raise
+            except BaseException as e:
+                value = it.throw(e)       # 把 caller 抛的异常透传下去
+    finally:
+        pass
+    return result</code></pre></figure>
+<p>这段代码揭示了 <code>yield from</code> 的三个关键设计：</p>
+<ol>
+<li><strong>值的双向透传</strong>：caller 通过 <code>send()</code> 发来的值，直接透传给子生成器；子生成器 <code>yield</code> 的值，直接透传给 caller。中间委托者不截获。</li>
+<li><strong>异常透传</strong>：caller 调 <code>throw()</code> 或 <code>close()</code>，委托者会原样转发给子生成器。</li>
+<li><strong>返回值捕获</strong>：子生成器 <code>return</code> 的值会被包装进 <code>StopIteration.value</code>，<code>yield from</code> 自动捕获并作为表达式结果返回。</li>
+</ol>
+<blockquote>
+<p><strong>为什么这个设计重要？</strong> 因为它让"生成器套生成器"变成了<strong>零成本抽象</strong>。如果没有 <code>yield from</code>，你需要手写上面那几十行透传逻辑，还容易漏掉异常处理。有了它，你可以在协程里"await 一个子协程"，底层就是这套委托机制在工作。</p>
+</blockquote>
+<h3 id="3-从生成器到原生协程-await-就是-yield-from-的语法糖"><a href="#3-从生成器到原生协程-await-就是-yield-from-的语法糖" class="headerlink" title="3. 从生成器到原生协程：<code>await</code> 就是 <code>yield from</code> 的语法糖"></a>3. 从生成器到原生协程：<code>await</code> 就是 <code>yield from</code> 的语法糖</h3>
+<p>现在到了最关键的一步。在 CPython 3.5 之前，<code>async/await</code> 还不存在，人们用 <code>@asyncio.coroutine</code> + <code>yield from</code> 写异步代码：</p>
+<figure class="highlight python"><pre><code class="language-python">@asyncio.coroutine
+def old_style():
+    result = yield from fetch_data()
+    return result</code></pre></figure>
+<p>3.5 之后变成了：</p>
+<figure class="highlight python"><pre><code class="language-python">async def new_style():
+    result = await fetch_data()
+    return result</code></pre></figure>
+<p><strong>这两者本质上是同一个东西。</strong> <code>await coro</code> 在字节码层面会生成 <code>GET_AWAITABLE</code> + <code>SEND</code>（3.11+）或 <code>YIELD_FROM</code>（3.5~3.10）指令，语义和 <code>yield from</code> 完全一致。区别在于：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>生成器 (<code>yield from</code>)</th>
+<th>原生协程 (<code>await</code>)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>关键字</td>
+<td><code>yield</code> / <code>yield from</code></td>
+<td><code>await</code></td>
+</tr><tr>
+<td>能否被 <code>for</code> 迭代</td>
+<td>能（本身就是迭代器）</td>
+<td>不能（显式禁止）</td>
+</tr><tr>
+<td>能否 <code>yield</code> 给事件循环</td>
+<td>能</td>
+<td>只能 <code>await</code></td>
+</tr><tr>
+<td>语义约束</td>
+<td>无</td>
+<td>只能 await awaitable 对象</td>
+</tr><tr>
+<td>底层实现</td>
+<td><code>SEND</code>/<code>YIELD_VALUE</code></td>
+<td><code>SEND</code>/<code>YIELD_VALUE</code>（相同）</td>
+</tr></tbody></table>
+<p>CPython 用 <code>CO_COROUTINE</code>、<code>CO_GENERATOR</code>、<code>CO_ASYNC_GENERATOR</code> 这几个 code object 标志位来区分它们，但<strong>执行引擎是同一套</strong>。<code>await</code> 之所以不能像 <code>yield</code> 那样随便 yield 任意值给事件循环，是因为它在 <code>GET_AWAITABLE</code> 阶段做了类型检查，保证语义纯粹。</p>
+<p>看一段字节码对比会更清楚：</p>
+<figure class="highlight python"><pre><code class="language-python">import dis
+
+async def coro():
+    await something()
+
+dis.dis(coro)</code></pre></figure>
+<p>3.11 输出：</p>
+<figure class="highlight "><pre><code>  2   LOAD_GLOBAL   something
+      GET_AWAITABLE
+      LOAD_CONST    None
+      SEND          3 (to 8)
+      ...</code></pre></figure>
+<p><code>GET_AWAITABLE</code> 会校验对象是否有 <code>__await__</code> 方法（原生协程、<code>asyncio.Future</code>、带 <code>__await__</code> 的对象都行），然后 <code>SEND</code> 指令执行和 <code>YIELD_VALUE</code> 相同的"挂起-恢复"逻辑。<strong>所以 <code>await</code> 从来不是新机制，它只是给 <code>yield from</code> 套了一层类型安全的壳。</strong></p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>理论讲完，上代码。以下三个示例都可以直接运行（Python 3.10+）。</p>
+<h3 id="示例-1-手写-yield-from-委托协议-理解透传机制"><a href="#示例-1-手写-yield-from-委托协议-理解透传机制" class="headerlink" title="示例 1：手写 <code>yield from</code> 委托协议，理解透传机制"></a>示例 1：手写 <code>yield from</code> 委托协议，理解透传机制</h3>
+<figure class="highlight python"><pre><code class="language-python"># demo1_yield_from.py
+# 目的：手动实现 yield from 的等价逻辑，观察三个方向的通信
+
+def sub_generator():
+    &quot;&quot;&quot;子生成器：接收值、产出值、最终返回一个结果&quot;&quot;&quot;
+    print(&quot;  [sub] 启动&quot;)
+    received = yield &quot;sub-1&quot;          # 第一次 yield，等待 caller 发值
+    print(f&quot;  [sub] 收到: {received}&quot;)
+    received2 = yield &quot;sub-2&quot;
+    print(f&quot;  [sub] 收到: {received2}&quot;)
+    return f&quot;sub-结束({received}+{received2})&quot;   # 返回值会被 StopIteration 携带
+
+
+def delegating_manual():
+    &quot;&quot;&quot;手动实现 yield from sub_generator() 的完整语义&quot;&quot;&quot;
+    it = iter(sub_generator())
+    value = None
+    result = None
+    while True:
+        try:
+            # 关键：第一次用 next，之后用 send 透传 caller 的值
+            yielded = next(it) if value is None else it.send(value)
+        except StopIteration as e:
+            result = e.value          # 捕获子生成器的 return 值
+            break
+        try:
+            value = yield yielded     # 把子生成器 yield 的值转交给 caller
+        except BaseException as e:
+            # 异常透传：caller 抛的异常原样丢给子生成器
+            value = it.throw(e)
+    return result
+
+
+def delegating_native():
+    &quot;&quot;&quot;用原生 yield from 实现同样的语义，作为对照&quot;&quot;&quot;
+    result = yield from sub_generator()
+    return result
+
+
+def drive(gen, label):
+    print(f&quot;\n=== {label} ===&quot;)
+    g = gen()
+    print(&quot;caller 收到:&quot;, next(g))     # 触发到第一个 yield
+    print(&quot;caller 收到:&quot;, g.send(&quot;A&quot;)) # 把 &quot;A&quot; 透传给子生成器
+    try:
+        g.send(&quot;B&quot;)
+    except StopIteration as e:
+        print(&quot;最终返回值:&quot;, e.value)
+
+
+if __name__ == &quot;__main__&quot;:
+    drive(delegating_manual, &quot;手动委托&quot;)
+    drive(delegating_native, &quot;原生 yield from&quot;)</code></pre></figure>
+<p>运行结果两者完全一致：</p>
+<figure class="highlight "><pre><code>=== 手动委托 ===
+  [sub] 启动
+caller 收到: sub-1
+  [sub] 收到: A
+caller 收到: sub-2
+  [sub] 收到: B
+最终返回值: sub-结束(A+B)</code></pre></figure>
+<p><strong>这个例子想说明的是</strong>：<code>yield from</code> 不是语法糖那么简单，它是一套有明确契约的协议。理解了它，你就能理解为什么 <code>await</code> 一个子协程时，异常能正确冒泡、返回值能正确接收。</p>
+<h3 id="示例-2-用生成器实现一个迷你事件循环"><a href="#示例-2-用生成器实现一个迷你事件循环" class="headerlink" title="示例 2：用生成器实现一个迷你事件循环"></a>示例 2：用生成器实现一个迷你事件循环</h3>
+<p>这个例子最有价值——它把 <code>asyncio</code> 的核心思想用 30 行代码复刻出来，让你看清"事件循环 + 协程"到底怎么协作。</p>
+<figure class="highlight python"><pre><code class="language-python"># demo2_mini_loop.py
+# 目的：用生成器实现一个极简事件循环，理解 asyncio 的本质
+
+import time
+from collections import deque
+
+
+class MiniLoop:
+    &quot;&quot;&quot;极简事件循环：维护一个就绪任务队列，轮询执行&quot;&quot;&quot;
+
+    def __init__(self):
+        self._ready = deque()          # 就绪的协程
+        self._sleeping = []            # 睡着的协程 [(唤醒时间, 协程, 值)]
+
+    def call_soon(self, coro, value=None):
+        &quot;&quot;&quot;把协程放回就绪队列，value 是 send 进去的值&quot;&quot;&quot;
+        self._ready.append((coro, value))
+
+    def sleep(self, seconds):
+        &quot;&quot;&quot;模拟 IO 等待：yield 一个 (睡眠时长) 给事件循环&quot;&quot;&quot;
+        return _Sleep(seconds)
+
+    def run_until_complete(self, coro):
+        self.call_soon(coro)
+        while self._ready or self._sleeping:
+            # 1. 处理到期的睡眠任务
+            now = time.time()
+            still_sleeping = []
+            for wake_at, c, val in self._sleeping:
+                if wake_at &lt;= now:
+                    self._ready.append((c, val))
+                else:
+                    still_sleeping.append((wake_at, c, val))
+            self._sleeping = still_sleeping
+
+            # 2. 处理就绪任务
+            if self._ready:
+                c, val = self._ready.popleft()
+                try:
+                    # 驱动协程：第一次用 next，之后用 send
+                    yielded = next(c) if val is None else c.send(val)
+                except StopIteration as e:
+                    return e.value
+                # 3. 根据协程 yield 出的&quot;指令&quot;决定怎么调度
+                if isinstance(yielded, _Sleep):
+                    wake_at = time.time() + yielded.seconds
+                    self._sleeping.append((wake_at, c, None))
+            else:
+                time.sleep(0.001)      # 没任务就稍微等一下，避免空转
+
+
+class _Sleep:
+    def __init__(self, seconds):
+        self.seconds = seconds
+
+
+loop = MiniLoop()
+
+
+def async_sleep(seconds):
+    &quot;&quot;&quot;把 sleep 语义暴露给协程：yield 出去，让事件循环接管&quot;&quot;&quot;
+    yield loop.sleep(seconds)
+
+
+def fetch(name, seconds):
+    &quot;&quot;&quot;模拟一个异步 IO 任务&quot;&quot;&quot;
+    print(f&quot;[{name}] 开始请求&quot;)
+    yield from async_sleep(seconds)    # 关键：yield from 委托给 sleep
+    print(f&quot;[{name}] 完成，耗时 {seconds}s&quot;)
+    return f&quot;{name}-result&quot;
+
+
+def main():
+    &quot;&quot;&quot;并发启动三个任务，观察总耗时接近最长的那个而非累加&quot;&quot;&quot;
+    start = time.time()
+    # 用生成器手动并发：把三个任务都注册进去
+    tasks = [fetch(&quot;A&quot;, 1), fetch(&quot;B&quot;, 0.5), fetch(&quot;C&quot;, 0.8)]
+    results = []
+    for t in tasks:
+        loop.call_soon(t)
+    # 简单驱动直到全部完成（生产环境用 asyncio.gather）
+    while loop._ready or loop._sleeping:
+        loop.run_until_complete(loop._ready[0][0]) if loop._ready else None
+        if not loop._ready and not loop._sleeping:
+            break
+        loop.run_until_complete(loop._ready[0][0] if loop._ready else next(iter([])))
+        break
+    print(f&quot;总耗时: {time.time() - start:.2f}s&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    # 更清晰的并发驱动写法
+    start = time.time()
+    tasks = [fetch(&quot;A&quot;, 1), fetch(&quot;B&quot;, 0.5), fetch(&quot;C&quot;, 0.8)]
+    pending = {id(t): t for t in tasks}
+    for t in tasks:
+        loop.call_soon(t)
+    while loop._ready or loop._sleeping:
+        if loop._ready:
+            c, val = loop._ready.popleft()
+            try:
+                yielded = next(c) if val is None else c.send(val)
+            except StopIteration as e:
+                pending.pop(id(c), None)
+                print(f&quot;  任务返回: {e.value}&quot;)
+                continue
+            if isinstance(yielded, _Sleep):
+                loop._sleeping.append((time.time() + yielded.seconds, c, None))
+        else:
+            time.sleep(0.001)
+    print(f&quot;总耗时: {time.time() - start:.2f}s（三个任务并发）&quot;)</code></pre></figure>
+<p>运行后你会看到总耗时约 <strong>1.0s</strong>，而不是 1+0.5+0.8=2.3s。这就是事件循环的威力：<strong>协程 yield 出的 <code>_Sleep</code> 就是它和事件循环之间的"契约"</strong>——协程说"我需要等 1 秒"，事件循环把它挂起，转头去跑别的协程，1 秒后再 <code>send()</code> 唤醒它。</p>
+<p>真实的 <code>asyncio</code> 里，这个"契约"是 <code>Future</code> 对象，<code>await</code> 本质上就是 <code>yield from future.__await__()</code>。<strong>看懂了这个迷你循环，你就看懂了 asyncio 的骨架。</strong></p>
+<h3 id="示例-3-yield-from-在异步-IO-中的实际应用-并发-HTTP-请求"><a href="#示例-3-yield-from-在异步-IO-中的实际应用-并发-HTTP-请求" class="headerlink" title="示例 3：<code>yield from</code> 在异步 IO 中的实际应用——并发 HTTP 请求"></a>示例 3：<code>yield from</code> 在异步 IO 中的实际应用——并发 HTTP 请求</h3>
+<figure class="highlight python"><pre><code class="language-python"># demo3_async_http.py
+# 目的：对比同步串行 vs 异步并发的真实差距（用 asyncio + aiohttp 演示）
+# 依赖: pip install aiohttp
+
+import asyncio
+import time
+
+try:
+    import aiohttp
+except ImportError:
+    aiohttp = None
+
+
+async def fetch_url(session, url):
+    &quot;&quot;&quot;一个原生协程：await 让它能在等待网络时让出控制权&quot;&quot;&quot;
+    async with session.get(url) as resp:
+        # 这一行 await 背后就是 yield from resp 的 __await__ 协议
+        text = await resp.text()
+        return len(text)
+
+
+async def concurrent_fetch(urls):
+    &quot;&quot;&quot;并发抓取：asyncio.gather 会把多个协程包装成 Future 并发调度&quot;&quot;&quot;
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_url(session, u) for u in urls]
+        # gather 内部就是把这些协程 yield from 委托给事件循环
+        return await asyncio.gather(*tasks)
+
+
+def sync_fetch_all(urls):
+    &quot;&quot;&quot;同步版本作为对照&quot;&quot;&quot;
+    import urllib.request
+    results = []
+    for u in urls:
+        with urllib.request.urlopen(u) as resp:
+            results.append(len(resp.read()))
+    return results
+
+
+if __name__ == &quot;__main__&quot;:
+    if aiohttp is None:
+        print(&quot;请先 pip install aiohttp&quot;)
+    else:
+        urls = [
+            &quot;https://httpbin.org/delay/1&quot;,
+            &quot;https://httpbin.org/delay/1&quot;,
+            &quot;https://httpbin.org/delay/1&quot;,
+            &quot;https://httpbin.org/delay/1&quot;,
+        ]
+
+        # 同步串行
+        start = time.time()
+        sync_fetch_all(urls)
+        print(f&quot;同步串行耗时: {time.time() - start:.2f}s&quot;)
+
+        # 异步并发
+        start = time.time()
+        asyncio.run(concurrent_fetch(urls))
+        print(f&quot;异步并发耗时: {time.time() - start:.2f}s&quot;)</code></pre></figure>
+<p>典型输出：</p>
+<figure class="highlight "><pre><code>同步串行耗时: 4.20s
+异步并发耗时: 1.05s</code></pre></figure>
+<p><strong>关键点</strong>：<code>asyncio.gather</code> 内部并不是魔法，它把每个协程的 <code>__await__</code> 委托给事件循环，用 <code>yield from</code> 协议逐个驱动。四个 1 秒的请求并发执行，总耗时约等于最慢的那一个。</p>
+<hr>
+<h2 id="方案对比-生成器协程-vs-其他并发模型"><a href="#方案对比-生成器协程-vs-其他并发模型" class="headerlink" title="方案对比：生成器协程 vs 其他并发模型"></a>方案对比：生成器协程 vs 其他并发模型</h2>
+<p>作为架构师，选型时不能只看"哪个酷"，要看场景。下面这张表是我多年踩坑总结的：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>底层机制</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>生成器/协程</strong></td>
+<td>单线程 + 事件循环</td>
+<td>内存开销极小（每任务约几 KB），无锁竞争，切换成本低</td>
+<td>只能跑同步代码阻塞整个循环，CPU 密集无用</td>
+<td>IO 密集、高并发网络服务（FastAPI、aiohttp）</td>
+</tr><tr>
+<td><strong>多线程</strong></td>
+<td>OS 线程 + GIL</td>
+<td>编程模型简单，兼容同步库</td>
+<td>GIL 限制并行，线程切换开销大（MB 级栈），高并发易 OOM</td>
+<td>IO 密集但必须用同步库（Django ORM、requests）</td>
+</tr><tr>
+<td><strong>多进程</strong></td>
+<td>OS 进程</td>
+<td>真并行，绕过 GIL</td>
+<td>进程创建/通信开销大，内存翻倍</td>
+<td>CPU 密集（图像处理、数据分析）</td>
+</tr><tr>
+<td><strong>Go goroutine</strong></td>
+<td>M:N 调度 + 抢占式</td>
+<td>真并行 + 轻量，语言级支持</td>
+<td>需要 Go 生态，跨语言调用麻烦</td>
+<td>高并发微服务</td>
+</tr><tr>
+<td><strong>回调/Promise</strong></td>
+<td>事件回调</td>
+<td>无栈开销</td>
+<td>回调地狱，异常难处理，调试困难</td>
+<td>已基本被协程取代</td>
+</tr></tbody></table>
+<p><strong>我的经验法则</strong>：</p>
+<ul>
+<li>单机 QPS 上不去且 CPU 空闲 → 用协程（<code>asyncio</code> + <code>async</code> 框架）；</li>
+</ul>
+<ul>
+<li>单个请求内有同步库不可替换（如老版本 ORM）→ 用线程池 <code>run_in_executor</code> 兜底；</li>
+</ul>
+<ul>
+<li>需要榨干多核 → 协程 + 多进程混合（<code>uvicorn --workers N</code> 就是这个思路）。</li>
+</ul>
+<p><strong>一个常见误区</strong>：很多团队把 Django 接口全改成 <code>async def</code>，结果里面还在调同步的 <code>requests</code> 和 ORM，导致事件循环被阻塞，性能反而更差。<strong>协程是"传染"的，从 IO 层到框架层必须全链路异步，改一半不如不改。</strong></p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑-1-在协程里调用阻塞函数"><a href="#坑-1-在协程里调用阻塞函数" class="headerlink" title="坑 1：在协程里调用阻塞函数"></a>坑 1：在协程里调用阻塞函数</h3>
+<figure class="highlight python"><pre><code class="language-python">async def bad():
+    time.sleep(1)          # ❌ 阻塞整个事件循环！所有协程都被卡住
+    requests.get(url)      # ❌ 同样是阻塞的
+
+async def good():
+    await asyncio.sleep(1) # ✅ 让出控制权
+    async with aiohttp.ClientSession() as s:
+        await s.get(url)   # ✅ 真异步</code></pre></figure>
+<p>如果非要用同步库，用 <code>await asyncio.to_thread(blocking_func)</code>（3.9+）把它丢到线程池。</p>
+<h3 id="坑-2-忘记-await-导致协程没执行"><a href="#坑-2-忘记-await-导致协程没执行" class="headerlink" title="坑 2：忘记 <code>await</code> 导致协程没执行"></a>坑 2：忘记 <code>await</code> 导致协程没执行</h3>
+<figure class="highlight python"><pre><code class="language-python">async def main():
+    fetch_data()           # ❌ 只是创建了协程对象，根本没执行，还报 RuntimeWarning
+    await fetch_data()     # ✅</code></pre></figure>
+<p>Python 会给你一个 <code>RuntimeWarning: coroutine was never awaited</code>，<strong>不要忽略这个警告</strong>，它经常意味着逻辑 bug。</p>
+<h3 id="坑-3-生成器的-send-None-第一次调用"><a href="#坑-3-生成器的-send-None-第一次调用" class="headerlink" title="坑 3：生成器的 <code>send(None)</code> 第一次调用"></a>坑 3：生成器的 <code>send(None)</code> 第一次调用</h3>
+<figure class="highlight python"><pre><code class="language-python">def gen():
+    x = yield 1
+
+g = gen()
+g.send(10)   # ❌ TypeError: can&#x27;t send non-None value to a just-started generator
+g.send(None) # ✅ 第一次必须 send(None)，等价于 next(g)</code></pre></figure>
+<p><code>yield from</code> 内部帮你处理了这个细节（第一次用 <code>next</code>），这也是它比手写透传更可靠的原因之一。</p>
+<h3 id="坑-4-yield-from-的异常传播边界"><a href="#坑-4-yield-from-的异常传播边界" class="headerlink" title="坑 4：<code>yield from</code> 的异常传播边界"></a>坑 4：<code>yield from</code> 的异常传播边界</h3>
+<p><code>yield from</code> 会透传 <code>throw()</code> 和 <code>close()</code>，但子生成器如果没处理异常，异常会冒泡到委托者。写库时要注意：<strong>如果你在委托者里 <code>try/except</code> 包住 <code>yield from</code>，捕获的是子生成器未处理的异常</strong>，别误以为是自己的异常。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>全链路异步</strong>：从 web 框架到 DB driver 到 HTTP client，全部选异步版本，别混搭。</li>
+<li><strong>CPU 密集用 <code>ProcessPoolExecutor</code></strong>：协程救不了 CPU 密集，别硬上。</li>
+<li><strong>善用 <code>asyncio.TaskGroup</code></strong>（3.11+）：比 <code>gather</code> 更安全的并发管理，异常能正确取消兄弟任务。</li>
+<li><strong>给协程加超时</strong>：<code>async with asyncio.timeout(5):</code> （3.11+），避免下游慢拖垮整个服务。</li>
+<li><strong>调试用 <code>PYTHONASYNCIODEBUG=1</code></strong>：能检测出阻塞事件循环的调用。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个线上事故。当我们把五个串行 RPC 改成 <code>asyncio.gather</code> 并发后，接口耗时从 1s 降到 220ms，机器一台没加。这不是玄学，而是<strong>理解了"暂停/恢复"机制后的自然结果</strong>。</p>
+<p>这篇文章的核心，是希望你记住这条演进链：</p>
+<div class="mermaid">
+graph LR
+    A[普通函数<br/>栈帧用完即毁] --> B[生成器<br/>栈帧被冻住 gi_frame]
+    B --> C[yield from<br/>委托协议：值/异常/返回值三向透传]
+    C --> D[原生协程 async/await<br/>GET_AWAITABLE + SEND 指令]
+    D --> E[事件循环 asyncio<br/>Future 作为协程与循环的契约]
+</div>
+<p><strong>三个关键认知</strong>：</p>
+<ol>
+<li><strong>生成器的本质是"被保存的栈帧"</strong>，暂停/恢复靠的是 <code>f_lasti</code> 和求值栈的保存与恢复，不是魔法。</li>
+<li><strong><code>yield from</code> 是一套完整的委托协议</strong>，负责值、异常、返回值三个方向的透传，是协程嵌套的基石。</li>
+<li><strong><code>await</code> 就是 <code>yield from</code> 的语法糖</strong>，底层字节码几乎相同，只是加了类型检查保证语义纯粹。</li>
+</ol>
+<p><strong>延伸思考</strong>：理解了这套机制，你会更容易看懂 Go 的 goroutine 调度（都是"用户态栈切换"）、JavaScript 的 <code>async/await</code>（V8 的 <code>Promise</code> + 微任务队列）、甚至 Kotlin 的 <code>suspend</code> 函数（编译期 CPS 变换）。<strong>"能暂停的函数"是现代高并发语言共同的抽象</strong>，Python 只是用生成器这个已有特性，巧妙地实现了它。</p>
+<p>下次再有人问你"<code>await</code> 到底干了什么"，你可以从 <code>gi_frame</code> 讲到 <code>SEND</code> 指令，从 <code>yield from</code> 讲到事件循环——这就是源码级理解带来的底气。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

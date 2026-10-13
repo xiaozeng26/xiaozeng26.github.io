@@ -1,5 +1,23 @@
 [
  {
+  "title": "Python协程与生成器的底层实现（yield from解析）",
+  "url": "/2026/10/14/Python%E5%8D%8F%E7%A8%8B%E4%B8%8E%E7%94%9F%E6%88%90%E5%99%A8%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0%EF%BC%88yield%20from%E8%A7%A3%E6%9E%90%EF%BC%89/",
+  "date": "2026-10-14",
+  "year": 2026,
+  "month": 10,
+  "day": 14,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5265",
+  "excerpt": "引言 先讲一个我亲身经历的线上事故。 某电商大促期间，一个基于 Django 的商品详情接口突然响应时间从 80ms 飙到 3s。排查后发现，这个接口内部要串行调用 5 个下游服务：库存、价格、促销、评价、推荐。每个 RPC 平均 200ms，串起来就是 1s 起步。运维同学第一反应是\\"
+ },
+ {
   "title": "高并发秒杀系统架构设计演进",
   "url": "/2026/10/13/%E9%AB%98%E5%B9%B6%E5%8F%91%E7%A7%92%E6%9D%80%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1%E6%BC%94%E8%BF%9B/",
   "date": "2026-10-13",
