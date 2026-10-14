@@ -1,5 +1,23 @@
 [
  {
+  "title": "CompletableFuture异步编程实战与原理",
+  "url": "/2026/10/15/CompletableFuture%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B%E5%AE%9E%E6%88%98%E4%B8%8E%E5%8E%9F%E7%90%86/",
+  "date": "2026-10-15",
+  "year": 2026,
+  "month": 10,
+  "day": 15,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9438",
+  "excerpt": "引言 先看一个真实的生产事故。 某电商平台的商品详情页聚合接口，需要并行调用 6 个下游服务：商品基础信息、库存、价格、促销、评价、推荐。早期实现用的是 ExecutorService + Future： Future&lt;Product&gt; productFuture = executor.submit(() "
+ },
+ {
   "title": "Python协程与生成器的底层实现（yield from解析）",
   "url": "/2026/10/14/Python%E5%8D%8F%E7%A8%8B%E4%B8%8E%E7%94%9F%E6%88%90%E5%99%A8%E7%9A%84%E5%BA%95%E5%B1%82%E5%AE%9E%E7%8E%B0%EF%BC%88yield%20from%E8%A7%A3%E6%9E%90%EF%BC%89/",
   "date": "2026-10-14",

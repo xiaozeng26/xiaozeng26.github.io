@@ -538,6 +538,13 @@
       "subtopic": "Python协程与生成器的底层实现（yield from解析）",
       "date": "2026-10-13",
       "url": "/2026/10/14/Python协程与生成器的底层实现（yield from解析）/"
+    },
+    {
+      "title": "CompletableFuture异步编程实战与原理",
+      "category": "java",
+      "subtopic": "CompletableFuture异步编程实战与原理",
+      "date": "2026-10-14",
+      "url": "/2026/10/15/CompletableFuture异步编程实战与原理/"
     }
   ],
   "used_subtopics": {
@@ -556,7 +563,8 @@
       "Java 21虚拟线程（Virtual Threads）深度解析",
       "AQS框架源码解读——从ReentrantLock说起",
       "Nacos服务注册与配置中心原理",
-      "JVM内存模型与垃圾回收器深度解析"
+      "JVM内存模型与垃圾回收器深度解析",
+      "CompletableFuture异步编程实战与原理"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -686,6 +694,7 @@
     "LangGraph状态图驱动Agent的实现原理": "5eac21f2552dcf984e9931b8b40af2652c9c1a27bc3b6dca8f6601f562a113f5",
     "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比": "e6f83822367d603f200d9a49f66276d1a573fab7752a1618bf862ba74c0cd977",
     "高并发秒杀系统架构设计演进": "0faa46230f747d2a3472f6ed051724fade46180337e11cf1a9b64570009966a6",
-    "Python协程与生成器的底层实现（yield from解析）": "807bbcf71d542b4ed3e7ab64426381b16d2a14843af6201fc68522af6e9499cb"
+    "Python协程与生成器的底层实现（yield from解析）": "807bbcf71d542b4ed3e7ab64426381b16d2a14843af6201fc68522af6e9499cb",
+    "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed"
   }
 }

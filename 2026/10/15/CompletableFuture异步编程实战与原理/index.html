@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CompletableFuture异步编程实战与原理 | 小曾博客</title>
+  <meta name="description" content="CompletableFuture异步编程实战与原理 引言 先看一个真实的生产事故。 某电商平台的商品详情页聚合接口，需要并行调用 6 个下游服务：商品基础信息、库存、价格、促销、评价、推荐。早期实现用的是 ExecutorService + Future： Future&lt;Product&gt; productFuture = executor.submit(() -&gt; product">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CompletableFuture异步编程实战与原理">
+  <meta name="twitter:description" content="CompletableFuture异步编程实战与原理 引言 先看一个真实的生产事故。 某电商平台的商品详情页聚合接口，需要并行调用 6 个下游服务：商品基础信息、库存、价格、促销、评价、推荐。早期实现用的是 ExecutorService + Future： Future&lt;Product&gt; productFuture = executor.submit(() -&gt; product">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9438">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="CompletableFuture异步编程实战与原理">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="CompletableFuture异步编程实战与原理 引言 先看一个真实的生产事故。 某电商平台的商品详情页聚合接口，需要并行调用 6 个下游服务：商品基础信息、库存、价格、促销、评价、推荐。早期实现用的是 ExecutorService + Future： Future&lt;Product&gt; productFuture = executor.submit(() -&gt; product">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9438">
+  <meta property="article:published_time" content="2026-10-15T00:10:01.000Z">
+  <meta property="article:modified_time" content="2026-10-15T00:10:01.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#CompletableFuture异步编程实战与原理"><span class="toc-text">CompletableFuture异步编程实战与原理</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把-CompletableFuture-想象成餐厅后厨"><span class="toc-text">核心概念：把 CompletableFuture 想象成餐厅后厨</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析"><span class="toc-text">源码深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-结果字段-为什么用-Object-result-而不是泛型字段"><span class="toc-text">Object result 而不是泛型字段">1. 结果字段：为什么用 Object result 而不是泛型字段</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-依赖栈-Treiber-Stack-与无锁回调注册"><span class="toc-text">2. 依赖栈：Treiber Stack 与无锁回调注册</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-thenApply-的源码-回调如何被创建"><span class="toc-text">thenApply 的源码：回调如何被创建">3. thenApply 的源码：回调如何被创建</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-线程池选择的三种模式"><span class="toc-text">4. 线程池选择的三种模式</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-商品详情页并行聚合-生产可用"><span class="toc-text">示例 1：商品详情页并行聚合（生产可用）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-多级降级-熔断风格的链式编排"><span class="toc-text">示例 2：多级降级 + 熔断风格的链式编排</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-批量任务-限流-结果收集-避免-commonPool-陷阱"><span class="toc-text">示例 3：批量任务 + 限流 + 结果收集（避免 commonPool 陷阱）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-CompletableFuture-vs-其他异步方案"><span class="toc-text">方案对比：CompletableFuture vs 其他异步方案</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9438)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">CompletableFuture异步编程实战与原理</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-15"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-15</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-15"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-15</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="CompletableFuture异步编程实战与原理"><a href="#CompletableFuture异步编程实战与原理" class="headerlink" title="CompletableFuture异步编程实战与原理"></a>CompletableFuture异步编程实战与原理</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先看一个真实的生产事故。</p>
+<p>某电商平台的商品详情页聚合接口，需要并行调用 6 个下游服务：商品基础信息、库存、价格、促销、评价、推荐。早期实现用的是 <code>ExecutorService</code> + <code>Future</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">Future&lt;Product&gt; productFuture = executor.submit(() -&gt; productService.get(id));
+Future&lt;Stock&gt; stockFuture = executor.submit(() -&gt; stockService.get(id));
+// ... 剩下 4 个
+Product product = productFuture.get();   // 阻塞
+Stock stock = stockFuture.get();         // 阻塞</code></pre></figure>
+<p>上线后发现两个问题：</p>
+<ol>
+<li><strong>P99 延迟异常高</strong>。某个下游服务偶发慢响应时，<code>get()</code> 会把整个聚合接口拖死，线程池里的工作线程被大量占用，形成雪崩。</li>
+<li><strong>代码没法优雅地做降级</strong>。想在"库存服务超时 200ms 就返回默认值"这种逻辑上做文章，<code>Future</code> 的 API 根本表达不出来，只能写一堆 <code>try-catch</code> 和 <code>isDone()</code> 判断。</li>
+</ol>
+<p>换成 <code>CompletableFuture</code> 后，配合 <code>orTimeout</code>、<code>exceptionally</code>、<code>thenCombine</code>，代码从 80 行缩到 30 行，P99 从 1.2s 降到 320ms。</p>
+<p>这篇文章不写入门教程。我会从<strong>餐厅后厨</strong>这个类比切入，然后打开 JDK 源码，把 <code>CompletableFuture</code> 的<strong>依赖栈（Treiber Stack）</strong>、<strong>回调触发机制</strong>、<strong>线程池选择策略</strong>讲透，最后给出三个可直接跑的生产级示例和一份踩坑清单。</p>
+<hr>
+<h2 id="核心概念-把-CompletableFuture-想象成餐厅后厨"><a href="#核心概念-把-CompletableFuture-想象成餐厅后厨" class="headerlink" title="核心概念：把 CompletableFuture 想象成餐厅后厨"></a>核心概念：把 CompletableFuture 想象成餐厅后厨</h2>
+<p>传统 <code>Future</code> 是什么？你去餐厅点菜，服务员给你一个<strong>取餐号</strong>（Future），然后你就只能站在窗口<strong>死等</strong>（<code>get()</code>），菜好了叫你。等待期间你什么都干不了。</p>
+<p><code>CompletableFuture</code> 是什么？你点完菜，服务员给你号码，同时说："<strong>菜好了我直接送到你桌上</strong>（回调），而且你可以<strong>中途加菜</strong>（链式组合），如果厨房做不出来，我<strong>自动给你换成别的</strong>（<code>exceptionally</code> 降级）。"</p>
+<p>技术定义上：</p>
+<ul>
+<li><code>Future</code>：<strong>只读的结果容器</strong>，只能阻塞等待或轮询 <code>isDone()</code>。</li>
+</ul>
+<ul>
+<li><code>CompletableFuture</code>：<strong>可写的、可组合的、支持回调的结果容器</strong>。它实现了 <code>Future</code> 和 <code>CompletionStage</code>，核心能力是<strong>把"结果没到"这件事本身变成一种可以编排的状态</strong>。</li>
+</ul>
+<p>关键区别在于 <code>CompletionStage</code> 定义的语义：每个阶段（Stage）之间通过 <code>then*</code> 系列方法连接，形成一个<strong>有向无环图（DAG）</strong>，结果沿着边流动，某个节点完成时自动触发下游节点。</p>
+<div class="mermaid">
+graph TD
+    A[商品详情请求] --> B[CompletableFuture 编排层]
+    B --> C[商品信息 CF]
+    B --> D[库存 CF]
+    B --> E[价格 CF]
+    B --> F[促销 CF]
+    C --> G[thenCombine 合并]
+    D --> G
+    E --> H[thenCombine 合并]
+    F --> H
+    G --> I[最终组装]
+    H --> I
+    I --> J[返回前端]
+    D -.超时200ms.-> K[orTimeout + exceptionally 降级]
+    K --> I
+</div>
+<p>这张图就是 <code>CompletableFuture</code> 的价值所在：<strong>依赖关系显式化，失败路径可编程，执行线程可控</strong>。</p>
+<hr>
+<h2 id="源码深度分析"><a href="#源码深度分析" class="headerlink" title="源码深度分析"></a>源码深度分析</h2>
+<p>这一节是全文的核心。我们打开 <code>java.util.concurrent.CompletableFuture</code>，看三个最关键的设计。</p>
+<h3 id="1-结果字段-为什么用-Object-result-而不是泛型字段"><a href="#1-结果字段-为什么用-Object-result-而不是泛型字段" class="headerlink" title="1. 结果字段：为什么用 <code>Object result</code> 而不是泛型字段"></a>1. 结果字段：为什么用 <code>Object result</code> 而不是泛型字段</h3>
+<figure class="highlight java"><pre><code class="language-java">public class CompletableFuture&lt;T&gt; implements Future&lt;T&gt;, CompletionStage&lt;T&gt; {
+    volatile Object result;   // 注意：是 Object，不是 T
+    volatile Completion stack; // 回调栈的栈顶
+    // ...
+}</code></pre></figure>
+<p><code>result</code> 声明为 <code>Object</code>，因为它要同时承载三种语义：</p>
+<ul>
+<li><strong>正常结果</strong>：就是 <code>T</code> 类型的实例。</li>
+</ul>
+<ul>
+<li><strong>空结果</strong>：<code>NIL</code>（一个静态哨兵对象），表示"完成但没有值"（比如 <code>thenAccept</code> 的返回）。</li>
+</ul>
+<ul>
+<li><strong>异常结果</strong>：<code>AltResult</code> 包装的 <code>Throwable</code>。</li>
+</ul>
+<figure class="highlight java"><pre><code class="language-java">static final class AltResult {
+    final Throwable ex;
+    AltResult(Throwable x) { this.ex = x; }
+}
+static final AltResult NIL = new AltResult(null);</code></pre></figure>
+<p>用一个 <code>volatile Object</code> 字段 + 哨兵值，避免了"结果字段 + 异常字段 + 完成标志位"三个字段带来的<strong>可见性顺序问题</strong>。这是典型的<strong>状态压缩</strong>技巧：<strong>单字段写入天然保证原子性和可见性</strong>，读的时候根据类型判断状态。</p>
+<blockquote>
+<p>类比：餐厅后厨的出餐口只有一个窗口。出来的要么是菜（正常结果），要么是"今日无此菜"的牌子（NIL），要么是"厨房失火"的告示（AltResult）。你不需要问"菜好了没"和"有没有出问题"两个问题，看窗口里是什么就知道了。</p>
+</blockquote>
+<h3 id="2-依赖栈-Treiber-Stack-与无锁回调注册"><a href="#2-依赖栈-Treiber-Stack-与无锁回调注册" class="headerlink" title="2. 依赖栈：Treiber Stack 与无锁回调注册"></a>2. 依赖栈：Treiber Stack 与无锁回调注册</h3>
+<p><code>Completion</code> 是所有回调节点的抽象基类，它构成一个<strong>Treiber Stack</strong>（无锁并发栈）：</p>
+<figure class="highlight java"><pre><code class="language-java">abstract static class Completion extends ForkJoinTask&lt;Void&gt;
+        implements Runnable, AsynchronousCompletionTask {
+    volatile Completion next;   // 单向链表，指向下一个节点
+    abstract CompletableFuture&lt;?&gt; tryFire(int mode); // 触发回调
+    abstract boolean isLive();
+}</code></pre></figure>
+<p>为什么用栈而不是队列？因为<strong>后注册的回调通常是"更外层"的依赖</strong>，用 LIFO 顺序触发有利于<strong>尽早释放引用、减少栈深度、触发时 cache 友好</strong>。更重要的是，入栈用 CAS 无锁实现：</p>
+<figure class="highlight java"><pre><code class="language-java">final void push(CompletableFuture&lt;T&gt; f, Completion c) {
+    // 简化后的逻辑
+    while (!f.casStack(c, c.next = f.stack)) {  // 自旋 CAS 直到成功
+        // 若栈顶已是相同类型，可合并（如 UniRelay）
+    }
+}</code></pre></figure>
+<p><strong>入栈时有一个精妙的判断</strong>：如果 <code>f.result != null</code>（源 Future 已完成），那么 <code>postComplete</code> 会立即触发，而不是傻等。</p>
+<figure class="highlight java"><pre><code class="language-java">final void postComplete() {
+    CompletableFuture&lt;?&gt; f = this;
+    Completion h;
+    while ((h = f.stack) != null ||
+           (f != this &amp;&amp; (h = (f = this).stack) != null)) {
+        CompletableFuture&lt;?&gt; d; Completion t;
+        if (f.casStack(t = h.next, h)) {   // 弹栈
+            if (t != null) {
+                if (t.next != null)   // 把剩余节点压回
+                    pushStack(t);
+                h.next = null;
+            }
+            f = (d = h.tryFire(NESTED)) == null ? this : d;  // 触发
+        }
+    }
+}</code></pre></figure>
+<p>这段代码是整个 <code>CompletableFuture</code> 的<strong>心脏</strong>。它做的事情是：<strong>不断从栈顶弹出回调节点，调用 <code>tryFire</code> 触发它们，被触发的节点又可能产生新的节点，递归地继续</strong>。注意 <code>NESTED</code> 这个 mode 参数，它表示"当前正在触发回调的线程里"，用来<strong>避免重复提交到线程池</strong>（如果回调很短，直接在触发线程里跑完更划算）。</p>
+<h3 id="3-thenApply-的源码-回调如何被创建"><a href="#3-thenApply-的源码-回调如何被创建" class="headerlink" title="3. <code>thenApply</code> 的源码：回调如何被创建"></a>3. <code>thenApply</code> 的源码：回调如何被创建</h3>
+<figure class="highlight java"><pre><code class="language-java">public &lt;U&gt; CompletableFuture&lt;U&gt; thenApply(
+        Function&lt;? super T,? extends U&gt; fn) {
+    return uniApplyStage(null, fn);
+}
+
+private &lt;V&gt; CompletableFuture&lt;V&gt; uniApplyStage(
+        Executor e, Function&lt;? super T,? extends V&gt; f) {
+    // ... null 检查
+    CompletableFuture&lt;V&gt; d = newIncompleteFuture();  // 新建目标 CF
+    if (e != null || !d.uniApply(this, f, null)) {
+        // 源已完成的快速路径失败，创建回调节点
+        UniApply&lt;T,V&gt; c = new UniApply&lt;T,V&gt;(e, d, this, f);
+        push(c);          // 挂到源 CF 的回调栈
+        c.tryFire(SYNC);  // 尝试立即触发
+    }
+    return d;
+}</code></pre></figure>
+<p>关键在 <code>UniApply</code> 的 <code>tryFire</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">final CompletableFuture&lt;V&gt; tryFire(int mode) {
+    CompletableFuture&lt;V&gt; d; CompletableFuture&lt;T&gt; a;
+    if ((d = dep) == null ||
+        !d.uniApply(a = src, fn, mode &gt; 0 ? null : this))
+        return null;
+    dep = null; src = null; fn = null;
+    return d.postFire(a, mode);   // 触发下游
+}</code></pre></figure>
+<p><code>uniApply</code> 里做的是<strong>关键路径优化</strong>：如果源 Future 已经完成，直接执行 <code>fn</code> 并把结果写入 <code>dep</code>，<strong>完全不经过线程池</strong>。这就是为什么 <code>CompletableFuture</code> 在同步链上性能极好——它有一条"源已完成，直接算"的快速路径。</p>
+<figure class="highlight java"><pre><code class="language-java">final &lt;S&gt; boolean uniApply(CompletableFuture&lt;S&gt; a,
+        Function&lt;? super S,? extends T&gt; f, UniApply&lt;S,T&gt; c) {
+    Object r; Throwable x;
+    if (a == null || (r = a.result) == null || f == null)
+        return false;
+    tryComplete: if (result == null) {
+        if (r instanceof AltResult) {
+            if ((x = ((AltResult)r).ex) != null) {
+                completeThrowable(x, r);   // 异常传播
+                break tryComplete;
+            }
+            r = null;
+        }
+        try {
+            if (c != null &amp;&amp; !c.claim())
+                return false;
+            @SuppressWarnings(&quot;unchecked&quot;) S s = (S) r;
+            completeValue(f.apply(s));     // 执行用户函数
+        } catch (Throwable ex) {
+            completeThrowable(ex);
+        }
+    }
+    return true;
+}</code></pre></figure>
+<p><strong>读到这里你应该明白一个反直觉的事实</strong>：<code>CompletableFuture</code> 的 <code>thenApply</code> 这类同步回调，<strong>如果源已完成，是在调用者线程里直接执行的</strong>，不会切换线程。这是性能优势，但也是<strong>坑的来源</strong>——如果你不知道这一点，可能会在回调里做耗时操作而阻塞调用线程。</p>
+<h3 id="4-线程池选择的三种模式"><a href="#4-线程池选择的三种模式" class="headerlink" title="4. 线程池选择的三种模式"></a>4. 线程池选择的三种模式</h3>
+<p><code>CompletableFuture</code> 的 <code>*Async</code> 方法有三种执行策略：</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>Executor 参数</th>
+<th>执行线程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>thenApply</code></td>
+<td>无</td>
+<td>调用线程 / 触发线程（不切换）</td>
+</tr><tr>
+<td><code>thenApplyAsync</code></td>
+<td>null</td>
+<td><code>ForkJoinPool.commonPool()</code></td>
+</tr><tr>
+<td><code>thenApplyAsync</code></td>
+<td>指定 executor</td>
+<td>指定线程池</td>
+</tr></tbody></table>
+<p><code>commonPool()</code> 的默认并行度是 <code>Runtime.getRuntime().availableProcessors() - 1</code>。<strong>在容器化环境（K8s）里这是个巨坑</strong>：JDK 8 早期版本读不到 cgroup 的 CPU limit，会按宿主机核数创建线程。JDK 8u191+ 才通过 <code>UseContainerSupport</code> 修复。即便如此，<strong>把 IO 密集型任务丢进 commonPool 依然是灾难</strong>，因为它默认是为 CPU 密集型设计的。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-商品详情页并行聚合-生产可用"><a href="#示例-1-商品详情页并行聚合-生产可用" class="headerlink" title="示例 1：商品详情页并行聚合（生产可用）"></a>示例 1：商品详情页并行聚合（生产可用）</h3>
+<figure class="highlight java"><pre><code class="language-java">import java.util.concurrent.*;
+import java.time.Duration;
+
+public class ProductDetailAggregator {
+
+    // 为 IO 密集型任务定制线程池：核心线程数按 QPS 和 RT 估算
+    private static final ExecutorService BIZ_POOL = new ThreadPoolExecutor(
+        32, 64, 60L, TimeUnit.SECONDS,
+        new LinkedBlockingQueue&lt;&gt;(200),
+        new ThreadFactory() {
+            private final java.util.concurrent.atomic.AtomicInteger seq =
+                new java.util.concurrent.atomic.AtomicInteger(1);
+            @Override public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, &quot;biz-pool-&quot; + seq.getAndIncrement());
+                t.setDaemon(true);   // 守护线程，避免阻塞 JVM 退出
+                return t;
+            }
+        },
+        // 关键：队列满了不能让调用线程无限等待，用 CallerRuns 兜底
+        new ThreadPoolExecutor.CallerRunsPolicy()
+    );
+
+    public ProductDetail aggregate(long skuId) {
+        // 1. 启动所有下游调用，每个都带超时和降级
+        CompletableFuture&lt;Product&gt; productF = supplyWithFallback(
+            () -&gt; productService.get(skuId),
+            Duration.ofMillis(300), Product.EMPTY);
+
+        CompletableFuture&lt;Stock&gt; stockF = supplyWithFallback(
+            () -&gt; stockService.get(skuId),
+            Duration.ofMillis(200), Stock.UNKNOWN);
+
+        CompletableFuture&lt;Price&gt; priceF = supplyWithFallback(
+            () -&gt; priceService.get(skuId),
+            Duration.ofMillis(250), Price.DEFAULT);
+
+        CompletableFuture&lt;List&lt;Promotion&gt;&gt; promoF = supplyWithFallback(
+            () -&gt; promoService.list(skuId),
+            Duration.ofMillis(300), java.util.Collections.emptyList());
+
+        // 2. 组合：价格依赖商品（拿到商品才能算会员价），其余独立
+        CompletableFuture&lt;Price&gt; finalPriceF = productF.thenCombineAsync(
+            priceF,
+            (p, base) -&gt; priceService.applyMemberDiscount(p, base),
+            BIZ_POOL);
+
+        // 3. 全部完成后组装，allOf 只保证&quot;都完成&quot;，需要手动 join 取结果
+        return CompletableFuture
+            .allOf(productF, stockF, finalPriceF, promoF)
+            .thenApply(v -&gt; new ProductDetail(
+                productF.join(), stockF.join(),
+                finalPriceF.join(), promoF.join()))
+            .orTimeout(500, TimeUnit.MILLISECONDS)  // 整体兜底超时
+            .exceptionally(ex -&gt; {
+                // 兜底降级：整体超时时返回缓存或默认页
+                log.warn(&quot;aggregate timeout for sku {}&quot;, skuId, ex);
+                return ProductDetail.fallback(skuId);
+            })
+            .join();
+    }
+
+    /**
+     * 通用模板：异步执行 + 单点超时 + 单点降级
+     * 注意 orTimeout 会以 TimeoutException 完成 CF，
+     * 后续 exceptionally 捕获它并返回 fallback。
+     */
+    private &lt;T&gt; CompletableFuture&lt;T&gt; supplyWithFallback(
+            Supplier&lt;T&gt; supplier, Duration timeout, T fallback) {
+        return CompletableFuture
+            .supplyAsync(supplier, BIZ_POOL)
+            .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
+            .exceptionally(ex -&gt; {
+                log.warn(&quot;downstream failed, use fallback&quot;, ex);
+                return fallback;
+            });
+    }
+}</code></pre></figure>
+<p><strong>要点解析</strong>：</p>
+<ul>
+<li><code>allOf</code> 返回 <code>CompletableFuture<Void></code>，<strong>不携带结果</strong>，必须用 <code>join()</code> 逐个取。这是新手最容易踩的坑。</li>
+</ul>
+<ul>
+<li><code>orTimeout</code> 是 JDK 9+ 引入的。JDK 8 需要自己用 <code>ScheduledExecutorService</code> 实现，或升级到 <code>completeOnTimeout</code>。<strong>注意 <code>orTimeout</code> 不会取消底层任务</strong>，只是让 CF 提前以异常完成。</li>
+</ul>
+<ul>
+<li><code>CallerRunsPolicy</code> 是兜底：队列满时让调用线程自己跑，<strong>避免任务被静默丢弃</strong>，同时形成背压。</li>
+</ul>
+<h3 id="示例-2-多级降级-熔断风格的链式编排"><a href="#示例-2-多级降级-熔断风格的链式编排" class="headerlink" title="示例 2：多级降级 + 熔断风格的链式编排"></a>示例 2：多级降级 + 熔断风格的链式编排</h3>
+<figure class="highlight java"><pre><code class="language-java">public class MultiLevelFallback {
+
+    /**
+     * 三级数据源：本地缓存 -&gt; Redis -&gt; 远程 DB
+     * 任何一级成功即返回，全部失败返回默认值。
+     * 这是 CompletableFuture 相比 Future 最大的表达力优势。
+     */
+    public UserProfile loadProfile(long uid) {
+        return CompletableFuture
+            .supplyAsync(() -&gt; localCache.get(uid), CACHE_POOL)
+            // 本地缓存 miss 时走 Redis（handle 可以同时处理正常和异常）
+            .handle((local, ex) -&gt; {
+                if (local != null) return CompletableFuture.completedFuture(local);
+                return CompletableFuture.supplyAsync(
+                    () -&gt; redis.get(uid), CACHE_POOL);
+            })
+            .thenCompose(f -&gt; f)   // 扁平化嵌套的 CF
+            // Redis 也 miss 时走远程 DB
+            .handle((redisVal, ex) -&gt; {
+                if (redisVal != null) return CompletableFuture.completedFuture(redisVal);
+                return CompletableFuture.supplyAsync(
+                    () -&gt; remoteDb.query(uid), DB_POOL);
+            })
+            .thenCompose(f -&gt; f)
+            .orTimeout(800, TimeUnit.MILLISECONDS)
+            // 三级全挂：返回匿名默认画像，保证页面可渲染
+            .exceptionally(ex -&gt; {
+                metrics.counter(&quot;profile.fallback&quot;).increment();
+                return UserProfile.anonymous(uid);
+            })
+            .join();
+    }
+}</code></pre></figure>
+<p><strong>关键点</strong>：</p>
+<ul>
+<li><code>handle</code> 与 <code>thenApply</code> 的区别：<code>handle</code> 无论上一步正常还是异常都会执行，且能同时拿到值和异常；<code>thenApply</code> 遇到异常会<strong>直接短路</strong>跳过。</li>
+</ul>
+<ul>
+<li><code>thenCompose</code> 用于<strong>扁平化</strong>：当回调本身返回 <code>CompletableFuture</code> 时，用 <code>thenCompose</code> 避免得到 <code>CF<CF<T>></code>。类比 <code>Stream.flatMap</code>。</li>
+</ul>
+<ul>
+<li>这种"逐级降级"用 <code>Future</code> 写会是一坨嵌套 <code>try-catch</code>，用 <code>CF</code> 就是一条链。</li>
+</ul>
+<h3 id="示例-3-批量任务-限流-结果收集-避免-commonPool-陷阱"><a href="#示例-3-批量任务-限流-结果收集-避免-commonPool-陷阱" class="headerlink" title="示例 3：批量任务 + 限流 + 结果收集（避免 commonPool 陷阱）"></a>示例 3：批量任务 + 限流 + 结果收集（避免 commonPool 陷阱）</h3>
+<figure class="highlight java"><pre><code class="language-java">public class BatchProcessor {
+
+    private final ExecutorService pool;
+    private final Semaphore limiter;   // 控制对下游的并发压力
+
+    public BatchProcessor(int concurrency) {
+        this.pool = Executors.newFixedThreadPool(concurrency, r -&gt; {
+            Thread t = new Thread(r, &quot;batch-worker&quot;);
+            t.setDaemon(true);
+            return t;
+        });
+        this.limiter = new Semaphore(concurrency);
+    }
+
+    /**
+     * 批量调用下游接口，限制并发数，收集所有结果。
+     * 单个失败不影响整体，失败项记为 null。
+     */
+    public &lt;T&gt; List&lt;T&gt; batchCall(List&lt;Long&gt; ids,
+                                 Function&lt;Long, T&gt; remoteCall) {
+        List&lt;CompletableFuture&lt;T&gt;&gt; futures = ids.stream()
+            .map(id -&gt; CompletableFuture
+                .supplyAsync(() -&gt; {
+                    try {
+                        limiter.acquire();       // 限流：拿不到许可就阻塞
+                        return remoteCall.apply(id);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new CompletionException(e);
+                    } finally {
+                        limiter.release();
+                    }
+                }, pool)
+                .orTimeout(1, TimeUnit.SECONDS)
+                // 单个失败降级为 null，不影响其他任务
+                .exceptionally(ex -&gt; {
+                    log.warn(&quot;remote call failed for id {}&quot;, id, ex);
+                    return null;
+                }))
+            .collect(Collectors.toList());
+
+        // allOf 只等全部完成，然后逐个 join（此时已完成，join 不会阻塞）
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        return futures.stream()
+            .map(CompletableFuture::join)
+            .collect(Collectors.toList());
+    }
+}</code></pre></figure>
+<p><strong>要点</strong>：</p>
+<ul>
+<li><strong>不要用 <code>commonPool</code> 做 IO</strong>。这里显式指定 <code>pool</code>，并用 <code>Semaphore</code> 做并发限流，避免打爆下游。</li>
+</ul>
+<ul>
+<li><code>allOf(...).join()</code> 之后所有 future 都已 <code>done</code>，此时 <code>join()</code> 是<strong>非阻塞的</strong>（走 <code>uniApply</code> 快速路径）。</li>
+</ul>
+<ul>
+<li><code>exceptionally</code> 返回 <code>null</code> 是常见降级手段，但<strong>调用方必须处理 null</strong>，否则 NPE。</li>
+</ul>
+<hr>
+<h2 id="方案对比-CompletableFuture-vs-其他异步方案"><a href="#方案对比-CompletableFuture-vs-其他异步方案" class="headerlink" title="方案对比：CompletableFuture vs 其他异步方案"></a>方案对比：CompletableFuture vs 其他异步方案</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Future</th>
+<th>CompletableFuture</th>
+<th>RxJava/Reactor</th>
+<th>虚拟线程 + 阻塞</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>组合能力</td>
+<td>无</td>
+<td>强（then/combine/allOf）</td>
+<td>极强（操作符丰富）</td>
+<td>一般（靠结构化并发）</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>低</td>
+<td>中</td>
+<td>高</td>
+<td>低</td>
+</tr><tr>
+<td>背压支持</td>
+<td>无</td>
+<td>无</td>
+<td>原生支持</td>
+<td>天然（阻塞即背压）</td>
+</tr><tr>
+<td>调试友好度</td>
+<td>好</td>
+<td>差（栈丢失）</td>
+<td>差</td>
+<td>好</td>
+</tr><tr>
+<td>适用场景</td>
+<td>简单并发</td>
+<td>中等复杂度编排</td>
+<td>流式/复杂事件流</td>
+<td>IO 密集、JDK 21+</td>
+</tr><tr>
+<td>生态</td>
+<td>JDK</td>
+<td>JDK</td>
+<td>需引入依赖</td>
+<td>JDK 21+</td>
+</tr></tbody></table>
+<p><strong>结论</strong>：</p>
+<ul>
+<li><strong>JDK 8~17 + 少量下游聚合</strong>：<code>CompletableFuture</code> 是性价比最高的选择。</li>
+</ul>
+<ul>
+<li><strong>复杂流式处理、需要背压</strong>：上 Reactor/RxJava。</li>
+</ul>
+<ul>
+<li><strong>JDK 21+ 且 IO 密集</strong>：直接用<strong>虚拟线程 + 阻塞代码</strong>往往比 <code>CF</code> 更简单，<code>StructuredTaskScope</code> 提供了更好的结构化并发。</li>
+</ul>
+<div class="mermaid">
+graph LR
+    A[异步需求] --> B{复杂度}
+    B -->|简单并行| C[CompletableFuture]
+    B -->|流式/背压| D[Reactor]
+    B -->|JDK21+ IO密集| E[虚拟线程]
+    C --> F[注意线程池隔离]
+    D --> G[注意调度器选型]
+    E --> H[注意 pinning 问题]
+</div>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>坑 1：<code>join()</code> 抛的是 <code>CompletionException</code>，不是原始异常</strong></p>
+<p><code>join()</code> 和 <code>get()</code> 的区别：<code>get()</code> 抛受检的 <code>ExecutionException</code>，<code>join()</code> 抛非受检的 <code>CompletionException</code>，原始异常被包在 <code>cause</code> 里。日志打印时要 <code>ex.getCause()</code>，否则只能看到一层包装。</p>
+<p><strong>坑 2：<code>commonPool</code> 是共享的，一个慢任务拖垮全局</strong></p>
+<p><code>thenApplyAsync(fn)</code> 不传 executor 就用 <code>commonPool</code>。整个 JVM 共享这一个池，任何地方塞进去的阻塞任务都会影响其他人。<strong>生产代码永远显式传 executor</strong>。</p>
+<p><strong>坑 3：<code>orTimeout</code> 不取消底层任务</strong></p>
+<p><code>orTimeout</code> 只是让 CF 提前以 <code>TimeoutException</code> 完成，<strong>底层线程仍在跑</strong>。如果要真正取消，需要持有返回的 CF 并 <code>cancel(true)</code>，或者用支持中断的库。这是资源泄漏的常见来源。</p>
+<p><strong>坑 4：异常被静默吞掉</strong></p>
+<p>如果一条链上没有任何 <code>exceptionally</code> / <code>handle</code> / <code>whenComplete</code>，异常就静静躺在 CF 里。<code>allOf</code> 也不抛异常。<strong>务必在链尾加兜底</strong>，或在 <code>whenComplete</code> 里打日志。</p>
+<p><strong>坑 5：回调里做阻塞操作</strong></p>
+<p>前面源码分析过，同步回调（<code>thenApply</code> 不带 Async）可能在<strong>调用线程或触发线程</strong>里执行。在回调里做 DB 查询、HTTP 调用，会阻塞这些线程。<strong>耗时操作一律用 <code>*Async</code> + 独立线程池</strong>。</p>
+<p><strong>坑 6：<code>allOf</code> + <code>join</code> 的异常处理</strong></p>
+<figure class="highlight java"><pre><code class="language-java">CompletableFuture.allOf(f1, f2, f3).join();
+// 如果 f2 失败，这里抛 CompletionException，但你不知道是哪个失败了</code></pre></figure>
+<p>正确做法：给每个 future 单独挂 <code>exceptionally</code>，或在链尾收集失败信息。</p>
+<p><strong>最佳实践清单</strong>：</p>
+<ol>
+<li><strong>线程池隔离</strong>：不同业务用不同线程池，避免相互影响。参考 Hystrix/Sentinel 的舱壁隔离思想。</li>
+<li><strong>每个下游调用都带超时和降级</strong>，用 <code>orTimeout</code> + <code>exceptionally</code> 组合。</li>
+<li><strong>链尾必挂兜底</strong>：<code>exceptionally</code> 或 <code>handle</code> 收尾。</li>
+<li><strong>避免在回调里阻塞</strong>，用 <code>*Async</code>。</li>
+<li><strong>用 <code>thenCompose</code> 扁平化嵌套 CF</strong>，别写出 <code>CF<CF<T>></code>。</li>
+<li><strong>监控</strong>：记录每个阶段的耗时和失败率，<code>CompletableFuture</code> 的链路对 APM 不友好，手动埋点。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回顾全文的几个核心认知：</p>
+<ol>
+<li><strong><code>CompletableFuture</code> 的本质是一个可编排的状态机</strong>，<code>volatile Object result</code> 单字段承载所有状态，<code>Completion</code> 栈实现无锁回调注册，<code>postComplete</code> 是触发引擎。</li>
+</ol>
+<ol>
+<li><strong>同步回调有"快速路径"</strong>：源已完成时在调用线程直接执行，这是性能优势也是坑源。耗时操作必须 <code>*Async</code>。</li>
+</ol>
+<ol>
+<li><strong><code>commonPool</code> 是共享资源</strong>，IO 密集型任务必须用隔离的线程池。</li>
+</ol>
+<ol>
+<li><strong>超时、降级、异常处理是异步编程的三件套</strong>，缺一不可。<code>orTimeout</code> 不取消底层任务，要留意资源泄漏。</li>
+</ol>
+<ol>
+<li><strong>JDK 21+ 的虚拟线程正在改变游戏规则</strong>。当阻塞变得廉价，"用同步代码写异步逻辑"重新变得有吸引力。<code>CompletableFuture</code> 未来更多会用于<strong>编排</strong>而非<strong>执行</strong>。</li>
+</ol>
+<p>延伸思考：<code>CompletableFuture</code> 的依赖图本质上是一个<strong>轻量级的协程调度器</strong>，只是它没有真正的挂起/恢复能力。如果你理解了它的栈结构和触发机制，再去看 Kotlin 协程的 <code>Continuation</code>、Loom 的 <code>Continuation</code>，会发现思想是相通的——<strong>都是把"等待"这件事从线程里剥离出来，变成一种可调度的数据结构</strong>。这是异步编程二十年演进的底层主线。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
