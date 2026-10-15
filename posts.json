@@ -1,5 +1,25 @@
 [
  {
+  "title": "Embedding模型选型与语义搜索实践",
+  "url": "/2026/10/15/Embedding%E6%A8%A1%E5%9E%8B%E9%80%89%E5%9E%8B%E4%B8%8E%E8%AF%AD%E4%B9%89%E6%90%9C%E7%B4%A2%E5%AE%9E%E8%B7%B5/",
+  "date": "2026-10-15",
+  "year": 2026,
+  "month": 10,
+  "day": 15,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4771",
+  "excerpt": "引言 去年双十一大促前夜，我接到一个紧急电话。某电商平台的\\"
+ },
+ {
   "title": "CompletableFuture异步编程实战与原理",
   "url": "/2026/10/15/CompletableFuture%E5%BC%82%E6%AD%A5%E7%BC%96%E7%A8%8B%E5%AE%9E%E6%88%98%E4%B8%8E%E5%8E%9F%E7%90%86/",
   "date": "2026-10-15",

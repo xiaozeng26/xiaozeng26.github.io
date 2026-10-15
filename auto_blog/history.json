@@ -545,6 +545,13 @@
       "subtopic": "CompletableFuture异步编程实战与原理",
       "date": "2026-10-14",
       "url": "/2026/10/15/CompletableFuture异步编程实战与原理/"
+    },
+    {
+      "title": "Embedding模型选型与语义搜索实践",
+      "category": "ai-ml",
+      "subtopic": "Embedding模型选型与语义搜索实践",
+      "date": "2026-10-15",
+      "url": "/2026/10/15/Embedding模型选型与语义搜索实践/"
     }
   ],
   "used_subtopics": {
@@ -591,7 +598,8 @@
       "LangChain Memory模块：对话历史管理最佳实践",
       "大模型微调技术对比：LoRA、QLoRA、全参微调",
       "向量数据库选型与LangChain VectorStore集成",
-      "LangGraph状态图驱动Agent的实现原理"
+      "LangGraph状态图驱动Agent的实现原理",
+      "Embedding模型选型与语义搜索实践"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -610,12 +618,16 @@
     ],
     "docker_kubernetes": [
       "容器化应用的12-Factor原则实践",
-      "Docker网络模式：bridge、host、overlay深入对比"
+      "Docker网络模式：bridge、host、overlay深入对比",
+      "Helm Chart模板开发与Release管理"
     ],
     "go": [
       "Go Context的设计与链路追踪实践",
       "protobuf + gRPC拦截器链实现",
-      "sync.Mutex源码解读与锁优化"
+      "sync.Mutex源码解读与锁优化",
+      "Channel底层实现与select多路复用",
+      "Go内存管理：栈与堆、逃逸分析",
+      "Go错误处理范式与errors包源码"
     ]
   },
   "content_hashes": {
@@ -695,6 +707,7 @@
     "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比": "e6f83822367d603f200d9a49f66276d1a573fab7752a1618bf862ba74c0cd977",
     "高并发秒杀系统架构设计演进": "0faa46230f747d2a3472f6ed051724fade46180337e11cf1a9b64570009966a6",
     "Python协程与生成器的底层实现（yield from解析）": "807bbcf71d542b4ed3e7ab64426381b16d2a14843af6201fc68522af6e9499cb",
-    "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed"
+    "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed",
+    "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50"
   }
 }
