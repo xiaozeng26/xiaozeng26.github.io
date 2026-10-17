@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Python元类编程与ORM框架实现 | 小曾博客</title>
+  <meta name="description" content="Python元类编程与ORM框架实现 引言 去年我接手一个内部数据平台的重构，需求很简单：把散落在十几个脚本里的 SQL 拼接逻辑收敛成统一的模型层。团队里有人提议直接上 SQLAlchemy，但甲方要求\"零第三方 ORM 依赖\"，因为部署环境是信创体系下的私有云，依赖审计极其严格。 于是我们花了三周手写了一个微型 ORM，核心只有 800 行代码。写完之后，团队里一位工作五年的同事说了句话让我印">
+  <meta name="keywords" content="python,fastapi,async,django,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Python元类编程与ORM框架实现">
+  <meta name="twitter:description" content="Python元类编程与ORM框架实现 引言 去年我接手一个内部数据平台的重构，需求很简单：把散落在十几个脚本里的 SQL 拼接逻辑收敛成统一的模型层。团队里有人提议直接上 SQLAlchemy，但甲方要求\"零第三方 ORM 依赖\"，因为部署环境是信创体系下的私有云，依赖审计极其严格。 于是我们花了三周手写了一个微型 ORM，核心只有 800 行代码。写完之后，团队里一位工作五年的同事说了句话让我印">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8726">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Python元类编程与ORM框架实现">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Python元类编程与ORM框架实现 引言 去年我接手一个内部数据平台的重构，需求很简单：把散落在十几个脚本里的 SQL 拼接逻辑收敛成统一的模型层。团队里有人提议直接上 SQLAlchemy，但甲方要求\"零第三方 ORM 依赖\"，因为部署环境是信创体系下的私有云，依赖审计极其严格。 于是我们花了三周手写了一个微型 ORM，核心只有 800 行代码。写完之后，团队里一位工作五年的同事说了句话让我印">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8726">
+  <meta property="article:published_time" content="2026-10-17T22:38:34.000Z">
+  <meta property="article:modified_time" content="2026-10-17T22:38:34.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Python元类编程与ORM框架实现"><span class="toc-text">Python元类编程与ORM框架实现</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-类也是对象-说起"><span class="toc-text">核心概念：从"类也是对象"说起</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活化类比-餐厅的菜单与后厨"><span class="toc-text">生活化类比：餐厅的菜单与后厨</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#type-call-的三段式"><span class="toc-text">type.__call__ 的三段式">type.__call__ 的三段式</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#prepare-命名空间的-预分配"><span class="toc-text">__prepare__：命名空间的"预分配"">__prepare__：命名空间的"预分配"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#描述符-字段访问的-门卫"><span class="toc-text">描述符：字段访问的"门卫"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#元类-描述符-ORM-的两大支柱"><span class="toc-text">元类 + 描述符 = ORM 的两大支柱</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-最小可用的元类-ORM"><span class="toc-text">示例一：最小可用的元类 ORM</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-带查询构建器与类型校验的进阶版"><span class="toc-text">示例二：带查询构建器与类型校验的进阶版</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-元类实现依赖注入容器-FastAPI-风格"><span class="toc-text">示例三：元类实现依赖注入容器（FastAPI 风格）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-元类-ORM-vs-装饰器-ORM-vs-声明式-ORM"><span class="toc-text">方案对比：元类 ORM vs 装饰器 ORM vs 声明式 ORM</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑一-元类冲突-metaclass-conflict"><span class="toc-text">坑一：元类冲突（metaclass conflict）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑二-new-里忘记调用-super-new"><span class="toc-text">__new__ 里忘记调用 super().__new__">坑二：__new__ 里忘记调用 super().__new__</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑三-描述符的-get-里用-getattr-instance-self-name-造成无限递归"><span class="toc-text">__get__ 里用 getattr(instance, self.name) 造成无限递归">坑三：描述符的 __get__ 里用 getattr(instance, self.name) 造成无限递归</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑四-元类影响-pickle-和-copy"><span class="toc-text">pickle 和 copy">坑四：元类影响 pickle 和 copy</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑五-fields-字典的继承污染"><span class="toc-text">_fields 字典的继承污染">坑五：_fields 字典的继承污染</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8726)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Python元类编程与ORM框架实现</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-17"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-17</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-17"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-17</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">python</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Python元类编程与ORM框架实现"><a href="#Python元类编程与ORM框架实现" class="headerlink" title="Python元类编程与ORM框架实现"></a>Python元类编程与ORM框架实现</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年我接手一个内部数据平台的重构，需求很简单：把散落在十几个脚本里的 SQL 拼接逻辑收敛成统一的模型层。团队里有人提议直接上 SQLAlchemy，但甲方要求"零第三方 ORM 依赖"，因为部署环境是信创体系下的私有云，依赖审计极其严格。</p>
+<p>于是我们花了三周手写了一个微型 ORM，核心只有 800 行代码。写完之后，团队里一位工作五年的同事说了句话让我印象深刻："原来 Django ORM 那些 <code>CharField(max_length=32)</code> 的魔法，本质就是元类在类创建的那一刻偷梁换柱。"</p>
+<p>这句话点破了元类编程的核心价值：<strong>元类让你能在类"出生"的瞬间，对它进行改造</strong>。这不是语法糖，而是 Python 对象模型最深的一层扩展点。Django ORM、SQLAlchemy 的 declarative base、Pydantic 的模型校验、FastAPI 的依赖注入，全都建立在这个机制之上。</p>
+<p>这篇文章会从 Python 对象模型的源码级原理讲起，手写一个可运行的微型 ORM，再对比业界主流框架的实现差异，最后给出我在生产环境中踩过的坑。目标读者是已经写过三五年 Python、但还没真正吃透元类的人。</p>
+<hr>
+<h2 id="核心概念-从-类也是对象-说起"><a href="#核心概念-从-类也是对象-说起" class="headerlink" title="核心概念：从"类也是对象"说起"></a>核心概念：从"类也是对象"说起</h2>
+<h3 id="生活化类比-餐厅的菜单与后厨"><a href="#生活化类比-餐厅的菜单与后厨" class="headerlink" title="生活化类比：餐厅的菜单与后厨"></a>生活化类比：餐厅的菜单与后厨</h3>
+<p>想象你走进一家餐厅。你手里拿到的<strong>菜单</strong>是静态的——上面印着菜名、价格、配料。但后厨是动态的：你点单的瞬间，厨师才开始组合食材。</p>
+<p>在 Python 里：</p>
+<ul>
+<li><strong>普通实例</strong>是你点的那盘菜——具体、可食用、一次性的。</li>
+</ul>
+<ul>
+<li><strong>类</strong>是菜单——它规定了"这类菜"应该长什么样，但它本身也是一份可以被修改的印刷品（因为类也是对象）。</li>
+</ul>
+<ul>
+<li><strong>元类</strong>是印刷厂——它决定了菜单怎么印、印几页、用什么字体。当你说"给我印一份新菜单"（定义一个新类）时，印刷厂（元类）的流水线就会启动。</li>
+</ul>
+<p>关键洞察：<strong>菜单也是纸，纸也能被印刷厂处理</strong>。这就是 <code>type</code> 既是所有类的类型、又是 <code>type</code> 自身的类型的原因。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>在 CPython 中，一切皆对象，每个对象都有 <code>ob_type</code> 指针指向它的类型。类的创建过程遵循这条链路：</p>
+<div class="mermaid">
+graph TD
+    A["用户写 class Foo: pass"] --> B["Python 编译器生成 BUILD_CLASS 字节码"]
+    B --> C["调用 type.__call__(metaclass, name, bases, namespace)"]
+    C --> D["metaclass.__new__ 创建类对象"]
+    D --> E["metaclass.__init__ 初始化类对象"]
+    E --> F["返回类对象 Foo"]
+    F --> G["Foo.__class__ == metaclass"]
+    G --> H["metaclass.__class__ == type"]
+</div>
+<p>默认情况下，<code>metaclass</code> 就是 <code>type</code>。当你在类定义里写 <code>class Foo(metaclass=MyMeta)</code>，Python 就会用 <code>MyMeta</code> 走上面这条流水线。</p>
+<p>一个容易被忽略的细节：<strong>元类的选择遵循"最派生原则"</strong>。如果父类的元类是 <code>MetaA</code>，子类显式指定 <code>MetaB</code>，而 <code>MetaB</code> 不是 <code>MetaA</code> 的子类，就会抛 <code>TypeError: metaclass conflict</code>。这是元类继承链的硬约束，Django 的 <code>ModelBase</code> 就踩在这个点上——它必须继承 <code>type</code>，同时 <code>Model</code> 的子类如果想混入自定义元类，必须让自定义元类继承 <code>ModelBase</code>。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="type-call-的三段式"><a href="#type-call-的三段式" class="headerlink" title="<code>type.__call__</code> 的三段式"></a><code>type.__call__</code> 的三段式</h3>
+<p>CPython 的 <code>type_call</code>（位于 <code>Objects/typeobject.c</code>）逻辑非常清晰，伪代码如下：</p>
+<figure class="highlight c"><pre><code class="language-c">static PyObject *
+type_call(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+    // 1. 调用 tp_new 创建实例（对元类来说，实例就是类对象）
+    obj = type-&gt;tp_new(type, args, kwds);
+    // 2. 如果 tp_init 存在，调用它
+    if (type-&gt;tp_init != NULL) {
+        type-&gt;tp_init(obj, args, kwds);
+    }
+    // 3. 返回
+    return obj;
+}</code></pre></figure>
+<p>对元类而言，<code>tp_new</code> 就是 <code>metaclass.__new__</code>，<code>tp_init</code> 就是 <code>metaclass.__init__</code>。<strong><code>__new__</code> 负责"造出来"，<code>__init__</code> 负责"初始化"</strong>。这跟普通实例化完全同构，只是作用对象从"实例"变成了"类"。</p>
+<p>这里有个关键点：<code>type.__new__(mcls, name, bases, namespace)</code> 会做大量工作——解析 <code>__slots__</code>、计算 MRO（<code>__mro__</code>）、处理 <code>__set_name__</code> 描述符回调、合并 <code>__dict__</code>。所以<strong>自定义元类时，<code>__new__</code> 里必须调用 <code>super().__new__</code>，且返回的对象必须是类</strong>，否则整个类创建会失败。</p>
+<h3 id="prepare-命名空间的-预分配"><a href="#prepare-命名空间的-预分配" class="headerlink" title="<code>__prepare__</code>：命名空间的"预分配""></a><code>__prepare__</code>：命名空间的"预分配"</h3>
+<p>Python 3 引入了一个容易被忽略的钩子 <code>__prepare__</code>。它在类体代码执行<strong>之前</strong>被调用，返回一个映射对象作为类体的局部命名空间。</p>
+<figure class="highlight python"><pre><code class="language-python">class Meta(type):
+    @classmethod
+    def __prepare__(mcls, name, bases, **kwds):
+        print(f&quot;preparing namespace for {name}&quot;)
+        return {}  # 必须是可变映射</code></pre></figure>
+<p>这个钩子的价值在于：你可以返回一个<strong>有序字典</strong>（Python 3.6+ 默认 dict 已有序，但历史上有 <code>OrderedDict</code> 方案）或<strong>带副作用的自定义映射</strong>，从而在类体执行时就捕获字段定义顺序。Django ORM 的字段顺序、SQLAlchemy 的列顺序，都依赖这个机制。</p>
+<h3 id="描述符-字段访问的-门卫"><a href="#描述符-字段访问的-门卫" class="headerlink" title="描述符：字段访问的"门卫""></a>描述符：字段访问的"门卫"</h3>
+<p>元类负责"类创建时"的改造，但<strong>实例属性访问</strong>的魔法靠的是描述符协议。一个类如果实现了 <code>__get__</code>/<code>__set__</code>/<code>__delete__</code>，它的实例就成为描述符。</p>
+<figure class="highlight python"><pre><code class="language-python">class Field:
+    def __init__(self, name):
+        self.name = name
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        return instance.__dict__.get(self.name)
+    def __set__(self, instance, value):
+        instance.__dict__[self.name] = value</code></pre></figure>
+<p>当 <code>User.name</code> 被访问时，Python 的 <code>object.__getattribute__</code>（<code>Objects/object.c</code> 里的 <code>PyObject_GenericGetAttr</code>）会先查 <code>type(instance).__mro__</code> 里是否有同名的数据描述符（同时实现 <code>__get__</code> 和 <code>__set__</code>），有则优先调用描述符。<strong>这是 ORM 能实现"字段级钩子"的底层保障</strong>。</p>
+<h3 id="元类-描述符-ORM-的两大支柱"><a href="#元类-描述符-ORM-的两大支柱" class="headerlink" title="元类 + 描述符 = ORM 的两大支柱"></a>元类 + 描述符 = ORM 的两大支柱</h3>
+<p>把上面两块拼起来，ORM 的骨架就清晰了：</p>
+<div class="mermaid">
+graph LR
+    A["class User(Model)"] --> B["ModelBase.__new__"]
+    B --> C["遍历 namespace 中的 Field 实例"]
+    C --> D["收集到 _fields 字典"]
+    D --> E["调用 type.__new__ 生成类"]
+    E --> F["实例化 User()"]
+    F --> G["访问 user.name 触发 Field.__get__"]
+    G --> H["从 instance.__dict__ 取值"]
+</div>
+<p>元类在"类创建期"做<strong>静态收集</strong>，描述符在"实例访问期"做<strong>动态拦截</strong>。前者是编译期元编程，后者是运行期元编程。两者分工明确，缺一不可。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例一-最小可用的元类-ORM"><a href="#示例一-最小可用的元类-ORM" class="headerlink" title="示例一：最小可用的元类 ORM"></a>示例一：最小可用的元类 ORM</h3>
+<p>这个版本能跑通 <code>CREATE TABLE</code>、<code>INSERT</code>、<code>SELECT</code>，代码控制在 150 行内，注释详细到可以当教学材料。</p>
+<figure class="highlight python"><pre><code class="language-python">import sqlite3
+from typing import Any, Dict, List, Optional
+
+
+class Field:
+    &quot;&quot;&quot;字段描述符：同时承担类型声明和值存取两个职责&quot;&quot;&quot;
+
+    def __init__(self, column_type: str, primary_key: bool = False,
+                 nullable: bool = True, default: Any = None):
+        self.column_type = column_type
+        self.primary_key = primary_key
+        self.nullable = nullable
+        self.default = default
+        self.name: Optional[str] = None  # 由元类在 __set_name__ 或 __new__ 中回填
+
+    def __set_name__(self, owner, name):
+        # Python 3.6+ 的钩子：描述符被赋值给类属性时自动调用
+        # 比在元类里手动回填更优雅，但元类里也能做，二者可互补
+        self.name = name
+
+    def __get__(self, instance, owner):
+        if instance is None:          # 通过类访问，返回描述符本身
+            return self
+        return instance.__dict__.get(self.name)
+
+    def __set__(self, instance, value):
+        instance.__dict__[self.name] = value
+
+    def to_sql(self) -&gt; str:
+        &quot;&quot;&quot;生成建表用的列定义&quot;&quot;&quot;
+        parts = [f&#x27;&quot;{self.name}&quot; {self.column_type}&#x27;]
+        if self.primary_key:
+            parts.append(&quot;PRIMARY KEY&quot;)
+        if not self.nullable:
+            parts.append(&quot;NOT NULL&quot;)
+        return &quot; &quot;.join(parts)
+
+
+class ModelMeta(type):
+    &quot;&quot;&quot;元类：在类创建时收集所有 Field，生成 _fields 元信息&quot;&quot;&quot;
+
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        # 1. 先把父类的字段继承下来（支持 ORM 继承）
+        fields: Dict[str, Field] = {}
+        for base in bases:
+            if hasattr(base, &quot;_fields&quot;):
+                fields.update(base._fields)
+
+        # 2. 扫描当前类体里新定义的 Field
+        for attr_name, attr_value in namespace.items():
+            if isinstance(attr_value, Field):
+                # __set_name__ 尚未触发（它在 type.__new__ 内部才调用），
+                # 这里先手动回填，保证后续逻辑可用
+                attr_value.name = attr_name
+                fields[attr_name] = attr_value
+
+        # 3. 把 _fields 塞进命名空间，供实例方法使用
+        namespace[&quot;_fields&quot;] = fields
+        namespace[&quot;_table_name&quot;] = namespace.get(&quot;__tablename__&quot;, name.lower())
+
+        # 4. 交给 type 完成真正的类创建
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        return cls
+
+
+class Model(metaclass=ModelMeta):
+    &quot;&quot;&quot;所有模型类的基类&quot;&quot;&quot;
+
+    _fields: Dict[str, Field] = {}
+    _table_name: str = &quot;&quot;
+
+    # ---- 类方法：DDL ----
+    @classmethod
+    def create_table(cls, conn: sqlite3.Connection):
+        cols = &quot;, &quot;.join(f.to_sql() for f in cls._fields.values())
+        sql = f&#x27;CREATE TABLE IF NOT EXISTS &quot;{cls._table_name}&quot; ({cols})&#x27;
+        conn.execute(sql)
+        conn.commit()
+
+    # ---- 实例方法：DML ----
+    def save(self, conn: sqlite3.Connection):
+        names = list(self._fields.keys())
+        placeholders = &quot;, &quot;.join(&quot;?&quot; for _ in names)
+        col_str = &quot;, &quot;.join(f&#x27;&quot;{n}&quot;&#x27; for n in names)
+        values = [getattr(self, n) for n in names]
+        sql = f&#x27;INSERT INTO &quot;{self._table_name}&quot; ({col_str}) VALUES ({placeholders})&#x27;
+        conn.execute(sql, values)
+        conn.commit()
+
+    @classmethod
+    def query(cls, conn: sqlite3.Connection, where: str = &quot;&quot;, params: tuple = ()):
+        sql = f&#x27;SELECT * FROM &quot;{cls._table_name}&quot;&#x27;
+        if where:
+            sql += f&quot; WHERE {where}&quot;
+        cursor = conn.execute(sql, params)
+        columns = [d[0] for d in cursor.description]
+        results = []
+        for row in cursor.fetchall():
+            obj = cls()
+            for col, val in zip(columns, row):
+                setattr(obj, col, val)
+            results.append(obj)
+        return results
+
+    def __repr__(self):
+        pairs = &quot;, &quot;.join(f&quot;{k}={getattr(self, k)!r}&quot; for k in self._fields)
+        return f&quot;{type(self).__name__}({pairs})&quot;
+
+
+# ---------------- 使用示例 ----------------
+class User(Model):
+    __tablename__ = &quot;users&quot;
+    id = Field(&quot;INTEGER&quot;, primary_key=True)
+    name = Field(&quot;TEXT&quot;, nullable=False)
+    email = Field(&quot;TEXT&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    conn = sqlite3.connect(&quot;:memory:&quot;)
+    User.create_table(conn)
+
+    u = User()
+    u.id = 1
+    u.name = &quot;架构师老王&quot;
+    u.email = &quot;laowang@example.com&quot;
+    u.save(conn)
+
+    print(User.query(conn))  # [User(id=1, name=&#x27;架构师老王&#x27;, email=&#x27;laowang@example.com&#x27;)]
+    print(&quot;字段元信息:&quot;, list(User._fields.keys()))  # [&#x27;id&#x27;, &#x27;name&#x27;, &#x27;email&#x27;]</code></pre></figure>
+<p><strong>几个设计取舍值得说明</strong>：</p>
+<ol>
+<li><strong>为什么用 <code>__set_name__</code> 还要在元类里手动回填？</strong> 因为 <code>__set_name__</code> 是在 <code>type.__new__</code> 内部触发的，而元类 <code>__new__</code> 中扫描 <code>namespace</code> 的时机在 <code>type.__new__</code> 之前。手动回填保证 <code>fields</code> 字典里的 <code>Field.name</code> 立即可用。这是 Django 早期版本的做法，后来改用 <code>contribute_to_class</code> 钩子更优雅。</li>
+</ol>
+<ol>
+<li><strong><code>_fields</code> 为什么放命名空间而不是类属性？</strong> 因为 <code>type.__new__</code> 返回的类对象才是最终产物，元类 <code>__new__</code> 里对 <code>namespace</code> 的修改会进入类 <code>__dict__</code>。这是最干净的注入方式。</li>
+</ol>
+<ol>
+<li><strong><code>query</code> 为什么用 <code>setattr</code> 而不是直接塞 <code>__dict__</code>？</strong> 因为 <code>setattr</code> 会走描述符协议，未来如果要加类型校验、字段加密，扩展点已经就位。</li>
+</ol>
+<h3 id="示例二-带查询构建器与类型校验的进阶版"><a href="#示例二-带查询构建器与类型校验的进阶版" class="headerlink" title="示例二：带查询构建器与类型校验的进阶版"></a>示例二：带查询构建器与类型校验的进阶版</h3>
+<p>生产 ORM 不可能只有 <code>save/query</code>。这个版本加入了 <code>QuerySet</code> 链式调用、字段类型校验、以及 <code>__init__</code> 自动赋值。</p>
+<figure class="highlight python"><pre><code class="language-python">import sqlite3
+from typing import Any, Dict, List, Optional, Tuple
+
+
+class ValidationError(Exception):
+    pass
+
+
+class Field:
+    def __init__(self, column_type: str, primary_key: bool = False,
+                 nullable: bool = True, validator=None):
+        self.column_type = column_type
+        self.primary_key = primary_key
+        self.nullable = nullable
+        self.validator = validator
+        self.name: Optional[str] = None
+
+    def __set_name__(self, owner, name):
+        self.name = name
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        return instance.__dict__.get(self.name)
+
+    def __set__(self, instance, value):
+        if value is None and not self.nullable:
+            raise ValidationError(f&quot;字段 {self.name} 不允许为空&quot;)
+        if value is not None and self.validator:
+            self.validator(value)
+        instance.__dict__[self.name] = value
+
+    def to_sql(self) -&gt; str:
+        parts = [f&#x27;&quot;{self.name}&quot; {self.column_type}&#x27;]
+        if self.primary_key:
+            parts.append(&quot;PRIMARY KEY&quot;)
+        if not self.nullable:
+            parts.append(&quot;NOT NULL&quot;)
+        return &quot; &quot;.join(parts)
+
+
+class QuerySet:
+    &quot;&quot;&quot;惰性查询集：链式调用直到 __iter__ 才真正执行 SQL&quot;&quot;&quot;
+
+    def __init__(self, model_cls, conn: sqlite3.Connection):
+        self.model_cls = model_cls
+        self.conn = conn
+        self._where: List[str] = []
+        self._params: List[Any] = []
+        self._order: List[str] = []
+        self._limit: Optional[int] = None
+
+    def filter(self, **kwargs) -&gt; &quot;QuerySet&quot;:
+        for k, v in kwargs.items():
+            if k not in self.model_cls._fields:
+                raise ValueError(f&quot;未知字段 {k}&quot;)
+            self._where.append(f&#x27;&quot;{k}&quot; = ?&#x27;)
+            self._params.append(v)
+        return self
+
+    def order_by(self, *cols: str) -&gt; &quot;QuerySet&quot;:
+        self._order.extend(cols)
+        return self
+
+    def limit(self, n: int) -&gt; &quot;QuerySet&quot;:
+        self._limit = n
+        return self
+
+    def _build_sql(self) -&gt; Tuple[str, tuple]:
+        sql = f&#x27;SELECT * FROM &quot;{self.model_cls._table_name}&quot;&#x27;
+        if self._where:
+            sql += &quot; WHERE &quot; + &quot; AND &quot;.join(self._where)
+        if self._order:
+            sql += &quot; ORDER BY &quot; + &quot;, &quot;.join(self._order)
+        if self._limit:
+            sql += f&quot; LIMIT {self._limit}&quot;
+        return sql, tuple(self._params)
+
+    def __iter__(self):
+        sql, params = self._build_sql()
+        cursor = self.conn.execute(sql, params)
+        columns = [d[0] for d in cursor.description]
+        for row in cursor.fetchall():
+            obj = self.model_cls.__new__(self.model_cls)  # 绕过 __init__ 直接造对象
+            for col, val in zip(columns, row):
+                obj.__dict__[col] = val  # 直接写 __dict__，避免校验开销
+            yield obj
+
+    def first(self):
+        return next(iter(self.limit(1)), None)
+
+    def all(self) -&gt; List:
+        return list(self)
+
+
+class ModelMeta(type):
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        fields: Dict[str, Field] = {}
+        for base in bases:
+            fields.update(getattr(base, &quot;_fields&quot;, {}))
+
+        for attr_name, attr_value in namespace.items():
+            if isinstance(attr_value, Field):
+                attr_value.name = attr_name
+                fields[attr_name] = attr_value
+
+        namespace[&quot;_fields&quot;] = fields
+        namespace[&quot;_table_name&quot;] = namespace.get(&quot;__tablename__&quot;, name.lower())
+        return super().__new__(mcls, name, bases, namespace, **kwargs)
+
+
+class Model(metaclass=ModelMeta):
+    _fields: Dict[str, Field] = {}
+    _table_name: str = &quot;&quot;
+    _conn: Optional[sqlite3.Connection] = None
+
+    @classmethod
+    def bind(cls, conn: sqlite3.Connection):
+        &quot;&quot;&quot;绑定数据库连接，全局共享&quot;&quot;&quot;
+        cls._conn = conn
+
+    @classmethod
+    def create_table(cls, conn: sqlite3.Connection = None):
+        conn = conn or cls._conn
+        cols = &quot;, &quot;.join(f.to_sql() for f in cls._fields.values())
+        conn.execute(f&#x27;CREATE TABLE IF NOT EXISTS &quot;{cls._table_name}&quot; ({cols})&#x27;)
+        conn.commit()
+
+    def __init__(self, **kwargs):
+        for k in self._fields:
+            if k in kwargs:
+                setattr(self, k, kwargs[k])
+
+    def save(self):
+        names = list(self._fields.keys())
+        placeholders = &quot;, &quot;.join(&quot;?&quot; for _ in names)
+        col_str = &quot;, &quot;.join(f&#x27;&quot;{n}&quot;&#x27; for n in names)
+        values = [getattr(self, n) for n in names]
+        self._conn.execute(
+            f&#x27;INSERT INTO &quot;{self._table_name}&quot; ({col_str}) VALUES ({placeholders})&#x27;,
+            values,
+        )
+        self._conn.commit()
+
+    @classmethod
+    def objects(cls) -&gt; QuerySet:
+        return QuerySet(cls, cls._conn)
+
+    def __repr__(self):
+        pairs = &quot;, &quot;.join(f&quot;{k}={getattr(self, k)!r}&quot; for k in self._fields)
+        return f&quot;{type(self).__name__}({pairs})&quot;
+
+
+# ---------------- 使用示例 ----------------
+def validate_email(v: str):
+    if &quot;@&quot; not in v:
+        raise ValidationError(f&quot;非法邮箱: {v}&quot;)
+
+
+class User(Model):
+    __tablename__ = &quot;users&quot;
+    id = Field(&quot;INTEGER&quot;, primary_key=True)
+    name = Field(&quot;TEXT&quot;, nullable=False)
+    email = Field(&quot;TEXT&quot;, validator=validate_email)
+
+
+if __name__ == &quot;__main__&quot;:
+    conn = sqlite3.connect(&quot;:memory:&quot;)
+    User.bind(conn)
+    User.create_table()
+
+    User(name=&quot;老王&quot;, email=&quot;laowang@example.com&quot;).save()
+    User(name=&quot;小李&quot;, email=&quot;xiaoli@example.com&quot;).save()
+    User(name=&quot;小张&quot;, email=&quot;zhang@example.com&quot;).save()
+
+    # 链式查询：惰性执行
+    result = User.objects().filter(name=&quot;老王&quot;).filter(email=&quot;laowang@example.com&quot;).all()
+    print(result)  # [User(id=1, name=&#x27;老王&#x27;, email=&#x27;laowang@example.com&#x27;)]
+
+    # 类型校验：非法邮箱被拦截
+    try:
+        u = User()
+        u.email = &quot;not-an-email&quot;
+    except ValidationError as e:
+        print(&quot;校验失败:&quot;, e)  # 校验失败: 非法邮箱: not-an-email</code></pre></figure>
+<p><strong>关键设计点</strong>：</p>
+<ul>
+<li><code>QuerySet</code> 的惰性求值让链式 API 可以任意组合，直到 <code>__iter__</code> 才拼 SQL。这是 Django ORM 的核心体验，也是性能优化的基础（可以在 <code>__iter__</code> 里做 SQL 缓存、分页、连接池选择）。</li>
+</ul>
+<ul>
+<li><code>__new__</code> 绕过 <code>__init__</code> 造对象，直接写 <code>__dict__</code>，避免校验开销——这是 ORM 从数据库读数据的标准优化手法。Django 的 <code>from_db</code> 类方法就是干这个的。</li>
+</ul>
+<ul>
+<li><code>bind</code> 用类属性共享连接，简化了示例。生产中应该用连接池 + 上下文管理，这里为了聚焦元类主题做了简化。</li>
+</ul>
+<h3 id="示例三-元类实现依赖注入容器-FastAPI-风格"><a href="#示例三-元类实现依赖注入容器-FastAPI-风格" class="headerlink" title="示例三：元类实现依赖注入容器（FastAPI 风格）"></a>示例三：元类实现依赖注入容器（FastAPI 风格）</h3>
+<p>元类不只用于 ORM。FastAPI 的 <code>Depends</code> 机制、Spring 的 <code>@Autowired</code>，本质都是"在类创建时收集依赖声明，在实例化时注入"。这个例子展示元类在 DI 场景的用法。</p>
+<figure class="highlight python"><pre><code class="language-python">import inspect
+from typing import Any, Callable, Dict, List, Type
+
+
+class Injectable:
+    &quot;&quot;&quot;标记类可被依赖注入容器管理&quot;&quot;&quot;
+
+
+class Container:
+    &quot;&quot;&quot;极简 DI 容器：支持单例与瞬时两种生命周期&quot;&quot;&quot;
+
+    _registry: Dict[str, Dict[str, Any]] = {}
+
+    @classmethod
+    def register(cls, name: str, factory: Callable, singleton: bool = True):
+        cls._registry[name] = {&quot;factory&quot;: factory, &quot;singleton&quot;: singleton, &quot;instance&quot;: None}
+
+    @classmethod
+    def resolve(cls, name: str) -&gt; Any:
+        entry = cls._registry.get(name)
+        if entry is None:
+            raise LookupError(f&quot;未注册的依赖: {name}&quot;)
+        if entry[&quot;singleton&quot;]:
+            if entry[&quot;instance&quot;] is None:
+                entry[&quot;instance&quot;] = entry[&quot;factory&quot;]()
+            return entry[&quot;instance&quot;]
+        return entry[&quot;factory&quot;]()
+
+
+class InjectMeta(type):
+    &quot;&quot;&quot;
+    元类职责：
+    1. 扫描类体中的 __inject__ 声明（字符串 -&gt; 类型映射）
+    2. 包装 __init__，在实例化时自动从容器取值注入
+    3. 记录到容器，支持按名解析
+    &quot;&quot;&quot;
+
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        inject_spec: Dict[str, Type] = namespace.get(&quot;__inject__&quot;, {})
+
+        original_init = namespace.get(&quot;__init__&quot;)
+
+        def wrapped_init(self, *args, **kw):
+            # 先注入依赖
+            for attr_name, dep_name in inject_spec.items():
+                setattr(self, attr_name, Container.resolve(dep_name))
+            # 再走用户自己的 __init__（如果有）
+            if original_init:
+                original_init(self, *args, **kw)
+
+        # 保留原 __init__ 的签名信息，方便 IDE 和文档工具识别
+        if original_init:
+            wrapped_init.__wrapped__ = original_init
+            try:
+                wrapped_init.__signature__ = inspect.signature(original_init)
+            except (ValueError, TypeError):
+                pass
+
+        namespace[&quot;__init__&quot;] = wrapped_init
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+
+        # 自动注册到容器（按类名注册）
+        Container.register(name, cls, singleton=False)
+        return cls
+
+
+# ---------------- 使用示例 ----------------
+class Database:
+    def __init__(self):
+        self.connected = True
+        print(&quot;[Database] 连接已建立&quot;)
+
+    def query(self, sql: str):
+        return f&quot;执行: {sql}&quot;
+
+
+class Cache:
+    def __init__(self):
+        print(&quot;[Cache] 缓存客户端初始化&quot;)
+
+    def get(self, key: str):
+        return f&quot;cache[{key}]&quot;
+
+
+# 先注册底层依赖（单例）
+Container.register(&quot;db&quot;, Database, singleton=True)
+Container.register(&quot;cache&quot;, Cache, singleton=True)
+
+
+class UserService(metaclass=InjectMeta):
+    __inject__ = {
+        &quot;db&quot;: &quot;db&quot;,
+        &quot;cache&quot;: &quot;cache&quot;,
+    }
+
+    def __init__(self, prefix: str = &quot;svc&quot;):
+        self.prefix = prefix
+
+    def get_user(self, uid: int):
+        cached = self.cache.get(f&quot;user:{uid}&quot;)
+        if cached:
+            return cached
+        return self.db.query(f&quot;SELECT * FROM users WHERE id={uid}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    svc1 = UserService(prefix=&quot;order&quot;)
+    svc2 = UserService(prefix=&quot;pay&quot;)
+    print(svc1.get_user(1))
+    print(svc2.get_user(2))
+    # 验证单例：两次注入的是同一个 Database 实例
+    print(&quot;单例验证:&quot;, svc1.db is svc2.db)  # True</code></pre></figure>
+<p><strong>为什么用元类而不是装饰器？</strong></p>
+<p>装饰器也能包装 <code>__init__</code>，但元类有两个优势：</p>
+<ol>
+<li><strong>继承自动生效</strong>：子类会自然继承元类，<code>__inject__</code> 的收集逻辑无需重复声明。装饰器方案下，每个子类都得手动加 <code>@inject</code>。</li>
+<li><strong>可以在类创建时做全局注册</strong>：<code>Container.register(name, cls)</code> 这一步在元类里执行，类一被定义就进入容器。装饰器要额外调用一次注册函数。</li>
+</ol>
+<p>代价是元类的"侵入性"——一旦用了元类，这个类的所有子类都被绑定。这也是为什么 FastAPI 选择用<strong>函数签名 + 装饰器</strong>而非元类来实现 <code>Depends</code>：它需要更灵活的粒度控制。</p>
+<hr>
+<h2 id="方案对比-元类-ORM-vs-装饰器-ORM-vs-声明式-ORM"><a href="#方案对比-元类-ORM-vs-装饰器-ORM-vs-声明式-ORM" class="headerlink" title="方案对比：元类 ORM vs 装饰器 ORM vs 声明式 ORM"></a>方案对比：元类 ORM vs 装饰器 ORM vs 声明式 ORM</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>元类方案（Django/SQLAlchemy Declarative）</th>
+<th>装饰器方案（dataclass + 手写映射）</th>
+<th>显式注册方案（Peewee 早期风格）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>字段声明方式</td>
+<td><code>name = CharField(...)</code></td>
+<td><code>name: str</code> + <code>@field</code></td>
+<td><code>name = Column(String)</code> + <code>register()</code></td>
+</tr><tr>
+<td>类创建期改造能力</td>
+<td>强（可改 MRO、注入方法）</td>
+<td>弱（只能包装类，不能改类体）</td>
+<td>无</td>
+</tr><tr>
+<td>继承支持</td>
+<td>天然支持（元类沿继承链传递）</td>
+<td>需手动处理</td>
+<td>需手动注册</td>
+</tr><tr>
+<td>可读性</td>
+<td>中（魔法多）</td>
+<td>高</td>
+<td>高</td>
+</tr><tr>
+<td>调试难度</td>
+<td>高（栈深）</td>
+<td>低</td>
+<td>低</td>
+</tr><tr>
+<td>典型代表</td>
+<td>Django ORM, SQLAlchemy</td>
+<td>dataclasses, Pydantic</td>
+<td>Peewee, Tortoise</td>
+</tr></tbody></table>
+<p><strong>几个业界实现的细节点</strong>：</p>
+<ul>
+<li><strong>Django ORM</strong> 的 <code>ModelBase.__new__</code> 里有约 200 行逻辑，处理继承、抽象基类、多表继承、代理模型、字段冲突检测。它还会调用每个 <code>Field.contribute_to_class(cls, name)</code>，这是比 <code>__set_name__</code> 更早的钩子（Django 1.x 时代 <code>__set_name__</code> 还不存在）。</li>
+</ul>
+<ul>
+<li><strong>SQLAlchemy 的 declarative base</strong> 用 <code>_as_declarative</code> 函数在 <code>DeclarativeMeta.__init__</code> 里扫描 <code>cls.__dict__</code>，把 <code>Column</code> 对象搬进 <code>cls.__table__</code>。它的 <code>__init__</code> 比 <code>__new__</code> 用得更多，因为需要类对象已存在才能操作 <code>__table__</code>。</li>
+</ul>
+<ul>
+<li><strong>Pydantic v2</strong> 已经放弃了元类，改用 <code>__init_subclass__</code> + Rust 实现的 <code>ModelMetaclass</code> 混合方案。<code>__init_subclass__</code>（PEP 487）是 Python 3.6 引入的轻量钩子，能在子类创建时被父类感知，比元类侵入性小得多。<strong>如果你的需求只是"子类定义时做点事"，优先用 <code>__init_subclass__</code></strong>。</li>
+</ul>
+<figure class="highlight python"><pre><code class="language-python"># __init_subclass__ 的等价写法，比元类轻量得多
+class Model:
+    _fields = {}
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._fields = {
+            k: v for k, v in cls.__dict__.items()
+            if isinstance(v, Field)
+        }</code></pre></figure>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑一-元类冲突-metaclass-conflict"><a href="#坑一-元类冲突-metaclass-conflict" class="headerlink" title="坑一：元类冲突（metaclass conflict）"></a>坑一：元类冲突（metaclass conflict）</h3>
+<figure class="highlight python"><pre><code class="language-python">class MetaA(type): pass
+class MetaB(type): pass
+class A(metaclass=MetaA): pass
+class B(A, metaclass=MetaB): pass  # TypeError!</code></pre></figure>
+<p><strong>原因</strong>：Python 要求最终元类必须是所有父类元类的子类。<code>MetaB</code> 不是 <code>MetaA</code> 的子类，无法满足。</p>
+<p><strong>解法</strong>：要么让 <code>MetaB(MetaA)</code> 继承，要么用 <code>class B(A, metaclass=type('MetaAB', (MetaA, MetaB), {}))</code> 动态合成。Django 的 <code>ModelBase</code> 和 <code>ABCMeta</code> 混用时，官方推荐 <code>class MyModel(Model, metaclass=ABCMeta)</code> 会失败，必须写 <code>class MyModel(Model, metaclass=type('Meta', (ModelBase, ABCMeta), {}))</code>。这是无数人踩过的经典坑。</p>
+<h3 id="坑二-new-里忘记调用-super-new"><a href="#坑二-new-里忘记调用-super-new" class="headerlink" title="坑二：<code>__new__</code> 里忘记调用 <code>super().__new__</code>"></a>坑二：<code>__new__</code> 里忘记调用 <code>super().__new__</code></h3>
+<figure class="highlight python"><pre><code class="language-python">class BadMeta(type):
+    def __new__(mcls, name, bases, ns):
+        ns[&quot;foo&quot;] = 1
+        # 忘了 return super().__new__(...)</code></pre></figure>
+<p>结果是 <code>None</code>，后续所有类操作全部 <code>AttributeError</code>。<strong>元类 <code>__new__</code> 必须返回一个类对象</strong>。同理，<code>__init__</code> 里也必须调 <code>super().__init__</code>，否则 <code>__set_name__</code> 等内部钩子不会触发。</p>
+<h3 id="坑三-描述符的-get-里用-getattr-instance-self-name-造成无限递归"><a href="#坑三-描述符的-get-里用-getattr-instance-self-name-造成无限递归" class="headerlink" title="坑三：描述符的 <code>__get__</code> 里用 <code>getattr(instance, self.name)</code> 造成无限递归"></a>坑三：描述符的 <code>__get__</code> 里用 <code>getattr(instance, self.name)</code> 造成无限递归</h3>
+<figure class="highlight python"><pre><code class="language-python">def __get__(self, instance, owner):
+    return getattr(instance, self.name)  # 死循环！</code></pre></figure>
+<p>因为 <code>getattr</code> 会再次触发描述符。<strong>必须直接访问 <code>instance.__dict__</code></strong>，或者用 <code>object.__getattribute__(instance, self.name)</code>（后者在 <code>__dict__</code> 没有时仍可能递归，需谨慎）。</p>
+<h3 id="坑四-元类影响-pickle-和-copy"><a href="#坑四-元类影响-pickle-和-copy" class="headerlink" title="坑四：元类影响 <code>pickle</code> 和 <code>copy</code>"></a>坑四：元类影响 <code>pickle</code> 和 <code>copy</code></h3>
+<p>元类生成的类在跨进程序列化时，<code>pickle</code> 要求类能被 <code>import</code> 路径找到。动态创建的类（如 <code>type("X", (), {})</code>）无法 pickle。Django 的 <code>Model</code> 通过 <code>__reduce__</code> 自定义序列化绕过了这个问题。<strong>如果你的 ORM 需要支持缓存序列化，务必实现 <code>__reduce__</code> 或 <code>__getstate__</code></strong>。</p>
+<h3 id="坑五-fields-字典的继承污染"><a href="#坑五-fields-字典的继承污染" class="headerlink" title="坑五：<code>_fields</code> 字典的继承污染"></a>坑五：<code>_fields</code> 字典的继承污染</h3>
+<figure class="highlight python"><pre><code class="language-python">class Base(Model):
+    id = Field(&quot;INTEGER&quot;)
+class Child(Base):
+    name = Field(&quot;TEXT&quot;)
+# Child._fields 如果直接引用 Base._fields，会互相污染</code></pre></figure>
+<p><strong>必须用 <code>dict(getattr(base, "_fields", {}))</code> 做浅拷贝</strong>，示例一里已经处理。SQLAlchemy 用 <code>_decl_class_registry</code> 全局注册表 + 每次新建 <code>Table</code> 对象来规避。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>能用 <code>__init_subclass__</code> 就别用元类</strong>。元类是"核武器"，只在需要改 MRO、改 <code>__prepare__</code>、控制类创建全过程时才用。</li>
+<li><strong>元类只做"收集"，别做"执行"</strong>。<code>__new__</code> 里只应扫描和注入元信息，业务逻辑放到 <code>contribute_to_class</code> 之类的钩子里，便于测试。</li>
+<li><strong>字段描述符必须实现 <code>__set_name__</code></strong>，让字段自己知道自己叫什么，比在元类里手动回填更健壮。</li>
+<li><strong>给元类生成的类补上 <code>__qualname__</code> 和 <code>__module__</code></strong>，否则日志和调试会显示 <code>type</code> 而非真实类名。</li>
+<li><strong>单元测试要覆盖"类定义本身"</strong>。元类的 bug 往往在 import 时就暴露，写一个 <code>test_models_importable()</code> 能挡住 80% 的低级错误。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个 800 行的微型 ORM。写完之后我最大的感触是：<strong>元类不是"高级语法"，而是 Python 对象模型的必然产物</strong>。因为类也是对象，所以类也需要一个"类型"来创建它，这个类型就是元类。理解这一点，Django ORM 的 <code>CharField</code>、Pydantic 的 <code>BaseModel</code>、FastAPI 的依赖注入，就都从"魔法"变成了"可推导的工程决策"。</p>
+<p>几个延伸思考方向，留给读者：</p>
+<ul>
+<li><strong><code>__init_subclass__</code> 与元类的边界在哪里？</strong> PEP 487 的设计初衷就是"用 90% 的场景替代元类"。什么时候必须用元类？答案是：当你需要控制 <code>__prepare__</code>（命名空间类型）、需要修改 MRO、或者需要在 <code>type.__new__</code> 之前干预时。</li>
+</ul>
+<ul>
+<li><strong>异步 ORM 的元类有什么不同？</strong> SQLAlchemy 2.0 的 async 支持、Tortoise ORM 的 <code>Model</code>，元类职责基本不变，但 <code>QuerySet</code> 的求值时机从 <code>__iter__</code> 挪到了 <code>await</code>，需要额外处理 <code>__await__</code> 协议。</li>
+</ul>
+<ul>
+<li><strong>Rust/Pydantic v2 的启示</strong>：Pydantic v2 把校验逻辑下沉到 Rust 扩展，元类只做 schema 收集。这提示我们：<strong>元类适合做"编译期"的静态分析，运行期热路径应该交给更底层的实现</strong>。</li>
+</ul>
+<p>最后一句经验：<strong>元类写得越少，代码越健康</strong>。我见过太多项目把业务逻辑塞进 <code>__new__</code>，结果一个 import 错误能花两小时定位。把元类当成"类定义的编译器前端"，只做语法分析和符号收集，剩下的交给描述符和普通方法——这才是它在生产环境里最舒服的姿势。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

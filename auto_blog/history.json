@@ -552,6 +552,13 @@
       "subtopic": "Embedding模型选型与语义搜索实践",
       "date": "2026-10-15",
       "url": "/2026/10/15/Embedding模型选型与语义搜索实践/"
+    },
+    {
+      "title": "Python元类编程与ORM框架实现",
+      "category": "python",
+      "subtopic": "Python元类编程与ORM框架实现",
+      "date": "2026-10-17",
+      "url": "/2026/10/17/Python元类编程与ORM框架实现/"
     }
   ],
   "used_subtopics": {
@@ -583,7 +590,8 @@
       "Python GIL的过去、现在与未来（Python 3.13自由线程）",
       "FastAPI依赖注入系统设计剖析",
       "asyncio事件循环源码级分析与实战",
-      "Python协程与生成器的底层实现（yield from解析）"
+      "Python协程与生成器的底层实现（yield from解析）",
+      "Python元类编程与ORM框架实现"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -627,7 +635,8 @@
       "sync.Mutex源码解读与锁优化",
       "Channel底层实现与select多路复用",
       "Go内存管理：栈与堆、逃逸分析",
-      "Go错误处理范式与errors包源码"
+      "Go错误处理范式与errors包源码",
+      "net/http包架构与中间件链实现"
     ]
   },
   "content_hashes": {
@@ -708,6 +717,7 @@
     "高并发秒杀系统架构设计演进": "0faa46230f747d2a3472f6ed051724fade46180337e11cf1a9b64570009966a6",
     "Python协程与生成器的底层实现（yield from解析）": "807bbcf71d542b4ed3e7ab64426381b16d2a14843af6201fc68522af6e9499cb",
     "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed",
-    "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50"
+    "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50",
+    "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe"
   }
 }

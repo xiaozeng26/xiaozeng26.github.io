@@ -1,5 +1,23 @@
 [
  {
+  "title": "Python元类编程与ORM框架实现",
+  "url": "/2026/10/17/Python%E5%85%83%E7%B1%BB%E7%BC%96%E7%A8%8B%E4%B8%8EORM%E6%A1%86%E6%9E%B6%E5%AE%9E%E7%8E%B0/",
+  "date": "2026-10-17",
+  "year": 2026,
+  "month": 10,
+  "day": 17,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8726",
+  "excerpt": "引言 去年我接手一个内部数据平台的重构，需求很简单：把散落在十几个脚本里的 SQL 拼接逻辑收敛成统一的模型层。团队里有人提议直接上 SQLAlchemy，但甲方要求\\"
+ },
+ {
   "title": "Embedding模型选型与语义搜索实践",
   "url": "/2026/10/15/Embedding%E6%A8%A1%E5%9E%8B%E9%80%89%E5%9E%8B%E4%B8%8E%E8%AF%AD%E4%B9%89%E6%90%9C%E7%B4%A2%E5%AE%9E%E8%B7%B5/",
   "date": "2026-10-15",
