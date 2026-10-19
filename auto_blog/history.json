@@ -559,6 +559,13 @@
       "subtopic": "Python元类编程与ORM框架实现",
       "date": "2026-10-17",
       "url": "/2026/10/17/Python元类编程与ORM框架实现/"
+    },
+    {
+      "title": "MyBatis插件机制与拦截器链源码分析",
+      "category": "java",
+      "subtopic": "MyBatis插件机制与拦截器链源码分析",
+      "date": "2026-10-19",
+      "url": "/2026/10/20/MyBatis插件机制与拦截器链源码分析/"
     }
   ],
   "used_subtopics": {
@@ -578,7 +585,8 @@
       "AQS框架源码解读——从ReentrantLock说起",
       "Nacos服务注册与配置中心原理",
       "JVM内存模型与垃圾回收器深度解析",
-      "CompletableFuture异步编程实战与原理"
+      "CompletableFuture异步编程实战与原理",
+      "MyBatis插件机制与拦截器链源码分析"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -718,6 +726,7 @@
     "Python协程与生成器的底层实现（yield from解析）": "807bbcf71d542b4ed3e7ab64426381b16d2a14843af6201fc68522af6e9499cb",
     "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed",
     "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50",
-    "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe"
+    "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe",
+    "MyBatis插件机制与拦截器链源码分析": "b3fc185de25c32f781a3546ead68453ef870318de2f254e26a3879d84d4d94c8"
   }
 }

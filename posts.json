@@ -1,5 +1,23 @@
 [
  {
+  "title": "MyBatis插件机制与拦截器链源码分析",
+  "url": "/2026/10/20/MyBatis%E6%8F%92%E4%BB%B6%E6%9C%BA%E5%88%B6%E4%B8%8E%E6%8B%A6%E6%88%AA%E5%99%A8%E9%93%BE%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/",
+  "date": "2026-10-20",
+  "year": 2026,
+  "month": 10,
+  "day": 20,
+  "category": "java",
+  "tags": [
+   "java",
+   "jvm",
+   "Spring",
+   "concurrency",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5698",
+  "excerpt": "引言 做过几年业务系统的同学，大概率都遇到过这样的需求：想给所有 SQL 统一加上租户条件、想统计每条 SQL 的耗时、想对敏感字段做脱敏、想在分页时自动改写 SQL……这些需求有个共同点——它们都发生在 SQL 执行的前后，但你不想改业务代码，也不想改 MyBatis 源码。 这时候，MyBatis 的插件机制（Pl"
+ },
+ {
   "title": "Python元类编程与ORM框架实现",
   "url": "/2026/10/17/Python%E5%85%83%E7%B1%BB%E7%BC%96%E7%A8%8B%E4%B8%8EORM%E6%A1%86%E6%9E%B6%E5%AE%9E%E7%8E%B0/",
   "date": "2026-10-17",

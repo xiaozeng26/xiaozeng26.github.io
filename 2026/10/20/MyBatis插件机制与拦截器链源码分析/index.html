@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MyBatis插件机制与拦截器链源码分析 | 小曾博客</title>
+  <meta name="description" content="MyBatis插件机制与拦截器链源码分析 引言 做过几年业务系统的同学，大概率都遇到过这样的需求：想给所有 SQL 统一加上租户条件、想统计每条 SQL 的耗时、想对敏感字段做脱敏、想在分页时自动改写 SQL……这些需求有个共同点——它们都发生在 SQL 执行的前后，但你不想改业务代码，也不想改 MyBatis 源码。 这时候，MyBatis 的插件机制（Plugin）就派上用场了。分页插件 Pa">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="MyBatis插件机制与拦截器链源码分析">
+  <meta name="twitter:description" content="MyBatis插件机制与拦截器链源码分析 引言 做过几年业务系统的同学，大概率都遇到过这样的需求：想给所有 SQL 统一加上租户条件、想统计每条 SQL 的耗时、想对敏感字段做脱敏、想在分页时自动改写 SQL……这些需求有个共同点——它们都发生在 SQL 执行的前后，但你不想改业务代码，也不想改 MyBatis 源码。 这时候，MyBatis 的插件机制（Plugin）就派上用场了。分页插件 Pa">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5698">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="MyBatis插件机制与拦截器链源码分析">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="MyBatis插件机制与拦截器链源码分析 引言 做过几年业务系统的同学，大概率都遇到过这样的需求：想给所有 SQL 统一加上租户条件、想统计每条 SQL 的耗时、想对敏感字段做脱敏、想在分页时自动改写 SQL……这些需求有个共同点——它们都发生在 SQL 执行的前后，但你不想改业务代码，也不想改 MyBatis 源码。 这时候，MyBatis 的插件机制（Plugin）就派上用场了。分页插件 Pa">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5698">
+  <meta property="article:published_time" content="2026-10-20T01:57:01.000Z">
+  <meta property="article:modified_time" content="2026-10-20T01:57:01.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#MyBatis插件机制与拦截器链源码分析"><span class="toc-text">MyBatis插件机制与拦截器链源码分析</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-餐厅后厨与-中间人"><span class="toc-text">核心概念：餐厅后厨与"中间人"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码深度分析-从-wrap-到-invoke"><span class="toc-text">wrap 到 invoke">源码深度分析：从 wrap 到 invoke</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-插件是如何被-装配-的"><span class="toc-text">1. 插件是如何被"装配"的</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-Interceptor-plugin-默认实现-Plugin-wrap"><span class="toc-text">Interceptor.plugin 默认实现：Plugin.wrap">2. Interceptor.plugin 默认实现：Plugin.wrap</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-Plugin-invoke-拦截器链的真正执行者"><span class="toc-text">Plugin.invoke：拦截器链的真正执行者">3. Plugin.invoke：拦截器链的真正执行者</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-Invocation-拦截器手里的-接力棒"><span class="toc-text">Invocation：拦截器手里的"接力棒"">4. Invocation：拦截器手里的"接力棒"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的完整示例"><span class="toc-text">实战代码：三个可运行的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-SQL-耗时统计与慢-SQL-告警"><span class="toc-text">示例一：SQL 耗时统计与慢 SQL 告警</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-多租户自动拼接条件-基于-SQL-改写"><span class="toc-text">示例二：多租户自动拼接条件（基于 SQL 改写）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-拦截器执行顺序验证"><span class="toc-text">示例三：拦截器执行顺序验证</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-MyBatis-插件-vs-其他扩展方式"><span class="toc-text">方案对比：MyBatis 插件 vs 其他扩展方式</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=5698)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">MyBatis插件机制与拦截器链源码分析</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-20"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-20</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-20"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-20</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="MyBatis插件机制与拦截器链源码分析"><a href="#MyBatis插件机制与拦截器链源码分析" class="headerlink" title="MyBatis插件机制与拦截器链源码分析"></a>MyBatis插件机制与拦截器链源码分析</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>做过几年业务系统的同学，大概率都遇到过这样的需求：想给所有 SQL 统一加上租户条件、想统计每条 SQL 的耗时、想对敏感字段做脱敏、想在分页时自动改写 SQL……这些需求有个共同点——<strong>它们都发生在 SQL 执行的前后，但你不想改业务代码，也不想改 MyBatis 源码</strong>。</p>
+<p>这时候，MyBatis 的插件机制（Plugin）就派上用场了。分页插件 PageHelper、SQL 监控插件 p6spy 的 MyBatis 集成、数据权限插件，几乎都是基于这套机制实现的。</p>
+<p>但真正读过源码的人会发现一个问题：<strong>你明明传了一个 <code>Interceptor</code> 进去，为什么它返回的 <code>Executor</code> 却变成了一个 <code>Plugin</code> 对象？</strong> 更迷惑的是，<code>Plugin</code> 类实现了 <code>InvocationHandler</code>——它居然是个动态代理！也就是说，MyBatis 的插件本质是 JDK 动态代理的一层"马甲"。</p>
+<p>这篇文章我们从一次生产事故讲起，然后一路挖到 <code>Plugin.wrap()</code> 和 <code>InvocationChain</code> 的源码，把整条拦截器链彻底讲透。读完之后，你不仅能写出正确的插件，还能避开那些"插件一多就乱序""拦截不到嵌套查询"的坑。</p>
+<hr>
+<h2 id="核心概念-餐厅后厨与-中间人"><a href="#核心概念-餐厅后厨与-中间人" class="headerlink" title="核心概念：餐厅后厨与"中间人""></a>核心概念：餐厅后厨与"中间人"</h2>
+<p>先打个比方。</p>
+<p>想象一家餐厅的后厨，主厨（<code>Executor</code>）负责真正炒菜，但餐厅里还有几类角色：采购员（<code>StatementHandler</code>，负责拿食材）、配菜员（<code>ParameterHandler</code>，负责处理调料）、摆盘师（<code>ResultSetHandler</code>，负责装盘）。</p>
+<p>现在老板（业务方）提了个需求：<strong>每道菜出锅前都要过一遍质检</strong>。你不想让主厨改流程，也不想让采购员分心。于是老板安排了一个"质检员"站在主厨和点单台之间：所有点单先经过质检员，质检员可以看一眼、记个时间、甚至偷偷改一下订单内容，然后再转给主厨。</p>
+<p>这个"质检员"就是 <code>Interceptor</code>（拦截器）。而<strong>站岗的岗位</strong>——主厨、采购员、配菜员、摆盘师——就是 MyBatis 允许你拦截的四个核心接口。</p>
+<p>技术上讲，MyBatis 插件机制由三部分组成：</p>
+<ol>
+<li><strong><code>Interceptor</code> 接口</strong>：定义 <code>intercept(Invocation)</code>、<code>plugin(Object)</code>、<code>setProperties(Properties)</code> 三个方法。</li>
+<li><strong><code>@Intercepts</code> + <code>@Signature</code> 注解</strong>：声明你要拦截哪个类的哪个方法，参数类型是什么。</li>
+<li><strong><code>Plugin.wrap()</code></strong>：把目标对象包成 JDK 动态代理，代理的 <code>InvocationHandler</code> 就是 <code>Plugin</code> 本身。</li>
+</ol>
+<p>关键点在于：<strong>拦截器不是"链式调用"的，而是"套娃式"的</strong>。多个插件会一层层包裹，最外层的插件先执行，最后才是真实目标对象。</p>
+<div class="mermaid">
+graph TD
+    A["业务调用 executor.query()"] --> B["Plugin (拦截器C)"]
+    B --> C["Plugin (拦截器B)"]
+    C --> D["Plugin (拦截器A)"]
+    D --> E["真实 Executor (CachingExecutor)"]
+    E --> F["JDBC 驱动"]
+    style B fill:#f9f,stroke:#333
+    style C fill:#f9f,stroke:#333
+    style D fill:#f9f,stroke:#333
+    style E fill:#bbf,stroke:#333
+</div>
+<p>看到这张图，你就能理解为什么插件的<strong>注册顺序和执行顺序是相反的</strong>——先注册的插件在 <code>wrap</code> 时先被包上，后来者又包在它外面。这个"套娃"特性是很多坑的根源，后面会重点讲。</p>
+<hr>
+<h2 id="源码深度分析-从-wrap-到-invoke"><a href="#源码深度分析-从-wrap-到-invoke" class="headerlink" title="源码深度分析：从 <code>wrap</code> 到 <code>invoke</code>"></a>源码深度分析：从 <code>wrap</code> 到 <code>invoke</code></h2>
+<h3 id="1-插件是如何被-装配-的"><a href="#1-插件是如何被-装配-的" class="headerlink" title="1. 插件是如何被"装配"的"></a>1. 插件是如何被"装配"的</h3>
+<p>MyBatis 启动时，<code>XMLConfigBuilder</code> 解析 <code><plugins></code> 标签，每个 <code><plugin></code> 生成一个 <code>Interceptor</code> 实例，塞进 <code>Configuration.interceptorChain</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">// Configuration.java（节选）
+public void addInterceptor(Interceptor interceptor) {
+    interceptorChain.addInterceptor(interceptor);
+}</code></pre></figure>
+<p>然后到了创建四大核心对象的环节。以 <code>Executor</code> 为例，<code>newExecutor</code> 方法最后一步：</p>
+<figure class="highlight java"><pre><code class="language-java">// Configuration.java（节选）
+public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    Executor executor;
+    if (ExecutorType.BATCH == executorType) {
+        executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+        executor = new ReuseExecutor(this, transaction);
+    } else {
+        executor = new SimpleExecutor(this, transaction);
+    }
+    if (cacheEnabled) {
+        executor = new CachingExecutor(executor);
+    }
+    // 关键：套上所有插件
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+}</code></pre></figure>
+<p><code>InterceptorChain.pluginAll</code> 的源码非常朴素，但正是"套娃"的源头：</p>
+<figure class="highlight java"><pre><code class="language-java">// InterceptorChain.java
+public Object pluginAll(Object target) {
+    for (Interceptor interceptor : interceptors) {
+        target = interceptor.plugin(target);
+    }
+    return target;
+}</code></pre></figure>
+<p>注意这里：<strong><code>target</code> 被反复重新赋值</strong>。第一个插件包装后，第二个插件包的是"第一个插件包过的对象"，以此类推。所以 <code>interceptors</code> 列表中越靠前的插件，越先被套上，也就越靠内层——<strong>执行时越晚</strong>。</p>
+<h3 id="2-Interceptor-plugin-默认实现-Plugin-wrap"><a href="#2-Interceptor-plugin-默认实现-Plugin-wrap" class="headerlink" title="2. <code>Interceptor.plugin</code> 默认实现：<code>Plugin.wrap</code>"></a>2. <code>Interceptor.plugin</code> 默认实现：<code>Plugin.wrap</code></h3>
+<p><code>Interceptor</code> 接口本身有个 <code>default</code> 方法：</p>
+<figure class="highlight java"><pre><code class="language-java">default Object plugin(Object target) {
+    return Plugin.wrap(target, this);
+}</code></pre></figure>
+<p><code>Plugin.wrap</code> 就是动态代理的入口：</p>
+<figure class="highlight java"><pre><code class="language-java">// Plugin.java
+public static Object wrap(Object target, Interceptor interceptor) {
+    // 1. 解析 @Intercepts 注解，得到 &quot;接口 -&gt; 方法签名集合&quot; 的映射
+    Map&lt;Class&lt;?&gt;, Set&lt;Method&gt;&gt; signatureMap = getSignatureMap(interceptor);
+    Class&lt;?&gt; type = target.getClass();
+    // 2. 找出目标对象实现了哪些被拦截的接口
+    Class&lt;?&gt;[] interfaces = getAllInterfaces(type, signatureMap);
+    // 3. 如果一个都没实现，直接返回原对象（注意这个细节！）
+    if (interfaces.length &gt; 0) {
+        return Proxy.newProxyInstance(
+            type.getClassLoader(),
+            interfaces,
+            new Plugin(target, interceptor, signatureMap));
+    }
+    return target;
+}</code></pre></figure>
+<p>这里有三个细节值得深挖：</p>
+<p><strong>细节一：<code>getSignatureMap</code> 解析注解。</strong> 它把 <code>@Signature</code> 的 <code>type</code>、<code>method</code>、<code>args</code> 组合成 <code>Method</code> 对象，放进以接口类为 key 的 <code>Map</code>。注意 <code>Method</code> 的构造可能抛 <code>NoSuchMethodException</code>，如果注解写错了方法名或参数类型，<strong>启动时就会直接抛异常</strong>——这其实是好事，早失败早暴露。</p>
+<p><strong>细节二：<code>getAllInterfaces</code> 只返回"被拦截的接口"。</strong> 比如你只拦截 <code>Executor</code>，那么 <code>CachingExecutor</code> 实现的 <code>Executor</code> 接口会被返回，但 <code>CachingExecutor</code> 自己的类不会被代理。这意味着<strong>你无法拦截目标类的非接口方法</strong>——这是 JDK 动态代理的固有局限，不是 MyBatis 的锅。</p>
+<p><strong>细节三：没有匹配接口时返回原对象。</strong> 所以一个插件如果签名写错，不会报错，而是"静默失效"。这是最常见的坑之一。</p>
+<h3 id="3-Plugin-invoke-拦截器链的真正执行者"><a href="#3-Plugin-invoke-拦截器链的真正执行者" class="headerlink" title="3. <code>Plugin.invoke</code>：拦截器链的真正执行者"></a>3. <code>Plugin.invoke</code>：拦截器链的真正执行者</h3>
+<p><code>Plugin</code> 实现了 <code>InvocationHandler</code>，所有代理方法调用都会进入 <code>invoke</code>：</p>
+<figure class="highlight java"><pre><code class="language-java">// Plugin.java
+@Override
+public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    try {
+        // 1. 拿到当前方法所属接口被拦截的方法集合
+        Set&lt;Method&gt; methods = signatureMap.get(method.getDeclaringClass());
+        // 2. 如果当前方法在拦截范围内，交给拦截器处理
+        if (methods != null &amp;&amp; methods.contains(method)) {
+            return interceptor.intercept(new Invocation(target, method, args));
+        }
+        // 3. 否则直接反射调用真实对象
+        return method.invoke(target, args);
+    } catch (Exception e) {
+        throw ExceptionUtil.unwrapThrowable(e);
+    }
+}</code></pre></figure>
+<p>注意 <code>method.getDeclaringClass()</code> 这一行。假设你拦截 <code>Executor.query</code>，而 <code>CachingExecutor</code> 重写了 <code>query</code>，那么 <code>method.getDeclaringClass()</code> 是 <code>CachingExecutor</code> 还是 <code>Executor</code>？答案是<strong>取决于方法在哪个类中声明</strong>。如果 <code>CachingExecutor</code> 自己声明了 <code>query</code>，<code>getDeclaringClass()</code> 就是 <code>CachingExecutor</code>，而你的 <code>signatureMap</code> 里 key 是 <code>Executor</code>——<strong>匹配不上，拦截失效！</strong></p>
+<p>这是 MyBatis 插件最阴险的坑之一。实际上 <code>CachingExecutor</code> 确实重写了 <code>query</code>，但 <code>signatureMap</code> 的 key 是注解里写的 <code>Executor.class</code>。那为什么 PageHelper 能拦到？因为 <code>getSignatureMap</code> 里对 <code>@Signature.type</code> 用的是接口类，而 <code>CachingExecutor.query</code> 的 <code>declaringClass</code> 是 <code>CachingExecutor</code>……等等，这里需要澄清：<strong><code>Method.getDeclaringClass()</code> 返回的是方法"首次声明"的类</strong>。<code>CachingExecutor</code> 的 <code>query</code> 是它自己声明的（重写），所以 <code>declaringClass</code> 是 <code>CachingExecutor</code>。那匹配岂不是必然失败？</p>
+<p>实际源码里 <code>getSignatureMap</code> 用的是 <code>type.getMethod(...)</code>，得到的 <code>Method</code> 的 <code>declaringClass</code> 就是 <code>type</code> 本身（接口）。而代理对象调用时传入的 <code>method</code> 是<strong>接口方法</strong>（因为 <code>Proxy.newProxyInstance</code> 传入的 interfaces 是接口数组），所以 <code>method.getDeclaringClass()</code> 返回的是接口。<strong>这就是为什么 <code>getAllInterfaces</code> 只返回接口、<code>Proxy</code> 也只代理接口方法</strong>——保证 <code>declaringClass</code> 与 <code>signatureMap</code> 的 key 一致。理解这一点，你就明白 JDK 代理在这里为什么"必须"用接口了。</p>
+<h3 id="4-Invocation-拦截器手里的-接力棒"><a href="#4-Invocation-拦截器手里的-接力棒" class="headerlink" title="4. <code>Invocation</code>：拦截器手里的"接力棒""></a>4. <code>Invocation</code>：拦截器手里的"接力棒"</h3>
+<figure class="highlight java"><pre><code class="language-java">// Invocation.java
+public class Invocation {
+    private final Object target;
+    private final Method method;
+    private final Object[] args;
+
+    public Object proceed() throws InvocationTargetException, IllegalAccessException {
+        return method.invoke(target, args);
+    }
+}</code></pre></figure>
+<p><code>proceed()</code> 就是"把活交给下一棒"。但注意：<strong>它调用的是 <code>target</code> 的方法，而 <code>target</code> 是"下一个插件代理对象"或"真实对象"</strong>。所以当拦截器 A 的 <code>intercept</code> 里调用 <code>invocation.proceed()</code>，实际触发的是拦截器 B 的 <code>invoke</code>，B 再 <code>proceed</code> 到 C……最终到真实对象。<strong>这就是"责任链"的实现方式——用动态代理的嵌套调用模拟出链式效果。</strong></p>
+<p>一个标准的拦截器写法：</p>
+<figure class="highlight java"><pre><code class="language-java">@Intercepts({
+    @Signature(type = Executor.class, method = &quot;query&quot;,
+        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})
+})
+public class TimingInterceptor implements Interceptor {
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        long start = System.nanoTime();
+        try {
+            return invocation.proceed(); // 交给下一棒
+        } finally {
+            long cost = System.nanoTime() - start;
+            System.out.println(&quot;SQL 耗时: &quot; + cost / 1_000_000 + &quot;ms&quot;);
+        }
+    }
+}</code></pre></figure>
+<hr>
+<h2 id="实战代码-三个可运行的完整示例"><a href="#实战代码-三个可运行的完整示例" class="headerlink" title="实战代码：三个可运行的完整示例"></a>实战代码：三个可运行的完整示例</h2>
+<p>下面三个示例都可以直接放进 Spring Boot + MyBatis 项目运行。为了聚焦插件本身，省略了部分样板代码。</p>
+<h3 id="示例一-SQL-耗时统计与慢-SQL-告警"><a href="#示例一-SQL-耗时统计与慢-SQL-告警" class="headerlink" title="示例一：SQL 耗时统计与慢 SQL 告警"></a>示例一：SQL 耗时统计与慢 SQL 告警</h3>
+<p>这个插件拦截 <code>Executor</code> 的 <code>query</code> 和 <code>update</code>，统计耗时并打印慢 SQL。注意它<strong>必须同时拦截 query 和 update</strong>，否则更新操作统计不到。</p>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.ibatis.executor.Executor;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.plugin.*;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
+
+import java.util.Properties;
+
+/**
+ * 慢 SQL 监控插件
+ * 拦截 Executor 的 query / update 方法
+ */
+@Intercepts({
+    @Signature(type = Executor.class, method = &quot;query&quot;,
+        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}),
+    @Signature(type = Executor.class, method = &quot;update&quot;,
+        args = {MappedStatement.class, Object.class})
+})
+public class SlowSqlInterceptor implements Interceptor {
+
+    /** 慢 SQL 阈值，单位毫秒，可通过 properties 配置 */
+    private long thresholdMs = 500L;
+
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        long start = System.nanoTime();
+        try {
+            return invocation.proceed(); // 放行到下一棒
+        } finally {
+            long costMs = (System.nanoTime() - start) / 1_000_000;
+            if (costMs &gt;= thresholdMs) {
+                // 第一个参数是 MappedStatement，可拿到 SQL 与 statementId
+                MappedStatement ms = (MappedStatement) invocation.getArgs()[0];
+                Object param = invocation.getArgs()[1];
+                BoundSql boundSql = ms.getBoundSql(param);
+                System.err.printf(&quot;[慢SQL] %dms | %s | SQL=%s%n&quot;,
+                        costMs, ms.getId(), boundSql.getSql().replaceAll(&quot;\\s+&quot;, &quot; &quot;));
+            }
+        }
+    }
+
+    @Override
+    public Object plugin(Object target) {
+        // 只对 Executor 类型做代理，避免无谓的代理开销
+        if (target instanceof Executor) {
+            return Plugin.wrap(target, this);
+        }
+        return target;
+    }
+
+    @Override
+    public void setProperties(Properties properties) {
+        // 支持 &lt;plugin&gt;&lt;property name=&quot;thresholdMs&quot; value=&quot;1000&quot;/&gt;&lt;/plugin&gt;
+        String v = properties.getProperty(&quot;thresholdMs&quot;);
+        if (v != null) {
+            this.thresholdMs = Long.parseLong(v);
+        }
+    }
+}</code></pre></figure>
+<p><strong>要点</strong>：<code>plugin</code> 方法里加 <code>instanceof</code> 判断是个好习惯。因为 <code>pluginAll</code> 会对四大对象都调用 <code>plugin</code>，不加判断的话，<code>Plugin.wrap</code> 内部虽然也会检查签名，但多一次 <code>getSignatureMap</code> 解析（虽然有缓存，但仍有开销）。</p>
+<h3 id="示例二-多租户自动拼接条件-基于-SQL-改写"><a href="#示例二-多租户自动拼接条件-基于-SQL-改写" class="headerlink" title="示例二：多租户自动拼接条件（基于 SQL 改写）"></a>示例二：多租户自动拼接条件（基于 SQL 改写）</h3>
+<p>这个示例演示<strong>如何改写 SQL</strong>。注意：直接改 <code>BoundSql.sql</code> 是危险操作，因为 <code>BoundSql</code> 被缓存复用。正确做法是通过反射替换 <code>BoundSql</code> 的 <code>sql</code> 字段，或者更稳妥地——<strong>修改 <code>MappedStatement</code> 的 <code>SqlSource</code></strong>。这里用反射演示原理，生产环境建议用 <code>MyBatis-Plus</code> 的租户插件或自定义 <code>SqlInjector</code>。</p>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.ibatis.executor.statement.StatementHandler;
+import org.apache.ibatis.mapping.BoundSql;
+import org.apache.ibatis.plugin.*;
+
+import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.util.Properties;
+
+/**
+ * 多租户插件（演示 SQL 改写原理）
+ * 拦截 StatementHandler.prepare，在 SQL 执行前注入租户条件
+ *
+ * 警告：生产环境请使用官方推荐方式，直接改 BoundSql 有并发风险
+ */
+@Intercepts({
+    @Signature(type = StatementHandler.class, method = &quot;prepare&quot;,
+        args = {Connection.class, Integer.class})
+})
+public class TenantInterceptor implements Interceptor {
+
+    private static final ThreadLocal&lt;String&gt; TENANT = new ThreadLocal&lt;&gt;();
+
+    public static void setTenant(String tenantId) { TENANT.set(tenantId); }
+    public static void clear() { TENANT.remove(); }
+
+    @Override
+    public Object intercept(Invocation invocation) throws Throwable {
+        StatementHandler handler = (StatementHandler) invocation.getTarget();
+        // 用 MetaObject 优雅地读取私有属性，比纯反射友好
+        MetaObject meta = SystemMetaObject.forObject(handler);
+        BoundSql boundSql = (BoundSql) meta.getValue(&quot;delegate.boundSql&quot;);
+        String sql = boundSql.getSql();
+        String tenantId = TENANT.get();
+
+        if (tenantId != null &amp;&amp; sql.toLowerCase().contains(&quot;where&quot;)) {
+            // 简化演示：在 WHERE 后插入租户条件
+            String newSql = sql.replaceFirst(&quot;(?i)where&quot;,
+                    &quot;where tenant_id = &#x27;&quot; + tenantId + &quot;&#x27; and &quot;);
+            // 通过反射修改 BoundSql.sql（生产环境需加锁或改用 SqlSource 重写）
+            Field field = BoundSql.class.getDeclaredField(&quot;sql&quot;);
+            field.setAccessible(true);
+            field.set(boundSql, newSql);
+        }
+        return invocation.proceed();
+    }
+
+    @Override
+    public Object plugin(Object target) {
+        return Plugin.wrap(target, this);
+    }
+
+    @Override
+    public void setProperties(Properties properties) { }
+}</code></pre></figure>
+<p><strong>坑点提醒</strong>：<code>BoundSql.sql</code> 是 <code>final</code> 吗？在 MyBatis 3.5.x 中不是 final，但直接反射修改在<strong>高并发下</strong>可能因为 <code>BoundSql</code> 被 <code>MappedStatement</code> 缓存而串数据。更稳妥的方案是拦截 <code>Executor.query</code>，用 <code>MappedStatement</code> 构造新的 <code>BoundSql</code>，再通过 <code>Runnable</code> 包装调用 <code>query</code> 的重载版本。这也是 PageHelper 的做法——它没有改原 SQL，而是<strong>生成了一条 count SQL 和一条分页 SQL，用 <code>MappedStatement</code> 替换后重新调用 <code>Executor.query</code></strong>。</p>
+<h3 id="示例三-拦截器执行顺序验证"><a href="#示例三-拦截器执行顺序验证" class="headerlink" title="示例三：拦截器执行顺序验证"></a>示例三：拦截器执行顺序验证</h3>
+<p>这个示例用两个插件验证"套娃"顺序。理解这个，你就理解了 90% 的插件顺序问题。</p>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.ibatis.executor.Executor;
+import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.plugin.*;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * 通过两个插件验证执行顺序
+ * 注册顺序：A 先注册，B 后注册
+ * 实际执行顺序：B 进入 -&gt; A 进入 -&gt; 真实方法 -&gt; A 退出 -&gt; B 退出
+ */
+public class OrderDemo {
+
+    @Intercepts(@Signature(type = Executor.class, method = &quot;query&quot;,
+        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}))
+    static class PluginA implements Interceptor {
+        @Override
+        public Object intercept(Invocation invocation) throws Throwable {
+            System.out.println(&quot;&gt;&gt;&gt; PluginA 进入&quot;);
+            try { return invocation.proceed(); }
+            finally { System.out.println(&quot;&lt;&lt;&lt; PluginA 退出&quot;); }
+        }
+    }
+
+    @Intercepts(@Signature(type = Executor.class, method = &quot;query&quot;,
+        args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class}))
+    static class PluginB implements Interceptor {
+        @Override
+        public Object intercept(Invocation invocation) throws Throwable {
+            System.out.println(&quot;&gt;&gt;&gt; PluginB 进入&quot;);
+            try { return invocation.proceed(); }
+            finally { System.out.println(&quot;&lt;&lt;&lt; PluginB 退出&quot;); }
+        }
+    }
+
+    @Configuration
+    static class MyBatisConfig {
+        @Bean
+        public PluginA pluginA() { return new PluginA(); }
+        @Bean
+        public PluginB pluginB() { return new PluginB(); }
+    }
+
+    // 输出（注册顺序 A -&gt; B）：
+    // &gt;&gt;&gt; PluginB 进入
+    // &gt;&gt;&gt; PluginA 进入
+    // &lt;&lt;&lt; PluginA 退出
+    // &lt;&lt;&lt; PluginB 退出
+}</code></pre></figure>
+<p><strong>结论</strong>：后注册的插件先执行（进入），后退出。这就像穿衣服——最后穿的在外面，最先脱。所以如果你有"分页插件"和"数据权限插件"，<strong>数据权限插件应该后注册</strong>，因为分页 SQL 需要在数据权限条件之后拼接，才能保证分页数量正确。这个顺序搞反，分页总数会算错，是经典线上事故。</p>
+<hr>
+<h2 id="方案对比-MyBatis-插件-vs-其他扩展方式"><a href="#方案对比-MyBatis-插件-vs-其他扩展方式" class="headerlink" title="方案对比：MyBatis 插件 vs 其他扩展方式"></a>方案对比：MyBatis 插件 vs 其他扩展方式</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>原理</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>MyBatis 插件（Interceptor）</strong></td>
+<td>JDK 动态代理 + 责任链</td>
+<td>无侵入、可拦截四大对象、生态成熟</td>
+<td>只能拦接口方法、顺序依赖注册、调试困难</td>
+<td>分页、监控、多租户、SQL 改写</td>
+</tr><tr>
+<td><strong>自定义 SqlSessionFactoryBean 包装</strong></td>
+<td>替换核心对象</td>
+<td>完全可控</td>
+<td>侵入性大、需理解初始化流程</td>
+<td>深度定制</td>
+</tr><tr>
+<td><strong>MyBatis-Plus 内置拦截器</strong></td>
+<td>官方实现</td>
+<td>开箱即用、顺序管理</td>
+<td>绑定 MP 生态</td>
+<td>用 MP 的项目</td>
+</tr><tr>
+<td><strong>AOP 切 Mapper 接口</strong></td>
+<td>Spring AOP</td>
+<td>简单、可切业务方法</td>
+<td>拿不到 SQL 上下文、无法改 SQL</td>
+<td>缓存、日志</td>
+</tr><tr>
+<td><strong>JDBC 层代理（p6spy）</strong></td>
+<td>驱动代理</td>
+<td>与 ORM 无关</td>
+<td>无法感知 MyBatis 语义</td>
+<td>通用 SQL 监控</td>
+</tr></tbody></table>
+<p>对比可以看出，MyBatis 插件的核心优势是<strong>能拿到 <code>MappedStatement</code>、<code>BoundSql</code> 这类 ORM 语义信息</strong>，这是 AOP 和 JDBC 代理做不到的。但代价就是前面说的"套娃顺序"和"只能拦接口"这两大限制。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 签名写错会静默失效，务必写单测验证。</strong></p>
+<p><code>@Signature</code> 的 <code>method</code> 名或 <code>args</code> 类型写错，<code>getSignatureMap</code> 会抛 <code>NoSuchMethodException</code>（这是好事）；但如果 <code>type</code> 写的是一个目标对象没实现的接口，<code>getAllInterfaces</code> 返回空数组，<code>wrap</code> 直接返回原对象，<strong>插件静默失效</strong>。建议每个插件都写一个断言"代理对象是 Plugin 实例"的测试。</p>
+<p><strong>2. 拦截 <code>query</code> 要拦全参数版本。</strong></p>
+<p><code>Executor</code> 有 <code>query(MappedStatement, Object, RowBounds, ResultHandler)</code> 和 <code>query(MappedStatement, Object, RowBounds, ResultHandler, CacheKey, BoundSql)</code> 两个重载。只拦前者，某些内部调用（如嵌套查询）可能走后者，导致漏拦。PageHelper 两个都拦。</p>
+<p><strong>3. 顺序管理用 <code>@Order</code> 或 <code>order</code> 属性。</strong></p>
+<p>Spring Boot 下多个 <code>Interceptor</code> Bean，注册顺序受 Bean 加载顺序影响，不可靠。推荐在 <code><plugin></code> 的 <code>property</code> 里显式声明顺序，或自定义 <code>ConfigurationCustomizer</code> 按 <code>@Order</code> 排序后手动 <code>addInterceptor</code>。</p>
+<p><strong>4. 不要直接在 <code>intercept</code> 里改 <code>BoundSql.sql</code>。</strong></p>
+<p><code>BoundSql</code> 可能被缓存复用，高并发下会串 SQL。要改写 SQL，走 <code>MappedStatement</code> 替换或 <code>SqlSource</code> 重写路线，参考 PageHelper 的 <code>ExecutorUtil</code>。</p>
+<p><strong>5. <code>proceed()</code> 必须放在 try-finally 里。</strong></p>
+<p>否则异常路径下"退出"逻辑不执行，监控数据会失真。示例一的写法就是标准姿势。</p>
+<p><strong>6. 注意 <code>plugin</code> 方法的 <code>instanceof</code> 判断。</strong></p>
+<p><code>pluginAll</code> 会对四大对象都调 <code>plugin</code>，虽然 <code>wrap</code> 内部会检查，但提前判断能省掉 <code>getSignatureMap</code> 的解析开销（虽然 <code>InterceptorChain</code> 对 <code>signatureMap</code> 没有缓存，每次 <code>wrap</code> 都重新解析注解，插件多时这是实打实的性能损耗）。</p>
+<p><strong>7. 嵌套查询（Nested Query）的拦截盲区。</strong></p>
+<p><code>ResultSetHandler</code> 处理嵌套结果时，可能通过 <code>Executor</code> 内部再次查询，此时新 <code>Executor</code> 是否被代理取决于 <code>MappedStatement</code> 的 <code>executorType</code>。如果发现"插件对某些 SQL 不生效"，先检查是不是嵌套查询走了不同的 <code>Executor</code> 实例。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>把整条链路串起来：</p>
+<ol>
+<li><strong>装配</strong>：<code>InterceptorChain.pluginAll</code> 对四大对象依次调用 <code>plugin</code>，<strong>先注册的在内层</strong>。</li>
+<li><strong>代理</strong>：<code>Plugin.wrap</code> 用 <code>@Intercepts</code> 生成 <code>signatureMap</code>，对匹配接口做 JDK 动态代理。</li>
+<li><strong>执行</strong>：<code>Plugin.invoke</code> 命中签名则调 <code>interceptor.intercept</code>，拦截器内 <code>invocation.proceed()</code> 触发下一层代理，形成<strong>套娃式责任链</strong>。</li>
+</ol>
+<p>核心洞察是：<strong>MyBatis 插件 = JDK 动态代理 + 责任链模式的嵌套实现</strong>。理解了"套娃"和"接口代理"这两点，顺序问题、失效问题、嵌套问题就都有了统一解释。</p>
+<p>延伸思考：如果你要设计一个类似的扩展框架，MyBatis 这套方案给你什么启发？其实它牺牲了"非接口方法拦截能力"和"显式顺序控制"，换来了"零侵入"和"与 Spring 解耦"。现代框架（如 Dubbo 的 Filter、Spring 的 <code>HandlerInterceptor</code>）更倾向于显式链式结构 + 顺序声明，可调试性更好。MyBatis 受限于历史设计（JDK 代理），只能靠约定和文档来弥补。这也提醒我们：<strong>扩展点的设计，顺序可观测性和失败可见性，比"优雅"更重要</strong>。</p>
+<p>下次再写插件，先问自己三个问题：拦的是接口方法吗？顺序想清楚了吗？<code>proceed()</code> 在 finally 里吗？想清楚这三点，坑就少了一大半。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
