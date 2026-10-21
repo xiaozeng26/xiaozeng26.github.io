@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Function Calling机制与LangChain Tool集成实践 | 小曾博客</title>
+  <meta name="description" content="Function Calling机制与LangChain Tool集成实践 引言 去年帮一家做企业知识库的团队排查线上事故，现象很诡异：用户问\"帮我查一下上个月华东区销售额，再看下库存告警\"，模型把两个任务揉成一句话丢给了一个查询接口，返回一堆牛头不对马嘴的数据，用户直接投诉。日志翻出来一看，不是模型笨，是他们的 Tool 描述写成了 \"query database\"——模型根本不知道该在什么时候">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Function Calling机制与LangChain Tool集成实践">
+  <meta name="twitter:description" content="Function Calling机制与LangChain Tool集成实践 引言 去年帮一家做企业知识库的团队排查线上事故，现象很诡异：用户问\"帮我查一下上个月华东区销售额，再看下库存告警\"，模型把两个任务揉成一句话丢给了一个查询接口，返回一堆牛头不对马嘴的数据，用户直接投诉。日志翻出来一看，不是模型笨，是他们的 Tool 描述写成了 \"query database\"——模型根本不知道该在什么时候">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1259">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Function Calling机制与LangChain Tool集成实践">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Function Calling机制与LangChain Tool集成实践 引言 去年帮一家做企业知识库的团队排查线上事故，现象很诡异：用户问\"帮我查一下上个月华东区销售额，再看下库存告警\"，模型把两个任务揉成一句话丢给了一个查询接口，返回一堆牛头不对马嘴的数据，用户直接投诉。日志翻出来一看，不是模型笨，是他们的 Tool 描述写成了 \"query database\"——模型根本不知道该在什么时候">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1259">
+  <meta property="article:published_time" content="2026-10-22T00:17:45.000Z">
+  <meta property="article:modified_time" content="2026-10-22T00:17:45.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Function-Calling机制与LangChain-Tool集成实践"><span class="toc-text">Function Calling机制与LangChain Tool集成实践</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-一场-点菜-与-后厨-的协作"><span class="toc-text">核心概念：一场"点菜"与"后厨"的协作</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#模型侧-从特殊-token-到-JSON-的演进"><span class="toc-text">模型侧：从特殊 token 到 JSON 的演进</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#LangChain-侧-BaseTool-与-bind-tools-的调用链"><span class="toc-text">BaseTool 与 bind_tools 的调用链">LangChain 侧：BaseTool 与 bind_tools 的调用链</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#编排侧-ToolMessage-与消息流"><span class="toc-text">编排侧：ToolMessage 与消息流</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-从零实现一个带参数校验的工具"><span class="toc-text">示例 1：从零实现一个带参数校验的工具</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-LangChain-tool-装饰器-结构化参数"><span class="toc-text">@tool 装饰器 + 结构化参数">示例 2：LangChain @tool 装饰器 + 结构化参数</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-LangGraph-构建带条件分支的-Agent"><span class="toc-text">示例 3：LangGraph 构建带条件分支的 Agent</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Function-Calling-的四种实现路径"><span class="toc-text">方案对比：Function Calling 的四种实现路径</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1259)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Function Calling机制与LangChain Tool集成实践</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-22"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-22</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-22"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-22</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Function-Calling机制与LangChain-Tool集成实践"><a href="#Function-Calling机制与LangChain-Tool集成实践" class="headerlink" title="Function Calling机制与LangChain Tool集成实践"></a>Function Calling机制与LangChain Tool集成实践</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年帮一家做企业知识库的团队排查线上事故，现象很诡异：用户问"帮我查一下上个月华东区销售额，再看下库存告警"，模型把两个任务揉成一句话丢给了一个查询接口，返回一堆牛头不对马嘴的数据，用户直接投诉。日志翻出来一看，不是模型笨，是他们的 Tool 描述写成了 <code>"query database"</code>——模型根本不知道该在什么时候调、参数怎么填。</p>
+<p>这类问题在 2024 年之后变得极其普遍。Function Calling（现在各家统一叫 Tool Calling）从"锦上添花"变成了 LLM 应用的基础设施，但很多工程师对它的理解停留在"定义一个 JSON Schema 就行"。实际上，从模型如何决定调用、参数如何被约束、到 LangChain 如何把这套协议抽象成 <code>BaseTool</code>，中间有大量值得深挖的细节。本文会从协议层一路讲到 LangGraph 的 Agent 循环，配三个可直接跑通的生产级示例，最后给出踩坑清单。</p>
+<h2 id="核心概念-一场-点菜-与-后厨-的协作"><a href="#核心概念-一场-点菜-与-后厨-的协作" class="headerlink" title="核心概念：一场"点菜"与"后厨"的协作"></a>核心概念：一场"点菜"与"后厨"的协作</h2>
+<p>先给个生活化类比。</p>
+<p>你去一家餐厅，菜单上写着"宫保鸡丁：鸡肉、花生、微辣"。你作为顾客（<strong>LLM</strong>）看到菜单（<strong>Tool 描述</strong>），决定点这道菜，还要告诉服务员"不要花生、多放辣"（<strong>参数</strong>）。服务员（<strong>框架运行时</strong>）把订单转给后厨（<strong>你的业务函数</strong>），后厨做完端回来（<strong>ToolMessage</strong>），你继续决定下一道菜或结账。</p>
+<p>关键点在于：<strong>顾客不下厨，后厨不点菜</strong>。模型只负责"表达意图 + 填参数"，真正的执行永远在你的代码里。这就是 Function Calling 的本质——<strong>一种让模型输出结构化意图的协议</strong>，而不是让模型执行代码。</p>
+<p>技术定义上，它包含三层：</p>
+<ol>
+<li><strong>Schema 层</strong>：用 JSON Schema 描述工具名、用途、参数结构</li>
+<li><strong>协议层</strong>：模型在生成时输出特殊 token 或结构化字段，表达"我要调用 X，参数是 Y"</li>
+<li><strong>编排层</strong>：宿主程序解析调用请求、执行函数、把结果回灌给模型，形成循环</li>
+</ol>
+<p>LangChain 的 <code>BaseTool</code> 就是第三层的抽象，把这三层封装成统一接口。</p>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="模型侧-从特殊-token-到-JSON-的演进"><a href="#模型侧-从特殊-token-到-JSON-的演进" class="headerlink" title="模型侧：从特殊 token 到 JSON 的演进"></a>模型侧：从特殊 token 到 JSON 的演进</h3>
+<p>早期 OpenAI 的 function calling 是在 chat completion 接口里加 <code>functions</code> 参数，模型返回 <code>function_call</code> 字段。现在统一为 <code>tools</code>，返回 <code>tool_calls</code> 数组。不同厂商实现差异很大：</p>
+<ul>
+<li><strong>OpenAI / DeepSeek</strong>：基于特殊 token 训练，模型在生成时切换到"工具调用模式"，输出严格 JSON</li>
+</ul>
+<ul>
+<li><strong>Anthropic</strong>：通过 system prompt 注入 XML 风格的 <code><tool_use></code> 标签，模型训练时对齐</li>
+</ul>
+<ul>
+<li><strong>开源模型（Qwen、Llama）</strong>：靠 chat template 里的特殊标记，比如 Qwen 用 <code><tool_call></code> 包裹</li>
+</ul>
+<p>不管哪种，本质上都是<strong>约束解码 + 后训练对齐</strong>。模型在预训练时见过大量"意图→结构化输出"的样本，SFT 阶段强化了对工具描述的注意力。所以 Tool 描述的质量直接决定了模型的选择准确率——这不是玄学，是注意力机制在起作用。</p>
+<h3 id="LangChain-侧-BaseTool-与-bind-tools-的调用链"><a href="#LangChain-侧-BaseTool-与-bind-tools-的调用链" class="headerlink" title="LangChain 侧：<code>BaseTool</code> 与 <code>bind_tools</code> 的调用链"></a>LangChain 侧：<code>BaseTool</code> 与 <code>bind_tools</code> 的调用链</h3>
+<p>看 LangChain 的核心抽象。<code>BaseTool</code> 继承自 <code>Runnable</code>，关键方法有三个：</p>
+<figure class="highlight python"><pre><code class="language-python">class BaseTool(RunnableSerializable[Union[str, dict, ToolCall], Any]):
+    name: str
+    description: str
+    args_schema: Optional[type[BaseModel]] = None
+
+    def _run(self, *args, **kwargs) -&gt; Any: ...
+    async def _arun(self, *args, **kwargs) -&gt; Any: ...
+    def _to_args_and_kwargs(self, tool_input, tool_call_id) -&gt; tuple: ...</code></pre></figure>
+<p><code>_to_args_and_kwargs</code> 是很多人忽略的关键：它负责把模型返回的 dict 参数<strong>校验并转换成函数签名</strong>。如果 <code>args_schema</code> 定义了 Pydantic 模型，这里会做 <code>model_validate</code>，参数不合法直接抛 <code>ValidationError</code>——这是第一道防线。</p>
+<p>再看绑定链路。<code>ChatOpenAI.bind_tools(tools)</code> 内部做的事：</p>
+<figure class="highlight python"><pre><code class="language-python">def bind_tools(self, tools, *, tool_choice=None, **kwargs):
+    formatted_tools = [convert_to_openai_tool(tool) for tool in tools]
+    if tool_choice:
+        kwargs[&quot;tool_choice&quot;] = tool_choice
+    return self.bind(tools=formatted_tools, **kwargs)</code></pre></figure>
+<p><code>convert_to_openai_tool</code> 会把 Pydantic 模型、Python 函数、dict 统一转成 OpenAI 格式。注意 <code>self.bind()</code> 只是把参数存进 <code>kwargs</code>，真正发请求时才合并进 payload——这是 <code>Runnable</code> 的惰性求值特性。</p>
+<h3 id="编排侧-ToolMessage-与消息流"><a href="#编排侧-ToolMessage-与消息流" class="headerlink" title="编排侧：ToolMessage 与消息流"></a>编排侧：ToolMessage 与消息流</h3>
+<p>模型返回的 <code>tool_calls</code> 不是最终结果，而是"请求"。标准流程是：</p>
+<div class="mermaid">
+graph TD
+    A[用户输入] --> B[LLM with tools bound]
+    B -->|tool_calls| C{有工具调用?}
+    C -->|是| D[执行每个 Tool]
+    D --> E[生成 ToolMessage]
+    E --> F[回灌消息列表]
+    F --> B
+    C -->|否| G[返回最终回答]
+    G --> H[结束]
+
+    style B fill:#e1f5ff
+    style D fill:#fff4e1
+    style G fill:#e8f5e9
+</div>
+<p>这个循环就是 Agent 的本质。<code>ToolMessage</code> 必须带 <code>tool_call_id</code>，与 <code>tool_calls[i].id</code> 一一对应——这是协议层的强约束，缺了会报错。很多新手手动构造消息列表时漏掉这个字段，调试半天。</p>
+<p>LangGraph 把这个循环显式化了，用 <code>StateGraph</code> 管理消息状态，<code>ToolNode</code> 负责执行，<code>should_continue</code> 条件边决定是否继续。相比 LangChain 早期的 <code>AgentExecutor</code>，LangGraph 的好处是<strong>状态可持久化、循环可中断、分支可定制</strong>——生产环境做 human-in-the-loop 时这是刚需。</p>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-从零实现一个带参数校验的工具"><a href="#示例-1-从零实现一个带参数校验的工具" class="headerlink" title="示例 1：从零实现一个带参数校验的工具"></a>示例 1：从零实现一个带参数校验的工具</h3>
+<p>先不依赖框架，理解协议本质。这个示例展示模型返回的 <code>tool_calls</code> 长什么样，以及如何手动执行。</p>
+<figure class="highlight python"><pre><code class="language-python">import json
+from typing import Any
+from pydantic import BaseModel, Field, ValidationError
+from openai import OpenAI
+
+client = OpenAI()
+
+# 1. 用 Pydantic 定义参数 schema，这是校验的第一道防线
+class QuerySalesArgs(BaseModel):
+    region: str = Field(description=&quot;销售区域，如 &#x27;east_china&#x27;、&#x27;north_china&#x27;&quot;)
+    month: str = Field(pattern=r&quot;^\d{4}-\d{2}$&quot;, description=&quot;月份，格式 YYYY-MM&quot;)
+
+def query_sales(region: str, month: str) -&gt; dict:
+    &quot;&quot;&quot;真实业务里这里查数据库，示例返回假数据&quot;&quot;&quot;
+    return {&quot;region&quot;: region, &quot;month&quot;: month, &quot;revenue&quot;: 128000, &quot;orders&quot;: 342}
+
+# 2. 工具注册表：name -&gt; (schema, callable)
+TOOLS = {
+    &quot;query_sales&quot;: {
+        &quot;schema&quot;: {
+            &quot;type&quot;: &quot;function&quot;,
+            &quot;function&quot;: {
+                &quot;name&quot;: &quot;query_sales&quot;,
+                &quot;description&quot;: &quot;查询指定区域指定月份的销售额和订单数。当用户询问业绩、营收、订单量时使用。&quot;,
+                &quot;parameters&quot;: QuerySalesArgs.model_json_schema(),
+            },
+        },
+        &quot;fn&quot;: query_sales,
+    }
+}
+
+def run_agent(user_input: str, max_rounds: int = 5) -&gt; str:
+    messages = [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_input}]
+    tools_schema = [t[&quot;schema&quot;] for t in TOOLS.values()]
+
+    for _ in range(max_rounds):
+        resp = client.chat.completions.create(
+            model=&quot;gpt-4o-mini&quot;,
+            messages=messages,
+            tools=tools_schema,
+            tool_choice=&quot;auto&quot;,
+        )
+        msg = resp.choices[0].message
+        messages.append(msg.model_dump(exclude_none=True))
+
+        # 3. 没有工具调用，直接返回
+        if not msg.tool_calls:
+            return msg.content
+
+        # 4. 逐个执行，注意 tool_call_id 必须回填
+        for call in msg.tool_calls:
+            tool = TOOLS.get(call.function.name)
+            if not tool:
+                result = {&quot;error&quot;: f&quot;unknown tool: {call.function.name}&quot;}
+            else:
+                try:
+                    # 关键：用 Pydantic 校验模型给的参数
+                    args = QuerySalesArgs.model_validate_json(call.function.arguments)
+                    result = tool[&quot;fn&quot;](**args.model_dump())
+                except ValidationError as e:
+                    # 把校验错误回灌给模型，让它自我修正（这是重要技巧）
+                    result = {&quot;error&quot;: f&quot;参数校验失败: {e.errors()}&quot;}
+            messages.append({
+                &quot;role&quot;: &quot;tool&quot;,
+                &quot;tool_call_id&quot;: call.id,
+                &quot;content&quot;: json.dumps(result, ensure_ascii=False),
+            })
+    return &quot;达到最大轮次仍未完成&quot;
+
+if __name__ == &quot;__main__&quot;:
+    print(run_agent(&quot;华东区2026年9月的销售额是多少？&quot;))</code></pre></figure>
+<p>这个示例揭示了三个关键点：<code>tool_choice="auto"</code> 让模型自主决定；参数校验失败时<strong>把错误信息回灌</strong>比直接抛异常更优雅，模型往往能自我纠错；<code>max_rounds</code> 是防止死循环的硬保险。</p>
+<h3 id="示例-2-LangChain-tool-装饰器-结构化参数"><a href="#示例-2-LangChain-tool-装饰器-结构化参数" class="headerlink" title="示例 2：LangChain <code>@tool</code> 装饰器 + 结构化参数"></a>示例 2：LangChain <code>@tool</code> 装饰器 + 结构化参数</h3>
+<p>LangChain 的 <code>@tool</code> 装饰器用 docstring 自动生成 schema，但生产环境建议显式传 <code>args_schema</code>，因为 docstring 解析对复杂类型支持有限。</p>
+<figure class="highlight python"><pre><code class="language-python">from typing import Literal
+from pydantic import BaseModel, Field
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage, ToolMessage
+
+class InventoryArgs(BaseModel):
+    sku: str = Field(description=&quot;商品 SKU 编码&quot;)
+    warehouse: Literal[&quot;shanghai&quot;, &quot;beijing&quot;, &quot;guangzhou&quot;] = Field(
+        description=&quot;仓库位置，只支持这三个&quot;
+    )
+
+@tool(&quot;check_inventory&quot;, args_schema=InventoryArgs)
+def check_inventory(sku: str, warehouse: str) -&gt; str:
+    &quot;&quot;&quot;查询指定仓库中某 SKU 的库存数量。
+    当用户询问库存、缺货、补货相关问题时调用。&quot;&quot;&quot;
+    # 真实场景查 WMS 系统
+    fake_db = {(&quot;SKU-001&quot;, &quot;shanghai&quot;): 120, (&quot;SKU-002&quot;, &quot;beijing&quot;): 0}
+    qty = fake_db.get((sku, warehouse), 0)
+    return f&quot;仓库 {warehouse} 中 {sku} 库存 {qty} 件&quot;
+
+# 绑定工具并调用
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;).bind_tools([check_inventory])
+messages = [HumanMessage(&quot;上海仓 SKU-001 还有货吗？&quot;)]
+
+ai_msg = llm.invoke(messages)
+messages.append(ai_msg)
+
+# 用 tool_call_id 精确匹配执行
+tool_map = {&quot;check_inventory&quot;: check_inventory}
+for call in ai_msg.tool_calls:
+    result = tool_map[call[&quot;name&quot;]].invoke(call[&quot;args&quot;])
+    messages.append(ToolMessage(content=result, tool_call_id=call[&quot;id&quot;]))
+
+final = llm.invoke(messages)
+print(final.content)</code></pre></figure>
+<p>注意 <code>Literal</code> 的妙用：它会在 JSON Schema 里生成 <code>enum</code>，模型看到枚举值后填错概率大幅下降。这比在描述里写"只能是上海、北京、广州"可靠得多——<strong>用 schema 约束，别用自然语言约束</strong>。</p>
+<h3 id="示例-3-LangGraph-构建带条件分支的-Agent"><a href="#示例-3-LangGraph-构建带条件分支的-Agent" class="headerlink" title="示例 3：LangGraph 构建带条件分支的 Agent"></a>示例 3：LangGraph 构建带条件分支的 Agent</h3>
+<p>生产级场景往往需要"工具调用失败重试"、"敏感操作人工确认"。LangGraph 的显式状态图让这些成为可能。</p>
+<figure class="highlight python"><pre><code class="language-python">from typing import Annotated, TypedDict
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.tools import tool
+
+@tool
+def query_order(order_id: str) -&gt; str:
+    &quot;&quot;&quot;根据订单号查询订单状态和物流信息&quot;&quot;&quot;
+    return f&quot;订单 {order_id}: 已发货，顺丰 SF1234567890&quot;
+
+@tool
+def refund_order(order_id: str, reason: str) -&gt; str:
+    &quot;&quot;&quot;对指定订单发起退款。这是敏感操作，仅在用户明确要求退款时调用。&quot;&quot;&quot;
+    return f&quot;订单 {order_id} 退款已提交，原因：{reason}&quot;
+
+tools = [query_order, refund_order]
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;).bind_tools(tools)
+
+class AgentState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+
+def agent_node(state: AgentState) -&gt; dict:
+    return {&quot;messages&quot;: [llm.invoke(state[&quot;messages&quot;])]}
+
+# 敏感工具走人工确认分支
+SENSITIVE_TOOLS = {&quot;refund_order&quot;}
+tool_node = ToolNode(tools)
+
+def route_after_agent(state: AgentState) -&gt; str:
+    last = state[&quot;messages&quot;][-1]
+    if not getattr(last, &quot;tool_calls&quot;, None):
+        return END
+    # 只要有敏感工具调用，就转人工确认
+    if any(c[&quot;name&quot;] in SENSITIVE_TOOLS for c in last.tool_calls):
+        return &quot;human_confirm&quot;
+    return &quot;tools&quot;
+
+def human_confirm_node(state: AgentState) -&gt; dict:
+    &quot;&quot;&quot;真实场景这里用 interrupt 挂起等待人工审批，
+    示例里简化为直接放行并记录日志&quot;&quot;&quot;
+    last = state[&quot;messages&quot;][-1]
+    print(f&quot;[审计] 待确认调用: {[c[&#x27;name&#x27;] for c in last.tool_calls]}&quot;)
+    return {&quot;messages&quot;: tool_node.invoke(state)[&quot;messages&quot;]}
+
+graph = StateGraph(AgentState)
+graph.add_node(&quot;agent&quot;, agent_node)
+graph.add_node(&quot;tools&quot;, tool_node)
+graph.add_node(&quot;human_confirm&quot;, human_confirm_node)
+
+graph.add_edge(START, &quot;agent&quot;)
+graph.add_conditional_edges(&quot;agent&quot;, route_after_agent, {
+    &quot;tools&quot;: &quot;tools&quot;,
+    &quot;human_confirm&quot;: &quot;human_confirm&quot;,
+    END: END,
+})
+graph.add_edge(&quot;tools&quot;, &quot;agent&quot;)
+graph.add_edge(&quot;human_confirm&quot;, &quot;agent&quot;)
+
+app = graph.compile()
+result = app.invoke({&quot;messages&quot;: [HumanMessage(&quot;订单 A1001 我要退款，买错了&quot;)]})
+for m in result[&quot;messages&quot;]:
+    print(f&quot;{m.type}: {m.content}&quot;)</code></pre></figure>
+<p>这个示例的价值在于展示了<strong>架构分层</strong>：<code>agent_node</code> 只负责决策，<code>ToolNode</code> 只负责执行，<code>route_after_agent</code> 只负责路由。三者解耦后，加审计、加限流、加缓存都是插入一个节点的事，不用改核心逻辑。</p>
+<h2 id="方案对比-Function-Calling-的四种实现路径"><a href="#方案对比-Function-Calling-的四种实现路径" class="headerlink" title="方案对比：Function Calling 的四种实现路径"></a>方案对比：Function Calling 的四种实现路径</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>代表</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>原生 Function Calling</strong></td>
+<td>OpenAI / DeepSeek / Qwen</td>
+<td>准确率高、延迟低、参数有 schema 约束</td>
+<td>强依赖模型能力，开源小模型效果差</td>
+<td>主流闭源模型 + 结构化任务</td>
+</tr><tr>
+<td><strong>Prompt 注入 + JSON 解析</strong></td>
+<td>早期 ReAct、LangChain <code>ReActSingleInputOutputParser</code></td>
+<td>模型无关、可解释性强</td>
+<td>解析易失败、token 消耗大、需重试</td>
+<td>模型不支持原生 tools 时的兜底</td>
+</tr><tr>
+<td><strong>结构化输出（JSON Mode）</strong></td>
+<td>OpenAI <code>response_format</code></td>
+<td>输出稳定、适合单轮抽取</td>
+<td>不支持多工具并行、无 tool_call_id</td>
+<td>信息抽取、表单填充</td>
+</tr><tr>
+<td><strong>框架抽象层</strong></td>
+<td>LangChain <code>BaseTool</code> / LangGraph</td>
+<td>统一接口、生态完善、可编排</td>
+<td>抽象泄漏、调试链路长、版本兼容坑多</td>
+<td>复杂多步 Agent</td>
+</tr></tbody></table>
+<p>关键结论：<strong>能用原生 Function Calling 就别用 Prompt 解析</strong>。我见过团队为了"兼容所有模型"硬上 ReAct 文本解析，结果 20% 的请求解析失败要重试，成本反而更高。正确做法是用 LangChain 的抽象层，底层按模型能力自动路由——<code>bind_tools</code> 遇到不支持的模型会降级到 prompt 方案。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>描述是命脉。</strong> Tool 的 <code>description</code> 要写"<strong>什么时候用</strong>"而不是"<strong>是什么</strong>"。反面教材：<code>"query database"</code>。正面：<code>"当用户询问订单状态、物流进度、预计送达时间时调用。不适用于退款、修改地址等操作。"</code> 模型靠这段文字做注意力匹配，写得越像用户提问，命中率越高。</p>
+<p><strong>参数用 schema 约束，别用文字约束。</strong> 能用 <code>enum</code>/<code>Literal</code> 就不用描述；能用 <code>pattern</code> 正则就不用"格式为 YYYY-MM"。模型对 schema 的遵循度远高于自然语言。</p>
+<p><strong>工具数量控制在 10 个以内。</strong> 超过 20 个工具时模型选择准确率断崖式下降（OpenAI 官方也承认这点）。解法是<strong>工具分层</strong>：先让模型选"业务域"，再动态加载该域下的具体工具。</p>
+<p><strong><code>tool_call_id</code> 必须严格对应。</strong> 手动拼消息列表时最容易漏。并行调用时每个 call 都要有独立的 ToolMessage，顺序无所谓但 id 不能错。</p>
+<p><strong>错误回灌优于抛异常。</strong> 参数校验失败时把错误信息作为 ToolMessage 内容返回，模型下一轮往往能自我修正。直接抛异常会中断整个流程。</p>
+<p><strong>幂等性设计。</strong> 模型可能重复调用同一工具（尤其在重试场景）。写操作工具必须支持幂等键，否则会出现重复下单、重复退款。</p>
+<p><strong><code>max_iterations</code> 是硬保险。</strong> 无论 LangGraph 还是 AgentExecutor，都要设上限。我见过因为工具返回空导致模型无限调用的线上事故，烧了一晚上 token。</p>
+<p><strong>异步优先。</strong> 工具执行用 <code>ainvoke</code> / <code>_arun</code>，多工具并行时 LangGraph 的 <code>ToolNode</code> 会自动并发，同步实现会成为瓶颈。</p>
+<p><strong>测试要覆盖"不该调用"的场景。</strong> 单测里加"用户闲聊时不应触发任何工具"的用例，这是防止工具滥用的关键。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>Function Calling 的本质是<strong>模型输出结构化意图的协议</strong>，餐厅点菜的类比帮我们记住：模型只点菜，后厨（你的代码）才做菜。从源码看，LangChain 的 <code>BaseTool</code> 封装了 schema 校验（<code>_to_args_and_kwargs</code>）和协议转换（<code>convert_to_openai_tool</code>），LangGraph 用显式状态图把 Agent 循环变成可编排、可中断、可审计的架构。</p>
+<p>三个示例分别对应三种深度：手写协议理解本质、<code>@tool</code> 装饰器快速落地、LangGraph 应对生产级复杂度。建议按这个顺序递进，别一上来就上框架——不理解协议层，调试时会像无头苍蝇。</p>
+<p>延伸思考：随着模型原生支持并行工具调用、结构化输出越来越强，Function Calling 的"协议"部分会逐渐标准化（MCP 协议已经在做这件事）。未来的差异化竞争不在"能不能调工具"，而在<strong>工具编排的可靠性</strong>——状态持久化、人工介入、成本控制、可观测性。LangGraph 这类框架的价值会越来越凸显。下一个值得深挖的方向是 <strong>MCP（Model Context Protocol）</strong>，它试图把工具发现和调用标准化，感兴趣的读者可以顺着这条线继续研究。</p>
+<hr>
+<p><strong>参考方向</strong>：OpenAI Function Calling 官方文档、LangChain <code>BaseTool</code> 源码（<code>langchain_core/tools/base.py</code>）、LangGraph <code>ToolNode</code> 实现、Anthropic Tool Use 文档。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

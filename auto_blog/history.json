@@ -566,6 +566,13 @@
       "subtopic": "MyBatis插件机制与拦截器链源码分析",
       "date": "2026-10-19",
       "url": "/2026/10/20/MyBatis插件机制与拦截器链源码分析/"
+    },
+    {
+      "title": "Function Calling机制与LangChain Tool集成实践",
+      "category": "ai-ml",
+      "subtopic": "Function Calling机制与LangChain Tool集成实践",
+      "date": "2026-10-21",
+      "url": "/2026/10/22/Function Calling机制与LangChain Tool集成实践/"
     }
   ],
   "used_subtopics": {
@@ -615,7 +622,8 @@
       "大模型微调技术对比：LoRA、QLoRA、全参微调",
       "向量数据库选型与LangChain VectorStore集成",
       "LangGraph状态图驱动Agent的实现原理",
-      "Embedding模型选型与语义搜索实践"
+      "Embedding模型选型与语义搜索实践",
+      "Function Calling机制与LangChain Tool集成实践"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -635,7 +643,9 @@
     "docker_kubernetes": [
       "容器化应用的12-Factor原则实践",
       "Docker网络模式：bridge、host、overlay深入对比",
-      "Helm Chart模板开发与Release管理"
+      "Helm Chart模板开发与Release管理",
+      "Docker多阶段构建与镜像瘦身最佳实践",
+      "Docker存储驱动：overlay2、aufs、devicemapper原理"
     ],
     "go": [
       "Go Context的设计与链路追踪实践",
@@ -727,6 +737,7 @@
     "CompletableFuture异步编程实战与原理": "f284be5077588f4dfbe3fa0ddd9e3948c2583a4c7c9b329362aa346ad08ed8ed",
     "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50",
     "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe",
-    "MyBatis插件机制与拦截器链源码分析": "b3fc185de25c32f781a3546ead68453ef870318de2f254e26a3879d84d4d94c8"
+    "MyBatis插件机制与拦截器链源码分析": "b3fc185de25c32f781a3546ead68453ef870318de2f254e26a3879d84d4d94c8",
+    "Function Calling机制与LangChain Tool集成实践": "f9d3e6e3e827a11d2e7268dfd09cd6d94f3dbd9a7ae72bb5b86fee0ef318e227"
   }
 }
