@@ -573,27 +573,18 @@
       "subtopic": "Function Calling机制与LangChain Tool集成实践",
       "date": "2026-10-21",
       "url": "/2026/10/22/Function Calling机制与LangChain Tool集成实践/"
+    },
+    {
+      "title": "Celery分布式任务队列架构与调优",
+      "category": "python",
+      "subtopic": "Celery分布式任务队列架构与调优",
+      "date": "2026-10-23",
+      "url": "/2026/10/24/Celery分布式任务队列架构与调优/"
     }
   ],
   "used_subtopics": {
     "java": [
-      "ThreadPoolExecutor源码拆解与最佳实践",
-      "HashMap并发问题与ConcurrentHashMap分段锁演进",
-      "synchronized锁升级过程：偏向锁→轻量级锁→重量级锁",
-      "Netty线程模型与零拷贝原理",
-      "Java Agent字节码增强技术实战",
-      "RocketMQ消息存储与高可用架构",
-      "Redis分布式锁的演进：从setnx到Redisson",
-      "Spring事务传播行为与失效场景分析",
-      "Seata分布式事务AT模式源码分析",
-      "Spring Boot自动配置原理与自定义Starter",
-      "Sentinel流控降级源码分析",
-      "Java 21虚拟线程（Virtual Threads）深度解析",
-      "AQS框架源码解读——从ReentrantLock说起",
-      "Nacos服务注册与配置中心原理",
-      "JVM内存模型与垃圾回收器深度解析",
-      "CompletableFuture异步编程实战与原理",
-      "MyBatis插件机制与拦截器链源码分析"
+      "CompletableFuture异步编程实战与原理"
     ],
     "python": [
       "Python性能调优：cProfile、memory_profiler实战",
@@ -606,7 +597,8 @@
       "FastAPI依赖注入系统设计剖析",
       "asyncio事件循环源码级分析与实战",
       "Python协程与生成器的底层实现（yield from解析）",
-      "Python元类编程与ORM框架实现"
+      "Python元类编程与ORM框架实现",
+      "Celery分布式任务队列架构与调优"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -645,7 +637,8 @@
       "Docker网络模式：bridge、host、overlay深入对比",
       "Helm Chart模板开发与Release管理",
       "Docker多阶段构建与镜像瘦身最佳实践",
-      "Docker存储驱动：overlay2、aufs、devicemapper原理"
+      "Docker存储驱动：overlay2、aufs、devicemapper原理",
+      "K8s HPA与VPA自动扩缩容策略详解"
     ],
     "go": [
       "Go Context的设计与链路追踪实践",
@@ -738,6 +731,7 @@
     "Embedding模型选型与语义搜索实践": "aae9ac331c364b73e88c984c8451d9a3a3e480fdbc428c831e4ce3533f877f50",
     "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe",
     "MyBatis插件机制与拦截器链源码分析": "b3fc185de25c32f781a3546ead68453ef870318de2f254e26a3879d84d4d94c8",
-    "Function Calling机制与LangChain Tool集成实践": "f9d3e6e3e827a11d2e7268dfd09cd6d94f3dbd9a7ae72bb5b86fee0ef318e227"
+    "Function Calling机制与LangChain Tool集成实践": "f9d3e6e3e827a11d2e7268dfd09cd6d94f3dbd9a7ae72bb5b86fee0ef318e227",
+    "Celery分布式任务队列架构与调优": "209b54ef9aee4fddf2fef575f58d13cc9d5b869b54da8a8240c0dd2e6162e3d2"
   }
 }

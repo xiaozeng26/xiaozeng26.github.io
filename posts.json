@@ -1,5 +1,23 @@
 [
  {
+  "title": "Celery分布式任务队列架构与调优",
+  "url": "/2026/10/24/Celery%E5%88%86%E5%B8%83%E5%BC%8F%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97%E6%9E%B6%E6%9E%84%E4%B8%8E%E8%B0%83%E4%BC%98/",
+  "date": "2026-10-24",
+  "year": 2026,
+  "month": 10,
+  "day": 24,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3678",
+  "excerpt": "引言 先讲一个真实的生产事故。 某电商团队的大促系统里，用户下单后需要触发 12 个后续动作：扣减库存、发优惠券、写积分、发短信、推送 App 通知、生成对账单……最初这些逻辑都塞在 POST /order 的请求链路里同步执行。平时没问题，大促一开，订单接口 P99 从 200ms 飙到 8 秒，网关连接池被打满，整"
+ },
+ {
   "title": "Function Calling机制与LangChain Tool集成实践",
   "url": "/2026/10/22/Function%20Calling%E6%9C%BA%E5%88%B6%E4%B8%8ELangChain%20Tool%E9%9B%86%E6%88%90%E5%AE%9E%E8%B7%B5/",
   "date": "2026-10-22",
