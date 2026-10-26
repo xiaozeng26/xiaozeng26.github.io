@@ -1,5 +1,25 @@
 [
  {
+  "title": "Transformer架构深度解读：Self-Attention数学原理",
+  "url": "/2026/10/27/Transformer%E6%9E%B6%E6%9E%84%E6%B7%B1%E5%BA%A6%E8%A7%A3%E8%AF%BB%EF%BC%9ASelf-Attention%E6%95%B0%E5%AD%A6%E5%8E%9F%E7%90%86/",
+  "date": "2026-10-27",
+  "year": 2026,
+  "month": 10,
+  "day": 27,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6102",
+  "excerpt": "引言 去年双十一大促前夜，我们的智能客服系统遇到了一个诡异的问题：用户问\\"
+ },
+ {
   "title": "Celery分布式任务队列架构与调优",
   "url": "/2026/10/24/Celery%E5%88%86%E5%B8%83%E5%BC%8F%E4%BB%BB%E5%8A%A1%E9%98%9F%E5%88%97%E6%9E%B6%E6%9E%84%E4%B8%8E%E8%B0%83%E4%BC%98/",
   "date": "2026-10-24",

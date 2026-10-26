@@ -580,6 +580,13 @@
       "subtopic": "Celery分布式任务队列架构与调优",
       "date": "2026-10-23",
       "url": "/2026/10/24/Celery分布式任务队列架构与调优/"
+    },
+    {
+      "title": "Transformer架构深度解读：Self-Attention数学原理",
+      "category": "ai-ml",
+      "subtopic": "Transformer架构深度解读：Self-Attention数学原理",
+      "date": "2026-10-26",
+      "url": "/2026/10/27/Transformer架构深度解读：Self-Attention数学原理/"
     }
   ],
   "used_subtopics": {
@@ -615,7 +622,8 @@
       "向量数据库选型与LangChain VectorStore集成",
       "LangGraph状态图驱动Agent的实现原理",
       "Embedding模型选型与语义搜索实践",
-      "Function Calling机制与LangChain Tool集成实践"
+      "Function Calling机制与LangChain Tool集成实践",
+      "Transformer架构深度解读：Self-Attention数学原理"
     ],
     "architecture": [
       "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
@@ -732,6 +740,7 @@
     "Python元类编程与ORM框架实现": "f021f55b27d100d5bce0fc4dd2e1e61b4e61ace1a2e85af2c5c2addacf2f44fe",
     "MyBatis插件机制与拦截器链源码分析": "b3fc185de25c32f781a3546ead68453ef870318de2f254e26a3879d84d4d94c8",
     "Function Calling机制与LangChain Tool集成实践": "f9d3e6e3e827a11d2e7268dfd09cd6d94f3dbd9a7ae72bb5b86fee0ef318e227",
-    "Celery分布式任务队列架构与调优": "209b54ef9aee4fddf2fef575f58d13cc9d5b869b54da8a8240c0dd2e6162e3d2"
+    "Celery分布式任务队列架构与调优": "209b54ef9aee4fddf2fef575f58d13cc9d5b869b54da8a8240c0dd2e6162e3d2",
+    "Transformer架构深度解读：Self-Attention数学原理": "d17573b0c70806af16e62e7f382936735f336ac860ee9916768a76c4d8ab7f7f"
   }
 }
