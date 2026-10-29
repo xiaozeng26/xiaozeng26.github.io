@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FastAPI + Tortoise ORM 异步数据库实践 | 小曾博客</title>
+  <meta name="description" content="FastAPI + Tortoise ORM 异步数据库实践 引言 去年双十一前，我接手了一个用 FastAPI 写的订单查询服务。压测时 QPS 刚到 800 就上不去了，CPU 却只跑了 30%。打开火焰图一看，asyncio 事件循环里躺着大量 psycopg2 的同步阻塞调用——await db.execute(...) 表面上是异步的，底下却在用线程池硬扛，线程池一满，整个事件循环就开始">
+  <meta name="keywords" content="python,fastapi,async,django,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="FastAPI + Tortoise ORM 异步数据库实践">
+  <meta name="twitter:description" content="FastAPI + Tortoise ORM 异步数据库实践 引言 去年双十一前，我接手了一个用 FastAPI 写的订单查询服务。压测时 QPS 刚到 800 就上不去了，CPU 却只跑了 30%。打开火焰图一看，asyncio 事件循环里躺着大量 psycopg2 的同步阻塞调用——await db.execute(...) 表面上是异步的，底下却在用线程池硬扛，线程池一满，整个事件循环就开始">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6614">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="FastAPI + Tortoise ORM 异步数据库实践">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="FastAPI + Tortoise ORM 异步数据库实践 引言 去年双十一前，我接手了一个用 FastAPI 写的订单查询服务。压测时 QPS 刚到 800 就上不去了，CPU 却只跑了 30%。打开火焰图一看，asyncio 事件循环里躺着大量 psycopg2 的同步阻塞调用——await db.execute(...) 表面上是异步的，底下却在用线程池硬扛，线程池一满，整个事件循环就开始">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6614">
+  <meta property="article:published_time" content="2026-10-30T01:46:30.000Z">
+  <meta property="article:modified_time" content="2026-10-30T01:46:30.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#FastAPI-Tortoise-ORM-异步数据库实践"><span class="toc-text">FastAPI + Tortoise ORM 异步数据库实践</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-餐厅后厨-理解异步-ORM"><span class="toc-text">核心概念：从“餐厅后厨”理解异步 ORM</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-连接池-ConnectionHandler-如何管理事件循环中的连接"><span class="toc-text">ConnectionHandler 如何管理事件循环中的连接">1. 连接池：ConnectionHandler 如何管理事件循环中的连接</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-await-Model-get-的完整生命周期"><span class="toc-text">await Model.get() 的完整生命周期">2. await Model.get() 的完整生命周期</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-事务-in-transaction-与连接的绑定关系"><span class="toc-text">in_transaction() 与连接的绑定关系">3. 事务：in_transaction() 与连接的绑定关系</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-完整-CRUD-事务-连接池配置"><span class="toc-text">示例一：完整 CRUD + 事务 + 连接池配置</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-批量操作与-bulk-create-的正确姿势"><span class="toc-text">bulk_create 的正确姿势">示例二：批量操作与 bulk_create 的正确姿势</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-并发查询与事件循环陷阱"><span class="toc-text">示例三：并发查询与事件循环陷阱</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Tortoise-vs-SQLAlchemy-2-0-async-vs-asyncpg-裸用"><span class="toc-text">方案对比：Tortoise vs SQLAlchemy 2.0 async vs asyncpg 裸用</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6614)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">FastAPI + Tortoise ORM 异步数据库实践</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-10-30"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-10-30</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-10-30"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-10-30</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">python</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="FastAPI-Tortoise-ORM-异步数据库实践"><a href="#FastAPI-Tortoise-ORM-异步数据库实践" class="headerlink" title="FastAPI + Tortoise ORM 异步数据库实践"></a>FastAPI + Tortoise ORM 异步数据库实践</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一前，我接手了一个用 FastAPI 写的订单查询服务。压测时 QPS 刚到 800 就上不去了，CPU 却只跑了 30%。打开火焰图一看，<code>asyncio</code> 事件循环里躺着大量 <code>psycopg2</code> 的同步阻塞调用——<code>await db.execute(...)</code> 表面上是异步的，底下却在用线程池硬扛，线程池一满，整个事件循环就开始排队。这就是典型的“伪异步”：你以为自己写的是 async，实际上只是把阻塞操作从主线程挪到了 thread pool。</p>
+<p>这个问题的根子不在 FastAPI，而在 ORM 选型。FastAPI 本身是纯异步的 ASGI 框架，但如果你配的是 SQLAlchemy 1.4 的同步 Session，或者 Django ORM，那异步链路就在数据库这一层断掉了。Tortoise ORM 正是为填补这块空缺而生的：它是原生 async 的 ORM，API 设计上高度致敬 Django ORM，让熟悉 Django 的工程师几乎零成本迁移。</p>
+<p>这篇文章不讲“怎么装包、怎么定义模型”这种入门内容。我们要往下钻：Tortoise 的连接池是怎么在事件循环里工作的？<code>await Model.get()</code> 背后发生了什么？它和 SQLAlchemy 2.0 async、asyncpg 裸用相比，各自的边界在哪？以及最关键的——生产环境里踩过的那些坑。</p>
+<hr>
+<h2 id="核心概念-从-餐厅后厨-理解异步-ORM"><a href="#核心概念-从-餐厅后厨-理解异步-ORM" class="headerlink" title="核心概念：从“餐厅后厨”理解异步 ORM"></a>核心概念：从“餐厅后厨”理解异步 ORM</h2>
+<p>先把 <code>asyncio</code> 想象成一家只有<strong>一个传菜员</strong>的餐厅。</p>
+<ul>
+<li><strong>同步阻塞模型</strong>：传菜员把菜端到后厨窗口，然后<strong>站在那儿等</strong>厨师做完。等的时候他什么也干不了。这就是 <code>psycopg2</code> 的行为。</li>
+</ul>
+<ul>
+<li><strong>线程池伪异步</strong>：老板看传菜员老等着，就雇了 20 个传菜员（线程池）。每个传菜员照样站着等，但至少能同时等 20 单。问题是：传菜员是有成本的（8MB 栈 + 上下文切换），而且 20 个传菜员全占满的时候，第 21 单照样卡住。这就是 SQLAlchemy 1.4 同步 Session 在 async 环境下的真相。</li>
+</ul>
+<ul>
+<li><strong>真异步</strong>：传菜员把订单<strong>贴到窗口就转身走人</strong>，厨师做完按铃，传菜员再回来取。一个传菜员能同时处理几百单。这就是 Tortoise + asyncpg 的模式——数据库驱动本身是非阻塞的，等待期间事件循环可以调度其他协程。</li>
+</ul>
+<p>所以判断一个 ORM 是不是“真异步”，关键看<strong>底层的数据库驱动是不是非阻塞的</strong>。Tortoise 在 PostgreSQL 下用 <code>asyncpg</code>，MySQL 下用 <code>aiomysql</code>，SQLite 下用 <code>aiosqlite</code>——全部是原生异步驱动，没有线程池兜底。</p>
+<p>Tortoise 的另一个设计取舍是<strong>放弃 Data Mapper、拥抱 Active Record</strong>。SQLAlchemy 是 Data Mapper：模型是纯 Python 对象，和 Session 解耦，Session 负责跟踪状态、生成 SQL。Tortoise 是 Active Record：模型类自带 <code>save()</code>、<code>delete()</code>、<code>filter()</code>，像 Django 一样。这个取舍在异步场景下其实更自然——因为异步里你本来就该“用完即走”，不需要长生命周期的 Session 去维护身份映射（identity map）。这一点后面会细说。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-连接池-ConnectionHandler-如何管理事件循环中的连接"><a href="#1-连接池-ConnectionHandler-如何管理事件循环中的连接" class="headerlink" title="1. 连接池：<code>ConnectionHandler</code> 如何管理事件循环中的连接"></a>1. 连接池：<code>ConnectionHandler</code> 如何管理事件循环中的连接</h3>
+<p>Tortoise 的连接管理核心在 <code>tortoise/connection.py</code> 的 <code>ConnectionHandler</code> 类。简化后的关键结构如下：</p>
+<figure class="highlight python"><pre><code class="language-python">class ConnectionHandler:
+    def __init__(self, connections: dict[str, dict]):
+        self._connections: dict[str, ConnectionWrapper] = {}
+        self._db_config = connections
+
+    async def _get_connection(self, connection_name: str):
+        # 每个连接名对应一个 ConnectionWrapper，
+        # 内部持有一个由驱动提供的 pool
+        wrapper = self._connections.get(connection_name)
+        if wrapper is None:
+            # 懒初始化：第一次访问时才建池
+            wrapper = ConnectionWrapper(...)
+            await wrapper.init(self._db_config[connection_name])
+            self._connections[connection_name] = wrapper
+        return wrapper</code></pre></figure>
+<p>这里有个容易被忽略的细节：<strong>连接池是绑定到事件循环的</strong>。<code>asyncpg</code> 的 <code>Pool</code> 对象内部持有 <code>asyncio.Queue</code> 和 <code>Loop</code> 引用，如果跨事件循环使用（比如在 <code>uvicorn --workers 4</code> 的多进程里，或者测试中反复 <code>asyncio.run()</code>），就会报 <code>attached to a different loop</code>。我在一个项目里就因为 pytest 每个测试用例都 <code>asyncio.run()</code> 而踩过这个坑。</p>
+<p>看 <code>ConnectionWrapper</code> 的 <code>get_connection</code> 实现（<code>tortoise/backends/base/client.py</code> 附近）：</p>
+<figure class="highlight python"><pre><code class="language-python">async def get_connection(self):
+    if self._pool is None:
+        async with self._lock:
+            if self._pool is None:
+                self._pool = await self.create_pool()
+    return await self._pool.acquire()  # 从池里借一个</code></pre></figure>
+<p>注意这里用了<strong>双检锁</strong>（double-checked locking）来保证池只建一次。<code>self._lock</code> 是 <code>asyncio.Lock</code>，在单事件循环里是安全的。这也是为什么 Tortoise 官方明确说<strong>不要在多个事件循环之间共享 Tortoise 实例</strong>——锁和池都是 loop-bound 的。</p>
+<h3 id="2-await-Model-get-的完整生命周期"><a href="#2-await-Model-get-的完整生命周期" class="headerlink" title="2. <code>await Model.get()</code> 的完整生命周期"></a>2. <code>await Model.get()</code> 的完整生命周期</h3>
+<p>假设我们执行：</p>
+<figure class="highlight python"><pre><code class="language-python">user = await User.get(id=1)</code></pre></figure>
+<p>这行代码背后发生的事，可以拆成下面这个流程图：</p>
+<div class="mermaid">
+graph TD
+    A["await User.get(id=1)"] --> B["QuerySet.filter(id=1).first()"]
+    B --> C["构建 Query 对象<br/>解析字段、生成 SQL 与参数"]
+    C --> D["executor.execute_select_query()"]
+    D --> E["ConnectionHandler.get_connection()"]
+    E --> F{"连接池有空闲连接?"}
+    F -->|是| G["acquire() 借出连接"]
+    F -->|否| H["await 等待池中归还<br/>事件循环挂起当前协程"]
+    H --> G
+    G --> I["asyncpg 执行 SQL<br/>期间协程让出 CPU"]
+    I --> J["结果集映射为 model 实例<br/>_init_from_db()"]
+    J --> K["finally: release() 归还连接"]
+    K --> L["返回 User 实例"]
+</div>
+<p>关键点在<strong>第 I 步</strong>：<code>asyncpg</code> 把 SQL 发给 PostgreSQL 后，当前协程在 <code>await</code> 处挂起，事件循环立刻去跑别的请求。等 PostgreSQL 返回数据，IO 就绪，事件循环再唤醒这个协程继续走 J 和 K。整个过程没有线程参与，也就没有线程池耗尽的问题。</p>
+<p>再往深一层看结果集映射。Tortoise 在 <code>Model._init_from_db</code>（<code>tortoise/models.py</code>）里做字段赋值：</p>
+<figure class="highlight python"><pre><code class="language-python">@classmethod
+def _init_from_db(cls, **kwargs):
+    instance = cls.__new__(cls)
+    instance._partial = False
+    instance._saved_in_db = True
+    for key, value in kwargs.items():
+        # 直接塞进 __dict__，不做 setter 校验
+        instance.__dict__[key] = value
+    return instance</code></pre></figure>
+<p>注意它<strong>绕过了 <code>__setattr__</code></strong>，直接写 <code>__dict__</code>。因为 ORM 的字段描述符（<code>fields.py</code> 里的 <code>Field.__set__</code>）会做类型转换和脏检查，而从数据库读出来的数据已经是可信的，没必要再校验一遍。这是个性能优化，但也意味着——如果你在模型上定义了自定义 <code>__setattr__</code> 做业务逻辑，从 DB 加载时<strong>不会触发</strong>。这个坑我见过有人用来做“字段变更审计”，结果读数据时审计日志一条没有。</p>
+<h3 id="3-事务-in-transaction-与连接的绑定关系"><a href="#3-事务-in-transaction-与连接的绑定关系" class="headerlink" title="3. 事务：<code>in_transaction()</code> 与连接的绑定关系"></a>3. 事务：<code>in_transaction()</code> 与连接的绑定关系</h3>
+<p>异步事务最容易出错的地方是<strong>连接泄漏</strong>。Tortoise 的 <code>in_transaction()</code> 是个异步上下文管理器：</p>
+<figure class="highlight python"><pre><code class="language-python">async with in_transaction() as conn:
+    await User.create(name=&quot;a&quot;, using_db=conn)
+    await Order.create(user_id=..., using_db=conn)</code></pre></figure>
+<p>源码层面（<code>tortoise/transactions.py</code>），<code>in_transaction</code> 会从当前连接的池里 <code>acquire</code> 一个连接，<code>BEGIN</code>，然后把事务上下文<strong>存进一个 <code>ContextVar</code></strong>：</p>
+<figure class="highlight python"><pre><code class="language-python">class _TransactionContext:
+    __slots__ = (&quot;connection&quot;, &quot;token&quot;, &quot;lock&quot;)
+    ...
+
+async def in_transaction(connection_name=None):
+    ctx = _get_context(connection_name)
+    await ctx.lock.acquire()
+    try:
+        connection = await ctx.connection_handler.get_connection()
+        await connection.start()
+        token = _current_transaction.set(connection)  # ContextVar
+        yield connection
+    finally:
+        await connection.rollback()
+        _current_transaction.reset(token)
+        ctx.lock.release()</code></pre></figure>
+<p>用 <code>ContextVar</code> 而不是 <code>threading.local</code>，是因为 <code>asyncio</code> 的任务切换不换线程。但这也带来一个陷阱：<strong>如果你在事务里 <code>await asyncio.create_task(...)</code> 开了子任务，子任务默认继承父任务的 ContextVar 值</strong>（Python 3.7+ 的行为），于是子任务里的 ORM 操作会“以为”自己也在同一个事务里，实际上用的是同一个连接——并发执行时会互相踩。正确的做法是子任务里显式传 <code>using_db=None</code>，或者干脆别在事务里开并发子任务。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面三个示例都是可运行的完整脚本，聚焦不同层面的实战问题。</p>
+<h3 id="示例一-完整-CRUD-事务-连接池配置"><a href="#示例一-完整-CRUD-事务-连接池配置" class="headerlink" title="示例一：完整 CRUD + 事务 + 连接池配置"></a>示例一：完整 CRUD + 事务 + 连接池配置</h3>
+<figure class="highlight python"><pre><code class="language-python"># main.py
+# 运行：uvicorn main:app --reload
+# 依赖：pip install fastapi uvicorn tortoise-orm asyncpg
+
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from tortoise import Tortoise, fields, run_async
+from tortoise.models import Model
+from tortoise.transactions import in_transaction
+
+
+class User(Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=64, index=True)
+    balance = fields.DecimalField(max_digits=12, decimal_places=2, default=0)
+    created_at = fields.DatetimeField(auto_now_add=True)
+
+    class Meta:
+        table = &quot;users&quot;
+
+
+class Order(Model):
+    id = fields.IntField(pk=True)
+    user = fields.ForeignKeyField(&quot;models.User&quot;, related_name=&quot;orders&quot;)
+    amount = fields.DecimalField(max_digits=12, decimal_places=2)
+    status = fields.CharEnumField(
+        enum_type=type(&quot;OrderStatus&quot;, (), {&quot;PAID&quot;: &quot;paid&quot;, &quot;REFUNDED&quot;: &quot;refunded&quot;}),
+        default=&quot;paid&quot;,
+    )
+
+    class Meta:
+        table = &quot;orders&quot;
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 关键：连接池参数直接决定高并发下的表现
+    await Tortoise.init(
+        db_url=&quot;postgres://postgres:postgres@localhost:5432/demo&quot;,
+        modules={&quot;models&quot;: [&quot;main&quot;]},
+        # 下面这些参数会透传给 asyncpg 的 create_pool
+        connections={
+            &quot;default&quot;: {
+                &quot;engine&quot;: &quot;tortoise.backends.asyncpg&quot;,
+                &quot;credentials&quot;: {
+                    &quot;host&quot;: &quot;localhost&quot;,
+                    &quot;port&quot;: 5432,
+                    &quot;user&quot;: &quot;postgres&quot;,
+                    &quot;password&quot;: &quot;postgres&quot;,
+                    &quot;database&quot;: &quot;demo&quot;,
+                    &quot;min_size&quot;: 5,      # 池最小连接数
+                    &quot;max_size&quot;: 20,     # 池上限，别超过 PG 的 max_connections 除以 worker 数
+                    &quot;max_queries&quot;: 50000,  # 单连接执行多少次查询后回收，防内存泄漏
+                    &quot;max_inactive_connection_lifetime&quot;: 300,
+                },
+            }
+        },
+    )
+    await Tortoise.generate_schemas()
+    yield
+    await Tortoise.close_connections()  # 必须显式关闭，否则测试会挂
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+class TransferReq(BaseModel):
+    from_user: int
+    to_user: int
+    amount: float
+
+
+@app.post(&quot;/transfer&quot;)
+async def transfer(req: TransferReq):
+    &quot;&quot;&quot;转账：演示事务 + 行锁 + 正确回滚&quot;&quot;&quot;
+    async with in_transaction() as conn:
+        # 用 using_db 把两个操作绑到同一连接，
+        # 否则 ORM 会从池里再借一个连接，事务就分裂了
+        sender = await User.select_for_update().using_db(conn).get_or_none(id=req.from_user)
+        if sender is None:
+            raise HTTPException(404, &quot;sender not found&quot;)
+        if sender.balance &lt; req.amount:
+            # 抛异常会自动触发 rollback
+            raise HTTPException(400, &quot;insufficient balance&quot;)
+
+        await User.filter(id=req.from_user).using_db(conn).update(
+            balance=sender.balance - req.amount
+        )
+        await User.filter(id=req.to_user).using_db(conn).update(
+            balance=fields.F(&quot;balance&quot;) + req.amount  # F 表达式，避免读改写竞态
+        )
+    return {&quot;ok&quot;: True}
+
+
+@app.get(&quot;/users/{uid}&quot;)
+async def get_user(uid: int):
+    # prefetch_related 一次查询带出订单，避免 N+1
+    user = await User.filter(id=uid).prefetch_related(&quot;orders&quot;).first()
+    if not user:
+        raise HTTPException(404)
+    return {
+        &quot;id&quot;: user.id,
+        &quot;name&quot;: user.name,
+        &quot;orders&quot;: [{&quot;id&quot;: o.id, &quot;amount&quot;: str(o.amount)} for o in user.orders],
+    }</code></pre></figure>
+<p>这段代码里有三个细节值得注意：<code>select_for_update()</code> 要配合 <code>using_db(conn)</code> 才在事务内生效；<code>fields.F()</code> 用于原子更新避免竞态；<code>prefetch_related</code> 是 Tortoise 里避免 N+1 的标准手段。</p>
+<h3 id="示例二-批量操作与-bulk-create-的正确姿势"><a href="#示例二-批量操作与-bulk-create-的正确姿势" class="headerlink" title="示例二：批量操作与 <code>bulk_create</code> 的正确姿势"></a>示例二：批量操作与 <code>bulk_create</code> 的正确姿势</h3>
+<figure class="highlight python"><pre><code class="language-python"># bulk.py
+import asyncio
+from tortoise import Tortoise, run_async
+from tortoise.expressions import Q
+from main import User, Order
+
+
+async def seed():
+    await Tortoise.init(
+        db_url=&quot;postgres://postgres:postgres@localhost:5432/demo&quot;,
+        modules={&quot;models&quot;: [&quot;main&quot;]},
+    )
+    await Tortoise.generate_schemas()
+
+    # 反例：循环 create，每次一个 RTT，1 万条要几十秒
+    # for i in range(10000):
+    #     await User.create(name=f&quot;u{i}&quot;)
+
+    # 正例：bulk_create 生成单条 INSERT ... VALUES (...),(...)，一次 RTT
+    users = [User(name=f&quot;u{i}&quot;) for i in range(10000)]
+    await User.bulk_create(users, batch_size=1000)
+    # batch_size 控制单条 SQL 的 VALUES 数量，
+    # 太大可能撞 PostgreSQL 的 65535 参数上限（每行 N 个字段 × 行数）
+
+    # 批量更新：Tortoise 没有原生 bulk_update，
+    # 用 CASE WHEN 或分批 filter().update() 更实际
+    await User.filter(name__startswith=&quot;u1&quot;).update(balance=100)
+
+    # 复杂条件查询：Q 对象组合
+    rows = await User.filter(
+        Q(name__startswith=&quot;u1&quot;) &amp; Q(balance__gte=0)
+    ).order_by(&quot;-created_at&quot;).limit(10)
+    print(f&quot;matched {len(rows)}&quot;)
+
+    await Tortoise.close_connections()
+
+
+if __name__ == &quot;__main__&quot;:
+    run_async(seed())</code></pre></figure>
+<p><code>bulk_create</code> 的 <code>batch_size</code> 参数是个双刃剑：调大能减少 RTT，但 PostgreSQL 单条 SQL 最多 65535 个绑定参数，假设 <code>User</code> 有 5 个字段，那 <code>batch_size</code> 超过约 13000 就会报错。默认值 <code>None</code> 表示一次性全塞进去，生产环境务必显式设置。</p>
+<h3 id="示例三-并发查询与事件循环陷阱"><a href="#示例三-并发查询与事件循环陷阱" class="headerlink" title="示例三：并发查询与事件循环陷阱"></a>示例三：并发查询与事件循环陷阱</h3>
+<figure class="highlight python"><pre><code class="language-python"># concurrency.py
+import asyncio
+from tortoise import Tortoise
+from main import User
+
+
+async def bad_pattern():
+    &quot;&quot;&quot;反例：在事务里开并发子任务，连接互相踩踏&quot;&quot;&quot;
+    # 伪代码示意，实际会报 &quot;another operation is in progress&quot;
+    # async with in_transaction() as conn:
+    #     await asyncio.gather(
+    #         User.create(name=&quot;a&quot;, using_db=conn),
+    #         User.create(name=&quot;b&quot;, using_db=conn),
+    #     )
+    pass
+
+
+async def good_pattern():
+    &quot;&quot;&quot;正例：并发查询不共享连接，各自从池里借&quot;&quot;&quot;
+    await Tortoise.init(
+        db_url=&quot;postgres://postgres:postgres@localhost:5432/demo&quot;,
+        modules={&quot;models&quot;: [&quot;main&quot;]},
+    )
+    # 每个查询独立 borrow 连接，事件循环并行调度
+    results = await asyncio.gather(
+        User.filter(name__startswith=&quot;u1&quot;).count(),
+        User.filter(name__startswith=&quot;u2&quot;).count(),
+        User.filter(balance__gte=50).count(),
+    )
+    print(&quot;counts:&quot;, results)
+
+    # 大数据量分页：别用 offset 深翻页，用 keyset pagination
+    last_id = 0
+    while True:
+        page = await User.filter(id__gt=last_id).order_by(&quot;id&quot;).limit(100)
+        if not page:
+            break
+        for u in page:
+            # 处理...
+            pass
+        last_id = page[-1].id
+    await Tortoise.close_connections()
+
+
+async def main():
+    await good_pattern()
+    # 注意：不要在一个进程里反复 Tortoise.init / close 后又 init，
+    # 池是 loop-bound 的，跨 loop 复用会炸
+
+
+if __name__ == &quot;__main__&quot;:
+    asyncio.run(main())</code></pre></figure>
+<p>重点在 <code>good_pattern</code>：并发查询必须<strong>各自借连接</strong>，不能共享。而 <code>bad_pattern</code> 里在事务中 <code>gather</code> 多个写操作，<code>asyncpg</code> 的连接是单工通信，同一时刻只能跑一条语句，会直接抛 <code>another operation is in progress</code>。这是异步 ORM 最经典的坑之一。</p>
+<hr>
+<h2 id="方案对比-Tortoise-vs-SQLAlchemy-2-0-async-vs-asyncpg-裸用"><a href="#方案对比-Tortoise-vs-SQLAlchemy-2-0-async-vs-asyncpg-裸用" class="headerlink" title="方案对比：Tortoise vs SQLAlchemy 2.0 async vs asyncpg 裸用"></a>方案对比：Tortoise vs SQLAlchemy 2.0 async vs asyncpg 裸用</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Tortoise ORM</th>
+<th>SQLAlchemy 2.0 async</th>
+<th>asyncpg 裸用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>异步原生性</td>
+<td>原生 async 驱动</td>
+<td>Session 基于 <code>AsyncSession</code>，底层 asyncpg/aiomysql</td>
+<td>原生 async</td>
+</tr><tr>
+<td>API 风格</td>
+<td>Active Record（类 Django）</td>
+<td>Data Mapper（Session 跟踪）</td>
+<td>纯 SQL</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>Django 用户几乎零成本</td>
+<td>心智模型重，Session 生命周期管理复杂</td>
+<td>最低，但 SQL 全手写</td>
+</tr><tr>
+<td>关系加载</td>
+<td><code>prefetch_related</code> 显式</td>
+<td><code>selectinload</code> / <code>joinedload</code> 显式</td>
+<td>手写 JOIN</td>
+</tr><tr>
+<td>迁移工具</td>
+<td>Aerich（功能较基础）</td>
+<td>Alembic（成熟）</td>
+<td>无</td>
+</tr><tr>
+<td>事务隔离</td>
+<td><code>ContextVar</code> 绑定连接</td>
+<td><code>AsyncSession</code> 绑定</td>
+<td>手动管理</td>
+</tr><tr>
+<td>生态成熟度</td>
+<td>中等</td>
+<td>极高</td>
+<td>高（驱动层）</td>
+</tr><tr>
+<td>适用场景</td>
+<td>中小型服务、快速迭代、Django 迁移</td>
+<td>大型复杂领域模型、多数据库</td>
+<td>极致性能、复杂 SQL、只读查询</td>
+</tr></tbody></table>
+<p>怎么选？我的经验是分三档：</p>
+<ul>
+<li><strong>业务 CRUD 为主、团队有 Django 背景</strong>：Tortoise 最省心。它的 API 让你几乎不用思考“连接从哪来”，异步链路干净。</li>
+</ul>
+<ul>
+<li><strong>领域模型复杂、需要多数据源、要成熟迁移</strong>：SQLAlchemy 2.0 async。它的 <code>AsyncSession</code> 虽然重，但 <code>selectinload</code> 控制加载策略的能力远超 Tortoise，大型项目后期会庆幸当初选对了。</li>
+</ul>
+<ul>
+<li><strong>报表、批量导入、复杂聚合</strong>：直接 asyncpg。ORM 生成的 SQL 在这种场景下往往是负担，手写 SQL + <code>conn.fetch()</code> 反而更清晰、更快。</li>
+</ul>
+<p>还有一个常被忽略的对比维度：<strong>Tortoise 的迁移工具 Aerich 相比 Alembic 是明显短板</strong>。它不支持自动检测所有 schema 变更（比如索引增删、约束修改），复杂迁移经常要手写 SQL。如果你的项目 schema 会频繁演进，这点要提前评估。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 连接池参数必须和 PG 的 <code>max_connections</code> 联动算</strong></p>
+<p>这是最容易出事的地方。假设 <code>uvicorn --workers 4</code>，每个 worker 一个进程一个事件循环一个池，池 <code>max_size=20</code>，那峰值就是 4×20=80 个连接。PostgreSQL 默认 <code>max_connections=100</code>，再算上运维连接，很快就 <code>too many clients</code>。经验公式：</p>
+<figure class="highlight "><pre><code>池 max_size ≤ (PG max_connections - 预留 10) / worker 数</code></pre></figure>
+<p>宁可把 <code>max_size</code> 调小（比如 10），靠事件循环的并发能力扛，也别把连接数堆爆。</p>
+<p><strong>2. <code>using_db(conn)</code> 一个都不能漏</strong></p>
+<p>事务内所有 ORM 操作都必须显式传 <code>using_db=conn</code>。漏一个，那个操作就会从池里另借一个连接，跑在事务之外，回滚时它不跟着回滚——数据就脏了。这是我在 code review 里抓得最多的 bug。</p>
+<p><strong>3. 别在事务里 <code>asyncio.gather</code></strong></p>
+<p>前面说过，<code>asyncpg</code> 连接单工，事务内并发写会直接崩。要并发，就在事务外并发，或者拆成多个独立事务。</p>
+<p><strong>4. 测试里的 <code>asyncio.run()</code> 是连接池杀手</strong></p>
+<p>pytest 每个用例 <code>asyncio.run()</code> 会建新 loop，而 Tortoise 的池绑在旧 loop 上。解决方案是全局一个 loop（<code>pytest-asyncio</code> 的 <code>event_loop</code> fixture），或者在 fixture 里每个用例 <code>Tortoise.init</code> + <code>close_connections</code>。我推荐后者，隔离干净。</p>
+<p><strong>5. N+1 查询一定要用 <code>prefetch_related</code></strong></p>
+<p>Tortoise 不会自动预加载。<code>user.orders</code> 第一次访问会触发一次查询，循环里就是 N+1。养成习惯：列表接口返回关联数据时，先 <code>filter(...).prefetch_related("orders")</code>。</p>
+<p><strong>6. 深分页用 keyset，别用 offset</strong></p>
+<p><code>offset 100000 limit 20</code> 会让 PG 扫描并丢弃 10 万行。用 <code>filter(id__gt=last_id).order_by("id").limit(20)</code>，走索引，O(1) 定位。</p>
+<p><strong>7. Decimal 字段别用 float 中转</strong></p>
+<p><code>balance</code> 是 <code>DecimalField</code>，从 DB 读出来是 <code>Decimal</code>。如果经过 Pydantic 时声明成 <code>float</code>，精度就丢了。序列化时统一 <code>str(amount)</code>，或者 Pydantic 里用 <code>condecimal</code>。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个 QPS 卡在 800 的服务。换成 Tortoise + asyncpg 后，同样的硬件 QPS 上到 4000+，CPU 也跑满了——因为事件循环终于不用等线程池了。这个提升的本质，不是 ORM 换了个名字，而是<strong>数据库 IO 从“线程阻塞”变成了“协程挂起”</strong>，一个事件循环能同时挂起成百上千个等待中的查询。</p>
+<p>几个要点回顾：</p>
+<ul>
+<li><strong>异步 ORM 的“异步”取决于底层驱动</strong>，Tortoise 用 asyncpg/aiomysql/aiosqlite，是原生异步，没有线程池兜底。</li>
+</ul>
+<ul>
+<li><strong>连接池是 loop-bound 的</strong>，跨事件循环复用会炸，测试和部署都要注意。</li>
+</ul>
+<ul>
+<li><strong>事务靠 <code>ContextVar</code> 绑定连接</strong>，事务内所有操作必须 <code>using_db(conn)</code>，且不能并发共享连接。</li>
+</ul>
+<ul>
+<li><strong>选型看场景</strong>：Tortoise 胜在 Django 式 API 和干净异步链路，SQLAlchemy 2.0 async 胜在复杂模型和成熟迁移，asyncpg 裸用胜在极致控制。</li>
+</ul>
+<p>延伸思考：异步 ORM 的下一个战场其实是<strong>连接池的可观测性</strong>。Tortoise 目前对池的监控指标（等待队列长度、借出/归还速率、慢查询）支持很弱，生产环境经常要靠 <code>pg_stat_activity</code> 反推。如果你的服务规模到了一定量级，考虑在 <code>ConnectionHandler</code> 外面包一层埋点，或者干脆上 PgBouncer 做连接复用——把池的管理从应用层下沉到中间件层，这往往是异步 ORM 高并发场景下的最终形态。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

@@ -1,5 +1,23 @@
 [
  {
+  "title": "FastAPI + Tortoise ORM 异步数据库实践",
+  "url": "/2026/10/30/FastAPI%20%2B%20Tortoise%20ORM%20%E5%BC%82%E6%AD%A5%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AE%9E%E8%B7%B5/",
+  "date": "2026-10-30",
+  "year": 2026,
+  "month": 10,
+  "day": 30,
+  "category": "python",
+  "tags": [
+   "python",
+   "fastapi",
+   "async",
+   "django",
+   "source-code"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=6614",
+  "excerpt": "引言 去年双十一前，我接手了一个用 FastAPI 写的订单查询服务。压测时 QPS 刚到 800 就上不去了，CPU 却只跑了 30%。打开火焰图一看，asyncio 事件循环里躺着大量 psycopg2 的同步阻塞调用——await db.execute(...) 表面上是异步的，底下却在用线程池硬扛，线程池一满，"
+ },
+ {
   "title": "Transformer架构深度解读：Self-Attention数学原理",
   "url": "/2026/10/27/Transformer%E6%9E%B6%E6%9E%84%E6%B7%B1%E5%BA%A6%E8%A7%A3%E8%AF%BB%EF%BC%9ASelf-Attention%E6%95%B0%E5%AD%A6%E5%8E%9F%E7%90%86/",
   "date": "2026-10-27",
