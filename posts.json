@@ -1,5 +1,25 @@
 [
  {
+  "title": "LangGraph多Agent协作模式：Supervisor与Swarm架构",
+  "url": "/2026/10/31/LangGraph%E5%A4%9AAgent%E5%8D%8F%E4%BD%9C%E6%A8%A1%E5%BC%8F%EF%BC%9ASupervisor%E4%B8%8ESwarm%E6%9E%B6%E6%9E%84/",
+  "date": "2026-10-31",
+  "year": 2026,
+  "month": 10,
+  "day": 31,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4063",
+  "excerpt": "引言 想象一下你正在经营一家现代化的互联网医院。患者进来时，前台分诊护士先判断\\"
+ },
+ {
   "title": "FastAPI + Tortoise ORM 异步数据库实践",
   "url": "/2026/10/30/FastAPI%20%2B%20Tortoise%20ORM%20%E5%BC%82%E6%AD%A5%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AE%9E%E8%B7%B5/",
   "date": "2026-10-30",

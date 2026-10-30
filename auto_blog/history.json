@@ -594,6 +594,13 @@
       "subtopic": "FastAPI + Tortoise ORM异步数据库实践",
       "date": "2026-10-29",
       "url": "/2026/10/30/FastAPI + Tortoise ORM 异步数据库实践/"
+    },
+    {
+      "title": "LangGraph多Agent协作模式：Supervisor与Swarm架构",
+      "category": "ai-ml",
+      "subtopic": "LangGraph多Agent协作模式：Supervisor与Swarm架构",
+      "date": "2026-10-30",
+      "url": "/2026/10/31/LangGraph多Agent协作模式：Supervisor与Swarm架构/"
     }
   ],
   "used_subtopics": {
@@ -631,22 +638,11 @@
       "LangGraph状态图驱动Agent的实现原理",
       "Embedding模型选型与语义搜索实践",
       "Function Calling机制与LangChain Tool集成实践",
-      "Transformer架构深度解读：Self-Attention数学原理"
+      "Transformer架构深度解读：Self-Attention数学原理",
+      "LangGraph多Agent协作模式：Supervisor与Swarm架构"
     ],
     "architecture": [
-      "分布式缓存架构设计：缓存穿透、击穿、雪崩解决方案",
-      "多活数据中心架构设计",
-      "全链路压测方案设计与流量染色",
-      "最终一致性方案：本地消息表、事务消息、Saga模式",
-      "微服务拆分策略：从单体到微服务的演进路径",
-      "服务网格Service Mesh架构演进",
-      "数据库分库分表中间件ShardingSphere源码分析",
-      "API网关设计：限流、熔断、降级、灰度发布",
-      "分布式配置中心架构设计",
-      "DDD领域驱动设计落地实践与六边形架构",
-      "分布式ID生成方案：雪花算法、Leaf、美团方案对比",
-      "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
-      "高并发秒杀系统架构设计演进"
+      "数据库分库分表中间件ShardingSphere源码分析"
     ],
     "docker_kubernetes": [
       "容器化应用的12-Factor原则实践",
@@ -663,7 +659,8 @@
       "Channel底层实现与select多路复用",
       "Go内存管理：栈与堆、逃逸分析",
       "Go错误处理范式与errors包源码",
-      "net/http包架构与中间件链实现"
+      "net/http包架构与中间件链实现",
+      "Go项目工程化：wire依赖注入与分层架构"
     ]
   },
   "content_hashes": {
@@ -750,6 +747,7 @@
     "Function Calling机制与LangChain Tool集成实践": "f9d3e6e3e827a11d2e7268dfd09cd6d94f3dbd9a7ae72bb5b86fee0ef318e227",
     "Celery分布式任务队列架构与调优": "209b54ef9aee4fddf2fef575f58d13cc9d5b869b54da8a8240c0dd2e6162e3d2",
     "Transformer架构深度解读：Self-Attention数学原理": "d17573b0c70806af16e62e7f382936735f336ac860ee9916768a76c4d8ab7f7f",
-    "FastAPI + Tortoise ORM异步数据库实践": "064ac01b6e1f5155531bae213c32f3bb27d7bf3b7d902cd3d76e53d6c0edcae7"
+    "FastAPI + Tortoise ORM异步数据库实践": "064ac01b6e1f5155531bae213c32f3bb27d7bf3b7d902cd3d76e53d6c0edcae7",
+    "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240"
   }
 }
