@@ -601,6 +601,13 @@
       "subtopic": "LangGraph多Agent协作模式：Supervisor与Swarm架构",
       "date": "2026-10-30",
       "url": "/2026/10/31/LangGraph多Agent协作模式：Supervisor与Swarm架构/"
+    },
+    {
+      "title": "Django ORM查询优化与N+1问题解决",
+      "category": "python",
+      "subtopic": "Django ORM查询优化与N+1问题解决",
+      "date": "2026-11-04",
+      "url": "/2026/11/05/Django ORM查询优化与N+1问题解决/"
     }
   ],
   "used_subtopics": {
@@ -620,7 +627,8 @@
       "Python协程与生成器的底层实现（yield from解析）",
       "Python元类编程与ORM框架实现",
       "Celery分布式任务队列架构与调优",
-      "FastAPI + Tortoise ORM异步数据库实践"
+      "FastAPI + Tortoise ORM异步数据库实践",
+      "Django ORM查询优化与N+1问题解决"
     ],
     "ai": [
       "RAG（检索增强生成）系统设计与实现",
@@ -748,6 +756,7 @@
     "Celery分布式任务队列架构与调优": "209b54ef9aee4fddf2fef575f58d13cc9d5b869b54da8a8240c0dd2e6162e3d2",
     "Transformer架构深度解读：Self-Attention数学原理": "d17573b0c70806af16e62e7f382936735f336ac860ee9916768a76c4d8ab7f7f",
     "FastAPI + Tortoise ORM异步数据库实践": "064ac01b6e1f5155531bae213c32f3bb27d7bf3b7d902cd3d76e53d6c0edcae7",
-    "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240"
+    "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240",
+    "Django ORM查询优化与N+1问题解决": "3024085962aae852ebff994865d9544fe399b5156d3ebfb91175ffff4868b506"
   }
 }
