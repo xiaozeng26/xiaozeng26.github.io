@@ -608,6 +608,13 @@
       "subtopic": "Django ORM查询优化与N+1问题解决",
       "date": "2026-11-04",
       "url": "/2026/11/05/Django ORM查询优化与N+1问题解决/"
+    },
+    {
+      "title": "从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑",
+      "category": "big-data",
+      "subtopic": "Flink 流式计算：状态管理与 Exactly-Once 语义",
+      "date": "2026-11-12",
+      "url": "/2026/11/13/从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑/"
     }
   ],
   "used_subtopics": {
@@ -757,6 +764,7 @@
     "Transformer架构深度解读：Self-Attention数学原理": "d17573b0c70806af16e62e7f382936735f336ac860ee9916768a76c4d8ab7f7f",
     "FastAPI + Tortoise ORM异步数据库实践": "064ac01b6e1f5155531bae213c32f3bb27d7bf3b7d902cd3d76e53d6c0edcae7",
     "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240",
-    "Django ORM查询优化与N+1问题解决": "3024085962aae852ebff994865d9544fe399b5156d3ebfb91175ffff4868b506"
+    "Django ORM查询优化与N+1问题解决": "3024085962aae852ebff994865d9544fe399b5156d3ebfb91175ffff4868b506",
+    "Flink 流式计算：状态管理与 Exactly-Once 语义": "4679f639094284ae8b6896ebc3406467213ae4639ce540c61fecfc8eeac88239"
   }
 }

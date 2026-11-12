@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑 | 小曾博客</title>
+  <meta name="description" content="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑 引言 先说一个我亲身踩过的坑。 2021 年我负责一个实时计费系统，用 Flink 消费 Kafka 里的用户流量日志，按分钟聚合后写入 MySQL 做扣费。上线第一周，财务对账发现每天多扣了约 0.3% 的用户费用。排查三天，定位到问题：Job 因背压触发了 TaskManager 重启，Kafk">
+  <meta name="keywords" content="big-data,flink,spark,hadoop,data-warehouse,olap">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑">
+  <meta name="twitter:description" content="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑 引言 先说一个我亲身踩过的坑。 2021 年我负责一个实时计费系统，用 Flink 消费 Kafka 里的用户流量日志，按分钟聚合后写入 MySQL 做扣费。上线第一周，财务对账发现每天多扣了约 0.3% 的用户费用。排查三天，定位到问题：Job 因背压触发了 TaskManager 重启，Kafk">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7558">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑 引言 先说一个我亲身踩过的坑。 2021 年我负责一个实时计费系统，用 Flink 消费 Kafka 里的用户流量日志，按分钟聚合后写入 MySQL 做扣费。上线第一周，财务对账发现每天多扣了约 0.3% 的用户费用。排查三天，定位到问题：Job 因背压触发了 TaskManager 重启，Kafk">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7558">
+  <meta property="article:published_time" content="2026-11-13T03:18:41.000Z">
+  <meta property="article:modified_time" content="2026-11-13T03:18:41.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#从-记账本-到-原子提交-拆解-Flink-状态管理与-Exactly-Once-的底层账本逻辑"><span class="toc-text">从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-先建立两个生活化直觉"><span class="toc-text">核心概念：先建立两个生活化直觉</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#类比一-状态-后厨的-半成品台账"><span class="toc-text">类比一：状态 = 后厨的“半成品台账”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#类比二-Exactly-Once-银行转账的-原子提交"><span class="toc-text">类比二：Exactly-Once = 银行转账的“原子提交”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-Checkpoint-的触发链路-从-JobManager-到算子"><span class="toc-text">1. Checkpoint 的触发链路：从 JobManager 到算子</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-StateBackend-状态到底存在哪"><span class="toc-text">2. StateBackend：状态到底存在哪</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-端到端-Exactly-Once-的命门-TwoPhaseCommitSinkFunction"><span class="toc-text">3. 端到端 Exactly-Once 的命门：TwoPhaseCommitSinkFunction</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-为什么配了-EXACTLY-ONCE-还会重复"><span class="toc-text">4. 为什么配了 EXACTLY_ONCE 还会重复？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-Keyed-State-的正确打开方式-含-TTL-与状态清理"><span class="toc-text">示例 1：Keyed State 的正确打开方式（含 TTL 与状态清理）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-RocksDB-增量-Checkpoint-的完整配置"><span class="toc-text">示例 2：RocksDB + 增量 Checkpoint 的完整配置</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-Kafka-端到端-Exactly-Once-事务-Sink"><span class="toc-text">示例 3：Kafka 端到端 Exactly-Once（事务 Sink）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-Exactly-Once-的三条技术路线"><span class="toc-text">方案对比：Exactly-Once 的三条技术路线</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=7558)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-13"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-13</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-13"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-13</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">big-data</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="从-记账本-到-原子提交-拆解-Flink-状态管理与-Exactly-Once-的底层账本逻辑"><a href="#从-记账本-到-原子提交-拆解-Flink-状态管理与-Exactly-Once-的底层账本逻辑" class="headerlink" title="从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑"></a>从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先说一个我亲身踩过的坑。</p>
+<p>2021 年我负责一个实时计费系统，用 Flink 消费 Kafka 里的用户流量日志，按分钟聚合后写入 MySQL 做扣费。上线第一周，财务对账发现每天多扣了约 0.3% 的用户费用。排查三天，定位到问题：Job 因背压触发了 TaskManager 重启，Kafka Source 从上次提交的 offset 重新消费，而 MySQL 那边上一批聚合结果<strong>已经写进去了</strong>——重复计算、重复扣费。</p>
+<p>这就是典型的“至少一次”语义在业务侧的代价。要解决它，你必须同时搞定两件事：<strong>状态怎么持久化</strong>，以及<strong>外部系统怎么参与同一个事务</strong>。前者是 Flink 状态管理的核心，后者是 TwoPhaseCommitSinkFunction 存在的意义。这两件事咬合在一起，才构成 Exactly-Once。</p>
+<p>这篇文章不打算复述官方文档里“什么是 KeyedState”这种内容。我想带你从 <code>StreamTask</code> 的 checkpoint 触发链路一路读下去，看清楚 Flink 到底是怎么把“分布式快照”这件事做得既轻量又正确的，以及为什么很多人配了 <code>EXACTLY_ONCE</code> 却依然重复写数据。</p>
+<hr>
+<h2 id="核心概念-先建立两个生活化直觉"><a href="#核心概念-先建立两个生活化直觉" class="headerlink" title="核心概念：先建立两个生活化直觉"></a>核心概念：先建立两个生活化直觉</h2>
+<h3 id="类比一-状态-后厨的-半成品台账"><a href="#类比一-状态-后厨的-半成品台账" class="headerlink" title="类比一：状态 = 后厨的“半成品台账”"></a>类比一：状态 = 后厨的“半成品台账”</h3>
+<p>把 Flink 算子想象成餐厅后厨的一个工位。它处理订单（事件），过程中会产生半成品：切了一半的菜、正在腌的肉（这就是<strong>状态</strong>）。如果突然停电（故障），你要能恢复营业，就必须有一份<strong>台账</strong>记录“3 号单的菜切到第几刀了”。Checkpoint 就是定期给整个后厨拍一张全景照片，而不是让每个厨师自己记流水账——后者在分布式环境下根本对不齐。</p>
+<h3 id="类比二-Exactly-Once-银行转账的-原子提交"><a href="#类比二-Exactly-Once-银行转账的-原子提交" class="headerlink" title="类比二：Exactly-Once = 银行转账的“原子提交”"></a>类比二：Exactly-Once = 银行转账的“原子提交”</h3>
+<p>“恰好一次”不是数学意义上的“事件只被处理一次”（这在分布式系统里做不到），而是<strong>“处理效果只体现在结果里一次”</strong>。就像转账：中间可能重试了三次扣款请求，但最终账上只少了一笔钱。实现手段是：要么全部生效，要么全部回滚，且重复提交要有幂等或去重保护。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<ul>
+<li><strong>State</strong>：算子在其生命周期内需要记住的数据，分为 Keyed State（按 key 分区，如 <code>ValueState</code>、<code>ListState</code>、<code>MapState</code>）和 Operator State（算子级别，如 Kafka Source 的 offset）。</li>
+</ul>
+<ul>
+<li><strong>Checkpoint</strong>：基于 Chandy-Lamport 算法改造的异步分布式快照，把“某一时刻全拓扑的状态”持久化到可靠存储。</li>
+</ul>
+<ul>
+<li><strong>Exactly-Once</strong>：端到端语义，= Source 可重放 + Flink 内部状态快照一致 + Sink 幂等/事务提交。<strong>三者缺一不可</strong>。</li>
+</ul>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-Checkpoint-的触发链路-从-JobManager-到算子"><a href="#1-Checkpoint-的触发链路-从-JobManager-到算子" class="headerlink" title="1. Checkpoint 的触发链路：从 JobManager 到算子"></a>1. Checkpoint 的触发链路：从 JobManager 到算子</h3>
+<p>很多人以为 checkpoint 是“暂停计算、拍照、继续”。实际 Flink 是<strong>异步 barrier 对齐</strong>，几乎不停机。核心链路如下：</p>
+<div class="mermaid">
+graph TD
+    A[CheckpointCoordinator<br/>定时触发] --> B[向 Source 注入 Barrier]
+    B --> C[Source 把 offset 快照存入 StateBackend]
+    C --> D[Barrier 随数据流向下游传播]
+    D --> E{算子收到 Barrier}
+    E -->|所有输入都到齐| F[异步快照本地状态<br/>上传持久化存储]
+    E -->|部分输入未到| G[阻塞该通道<br/>等待对齐]
+    F --> H[向 JobManager 上报 ACK]
+    H --> I{全部算子 ACK?}
+    I -->|是| J[Checkpoint 完成<br/>通知 Sink 提交事务]
+    I -->|否| K[超时则丢弃本次]
+</div>
+<p>关键点在 <code>CheckpointBarrierHandler</code>。以 <code>AlignedBarrierHandlerState</code> 为例，当某个 input channel 先到达 barrier，它会<strong>阻塞该 channel 的后续数据</strong>，等其余 channel 的 barrier 也到齐，才放行。这就是“对齐”的代价——<strong>反压敏感</strong>。Flink 1.11 之后引入的 <strong>Unaligned Checkpoint</strong> 正是为了绕开这个阻塞：把 barrier 之前的数据也一并写进快照，代价是快照体积变大。这是一个典型的“空间换阻塞时间”的权衡。</p>
+<h3 id="2-StateBackend-状态到底存在哪"><a href="#2-StateBackend-状态到底存在哪" class="headerlink" title="2. StateBackend：状态到底存在哪"></a>2. StateBackend：状态到底存在哪</h3>
+<p><code>StateBackend</code> 决定了两件事：状态存内存还是磁盘，以及快照怎么写。主流是 <code>HashMapStateBackend</code>（状态在 JVM 堆上）和 <code>EmbeddedRocksDBStateBackend</code>（状态在本地 RocksDB，支持超大规模）。</p>
+<p>以 RocksDB 为例，它的 checkpoint 机制非常巧妙：利用 RocksDB 的 <strong>Checkpoint API</strong> 创建 SST 文件的硬链接，而非全量拷贝，然后把增量文件上传到 DFS。这解释了为什么 RocksDB 后端能做<strong>增量 checkpoint</strong>，而 Heap 后端只能全量。</p>
+<h3 id="3-端到端-Exactly-Once-的命门-TwoPhaseCommitSinkFunction"><a href="#3-端到端-Exactly-Once-的命门-TwoPhaseCommitSinkFunction" class="headerlink" title="3. 端到端 Exactly-Once 的命门：TwoPhaseCommitSinkFunction"></a>3. 端到端 Exactly-Once 的命门：TwoPhaseCommitSinkFunction</h3>
+<p>这是最容易被误解的部分。Flink 内部状态一致了，但外部数据库不会自动“回滚”。<code>TwoPhaseCommitSinkFunction</code> 的设计对应了分布式事务的两阶段提交：</p>
+<div class="mermaid">
+sequenceDiagram
+    participant CP as CheckpointCoordinator
+    participant Sink as Sink算子
+    participant EXT as 外部系统(如Kafka事务)
+    CP->>Sink: 触发 checkpoint (pre-commit阶段)
+    Sink->>EXT: 开启事务 / 写入预提交数据
+    Sink->>Sink: 把事务句柄存入 OperatorState
+    Sink-->>CP: 上报 ACK
+    Note over CP: 等所有算子 ACK
+    CP->>Sink: notifyCheckpointComplete (commit阶段)
+    Sink->>EXT: 提交事务，数据对外可见
+</div>
+<p>注意两个致命细节：</p>
+<ol>
+<li><strong><code>invoke</code> 阶段写的数据在下游是“不可见”的</strong>（事务未提交）。所以 Sink 必须支持事务或幂等写入，否则这层封装毫无意义。</li>
+<li><strong><code>notifyCheckpointComplete</code> 可能丢失</strong>。Flink 不保证它一定被调用。因此 Sink 必须能在重启后<strong>从 OperatorState 恢复未提交的事务并重新提交</strong>——这就是为什么 <code>TwoPhaseCommitSinkFunction</code> 要求实现 <code>recoverAndCommit</code>。</li>
+</ol>
+<h3 id="4-为什么配了-EXACTLY-ONCE-还会重复"><a href="#4-为什么配了-EXACTLY-ONCE-还会重复" class="headerlink" title="4. 为什么配了 EXACTLY_ONCE 还会重复？"></a>4. 为什么配了 EXACTLY_ONCE 还会重复？</h3>
+<p>因为 <code>CheckpointingMode.EXACTLY_ONCE</code> 只保证 <strong>Flink 内部</strong>的状态一致。如果你的 Sink 是普通 JDBC 写入，它不在事务保护范围内，重启后照样重复。这个坑我见过太多次：配置项名字太有迷惑性。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-Keyed-State-的正确打开方式-含-TTL-与状态清理"><a href="#示例-1-Keyed-State-的正确打开方式-含-TTL-与状态清理" class="headerlink" title="示例 1：Keyed State 的正确打开方式（含 TTL 与状态清理）"></a>示例 1：Keyed State 的正确打开方式（含 TTL 与状态清理）</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.util.Collector;
+
+/**
+ * 场景：统计每个用户最近 1 小时内的访问次数，
+ * 并要求状态在 2 小时无更新后自动清理，防止状态无限膨胀。
+ */
+public class UserVisitCounter extends KeyedProcessFunction&lt;String, Long, String&gt; {
+
+    // 声明状态句柄（注意：只声明，不 new）
+    private transient ValueState&lt;Long&gt; visitCount;
+    private transient ValueState&lt;Long&gt; lastVisitTs;
+
+    @Override
+    public void open(Configuration parameters) {
+        // 状态描述符：名字 + 类型 + TTL 策略
+        ValueStateDescriptor&lt;Long&gt; countDesc =
+                new ValueStateDescriptor&lt;&gt;(&quot;visitCount&quot;, Long.class);
+        // TTL 是生产环境的救命稻草：2 小时无访问即清理
+        StateTtlConfig ttlConfig = StateTtlConfig
+                .newBuilder(Time.hours(2))
+                .setUpdateType(StateTtlConfig.UpdateType.OnCreateAndWrite)
+                .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+                .cleanupInRocksdbCompactFilter(1000) // RocksDB 压缩时过滤，降低开销
+                .build();
+        countDesc.enableTimeToLive(ttlConfig);
+        visitCount = getRuntimeContext().getState(countDesc);
+
+        lastVisitTs = getRuntimeContext().getState(
+                new ValueStateDescriptor&lt;&gt;(&quot;lastVisitTs&quot;, Long.class));
+    }
+
+    @Override
+    public void processElement(Long ts, Context ctx, Collector&lt;String&gt; out) throws Exception {
+        Long cur = visitCount.value();
+        cur = (cur == null) ? 1L : cur + 1;
+        visitCount.update(cur);
+        lastVisitTs.update(ts);
+        // 只在 key 维度输出，下游可继续聚合
+        out.collect(&quot;user=&quot; + ctx.getCurrentKey() + &quot;, count=&quot; + cur);
+    }
+}</code></pre></figure>
+<p><strong>注释要点</strong>：状态句柄必须在 <code>open</code> 里通过 <code>getRuntimeContext().getState()</code> 获取，不能 <code>new</code>；TTL 的 <code>cleanupInRocksdbCompactFilter</code> 只对 RocksDB 后端生效，Heap 后端靠全量扫描，慎用。</p>
+<h3 id="示例-2-RocksDB-增量-Checkpoint-的完整配置"><a href="#示例-2-RocksDB-增量-Checkpoint-的完整配置" class="headerlink" title="示例 2：RocksDB + 增量 Checkpoint 的完整配置"></a>示例 2：RocksDB + 增量 Checkpoint 的完整配置</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.CheckpointingMode;
+
+public class ExactlyOnceJob {
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // 1. 开启 checkpoint：间隔 60s，恰好一次语义，容忍 1 次失败
+        env.enableCheckpointing(60_000, CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(30_000); // 两次间隔下限
+        env.getCheckpointConfig().setCheckpointTimeout(10 * 60_000);     // 超时丢弃
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);        // 串行，避免状态抖动
+        env.getCheckpointConfig().setTolerableCheckpointFailureNumber(1);
+
+        // 2. 使用 RocksDB 后端并开启增量 checkpoint（仅 RocksDB 支持）
+        EmbeddedRocksDBStateBackend rocksDB =
+                new EmbeddedRocksDBStateBackend(true); // true = 启用增量
+        env.setStateBackend(rocksDB);
+        // 快照落到 HDFS/S3 等可靠存储
+        env.getCheckpointConfig().setCheckpointStorage(&quot;hdfs:///flink/checkpoints&quot;);
+
+        // 3. 重启策略：固定延迟重试，配合 checkpoint 恢复
+        env.setRestartStrategy(
+                org.apache.flink.api.common.restartstrategy.RestartStrategies
+                        .fixedDelayRestart(3, org.apache.flink.api.common.time.Time.seconds(10)));
+
+        // ... 后续 source / sink 装配
+        env.execute(&quot;exactly-once-demo&quot;);
+    }
+}</code></pre></figure>
+<p><strong>关键点</strong>：<code>setMinPauseBetweenCheckpoints</code> 和 <code>setMaxConcurrentCheckpoints(1)</code> 是防止大状态作业因 checkpoint 过于频繁拖垮吞吐的标配。增量 checkpoint 只有 RocksDB 后端支持，且首次仍为全量。</p>
+<h3 id="示例-3-Kafka-端到端-Exactly-Once-事务-Sink"><a href="#示例-3-Kafka-端到端-Exactly-Once-事务-Sink" class="headerlink" title="示例 3：Kafka 端到端 Exactly-Once（事务 Sink）"></a>示例 3：Kafka 端到端 Exactly-Once（事务 Sink）</h3>
+<figure class="highlight java"><pre><code class="language-java">import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
+import org.apache.flink.connector.kafka.sink.KafkaSink;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+
+public class KafkaEOSDemo {
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.enableCheckpointing(30_000, org.apache.flink.streaming.api.CheckpointingMode.EXACTLY_ONCE);
+
+        // Source：offset 由 checkpoint 管理，重启从快照恢复
+        KafkaSource&lt;String&gt; source = KafkaSource.&lt;String&gt;builder()
+                .setBootstrapServers(&quot;broker:9092&quot;)
+                .setTopics(&quot;input-topic&quot;)
+                .setGroupId(&quot;eos-group&quot;)
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(
+                        org.apache.kafka.clients.consumer.OffsetResetStrategy.EARLIEST))
+                .setValueOnlyDeserializer(new SimpleStringSchema())
+                .build();
+
+        DataStream&lt;String&gt; stream = env.fromSource(
+                source, WatermarkStrategy.noWatermarks(), &quot;kafka-source&quot;);
+
+        // Sink：开启事务，DeliveryGuarantee.EXACTLY_ONCE 才会走两阶段提交
+        KafkaSink&lt;String&gt; sink = KafkaSink.&lt;String&gt;builder()
+                .setBootstrapServers(&quot;broker:9092&quot;)
+                .setRecordSerializer(
+                        KafkaRecordSerializationSchema.builder()
+                                .setTopic(&quot;output-topic&quot;)
+                                .setValueSerializationSchema(new SimpleStringSchema())
+                                .build())
+                .setDeliveryGuarantee(
+                        org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE)
+                // 事务超时必须大于 checkpoint 间隔，否则事务提前过期导致数据丢失
+                .setProperty(&quot;transaction.timeout.ms&quot;, &quot;900000&quot;)
+                .setTransactionalIdPrefix(&quot;flink-eos-&quot;)
+                .build();
+
+        stream.sinkTo(sink);
+        env.execute(&quot;kafka-eos-demo&quot;);
+    }
+}</code></pre></figure>
+<p><strong>注释要点</strong>：<code>transaction.timeout.ms</code> 必须大于 checkpoint 间隔（建议 3 倍以上），否则 Kafka broker 会在 checkpoint 完成前把事务判为超时，导致数据丢失。这是生产事故的高发点。</p>
+<hr>
+<h2 id="方案对比-Exactly-Once-的三条技术路线"><a href="#方案对比-Exactly-Once-的三条技术路线" class="headerlink" title="方案对比：Exactly-Once 的三条技术路线"></a>方案对比：Exactly-Once 的三条技术路线</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>实现机制</th>
+<th>优点</th>
+<th>缺点</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>两阶段提交（2PC）</strong></td>
+<td>Sink 开启事务，checkpoint 完成时提交</td>
+<td>真正的端到端精确一次</td>
+<td>依赖外部系统支持事务；事务超时难调</td>
+<td>Kafka、支持 XA 的 DB</td>
+</tr><tr>
+<td><strong>幂等写入</strong></td>
+<td>写入带唯一键，重复写覆盖</td>
+<td>实现简单，无事务开销</td>
+<td>依赖主键/去重键；无法处理部分更新</td>
+<td>支持 upsert 的 OLAP（如 Doris、HBase）</td>
+</tr><tr>
+<td><strong>去重表 / 版本号</strong></td>
+<td>下游记录已处理批次号</td>
+<td>通用性强</td>
+<td>需额外存储；有状态膨胀</td>
+<td>自定义 Sink、异构系统</td>
+</tr></tbody></table>
+<p>对比 Spark Structured Streaming：Spark 的 Exactly-Once 主要依赖<strong>微批 + offset 管理 + 幂等 Sink</strong>，事务支持不如 Flink 的原生 2PC 细粒度；Flink 的逐条 barrier 快照在低延迟场景更有优势，但 Unaligned Checkpoint 之前对反压敏感是它的软肋。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<ol>
+<li><strong>别迷信配置名</strong>：<code>CheckpointingMode.EXACTLY_ONCE</code> 只管内部。Sink 不支持事务/幂等，端到端依然是 At-Least-Once。</li>
+<li><strong>事务超时 > checkpoint 间隔 × 3</strong>：Kafka 事务超时是硬约束，宁可设大。</li>
+<li><strong>大状态作业必用 Unaligned Checkpoint</strong>：反压场景下对齐会卡死 checkpoint，导致频繁超时。</li>
+<li><strong>TTL 是状态治理的第一步</strong>：Keyed State 不清理就是内存泄漏，用 <code>StateTtlConfig</code> 兜底。</li>
+<li><strong>checkpoint 存储用高可用 DFS</strong>：本地文件系统在 JobManager 故障时直接丢失恢复能力。</li>
+<li><strong>监控 checkpoint 时长和大小</strong>：<code>lastCheckpointDuration</code> 持续上涨，说明状态在膨胀或对齐在阻塞，要提前介入。</li>
+<li><strong>Sink 实现 <code>recoverAndCommit</code></strong>：<code>notifyCheckpointComplete</code> 不保证送达，重启后必须能找回未提交事务。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头的计费系统。我们最终的修复方案是：把 MySQL 写入改成“批次号 + 唯一索引”的幂等写入，同时用 Keyed State 记录每个用户已结算的最大批次。这样即使重放，重复批次被唯一索引挡掉，效果上就是 Exactly-Once。</p>
+<p>这件事让我对 Flink 的 Exactly-Once 有了更朴素的理解：<strong>它不是魔法，而是一份“可恢复的账本 + 可重放的输入 + 幂等/事务的输出”三方合约</strong>。Checkpoint 负责账本，Kafka offset 负责重放，Sink 的 2PC 或幂等负责收尾。任何一环偷懒，语义就会退化。</p>
+<p>延伸思考：随着 Flink 在流批一体和 Paimon/Iceberg 等湖仓上的演进，Exactly-Once 的边界正在从“算子状态”扩展到“数据湖表格式的原子提交”。但底层逻辑没变——依然是快照与提交的舞蹈。理解了这一层，你就不会再被任何一个“EXACTLY_ONCE”配置项骗到。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
