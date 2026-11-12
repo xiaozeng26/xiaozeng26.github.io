@@ -56,74 +56,78 @@ def _get_recent_categories(history, days=3):
             recent.add(post.get("category", ""))
     return recent
 
-def _get_all_generated_titles(history):
-    """获取所有已生成的文章标题（用于标题相似度检测）"""
-    return {post.get("title", "") for post in history.get("generated", [])}
+def _get_all_subtopics(config, history):
+    """合并 config 静态子话题 + history 动态扩充子话题，返回 {分类key: [子话题, ...]}"""
+    extra = history.get("extra_subtopics", {})
+    merged = {}
+    for cat, tcfg in config["topics"].items():
+        subs = list(tcfg["subtopics"])
+        subs.extend(extra.get(cat, []))
+        merged[cat] = subs
+    return merged
 
 def choose_topic(config, history):
     """
-    增强选题逻辑：
+    选题逻辑（支持子话题池循环复用）：
     1. 同一分类在 min_days_between_same_category 天内不重复
-    2. 子话题用完后才重置该分类
-    3. 严格的子话题去重
+    2. 优先选择"从未生成过"（不在 content_hashes 中）的子话题
+    3. 当所有子话题都生成过一轮后，清空 content_hashes 开启新一轮循环
     """
     topics = config["topics"]
     weights = config["topic_weights"]
     used_subtopics = history.get("used_subtopics", {})
     dedup_cfg = config.get("dedup", {})
     min_days = dedup_cfg.get("min_days_between_same_category", 3)
+    content_hashes = history.get("content_hashes", {})
 
     # 获取最近 N 天内使用过的分类，避免短期重复
     recent_cats = _get_recent_categories(history, days=min_days)
-    all_titles = _get_all_generated_titles(history)
 
-    # 过滤出有权重且存在的 topics
+    # 过滤出有权重且存在的 topics，并按权重降序排列
     available = [(k, weights.get(k, 10)) for k in topics.keys()]
     available.sort(key=lambda x: x[1], reverse=True)
-
     categories = [a[0] for a in available]
-    cat_weights = [a[1] for a in available]
+    all_subtopics = _get_all_subtopics(config, history)
 
-    # 优先选择近期没用过的分类
-    fresh_cats = [c for c in categories if topics[c].get("category", c) not in recent_cats]
+    # 收集每个分类下"从未生成过"的子话题（不在 content_hashes 中）
+    fresh_by_cat = {
+        c: [s for s in all_subtopics[c] if s not in content_hashes]
+        for c in categories
+    }
 
-    # 如果所有分类近期都用过了，则不过滤
-    target_cats = fresh_cats if fresh_cats else categories
+    if sum(len(v) for v in fresh_by_cat.values()) == 0:
+        # 所有子话题都生成过一轮：清空 content_hashes，开启新一轮循环
+        content_hashes.clear()
+        fresh_by_cat = {c: list(all_subtopics[c]) for c in categories}
+        print("[选题] 子话题池已用完，清空 content_hashes 开启新一轮循环")
+
+    # 优先选择近期没用过的分类（且该分类还有可用子话题）
+    fresh_cats = [c for c in categories if topics[c].get("category", c) not in recent_cats and fresh_by_cat[c]]
+    target_cats = fresh_cats if fresh_cats else [c for c in categories if fresh_by_cat[c]]
     target_weights = [weights.get(c, 10) for c in target_cats]
 
-    # 按权重加权随机，多轮尝试
+    # 按权重加权随机，多轮尝试，确保命中一个可用子话题
     shuffled_cats = random.choices(target_cats, weights=target_weights, k=len(target_cats) * 3)
-
     for cat in shuffled_cats:
-        subtopics = topics[cat]["subtopics"]
-        used = used_subtopics.get(cat, [])
-        # 过滤掉已使用的子话题（子话题去重）
-        available_subs = [s for s in subtopics if s not in used]
-
-        if not available_subs:
-            # 该分类所有子话题已用完，重置该分类的使用记录
-            used_subtopics[cat] = []
-            available_subs = subtopics
-
-        chosen = random.choice(available_subs)
+        pool = fresh_by_cat[cat]
+        if not pool:
+            continue
+        chosen = random.choice(pool)
         used_subtopics[cat] = used_subtopics.get(cat, []) + [chosen]
         history["used_subtopics"] = used_subtopics
-
-        # 检查标题是否已生成过（双重保险）
-        if chosen in all_titles:
-            continue
-
         return cat, chosen, topics[cat]
 
     # fallback: 全随机（理论上不会到达这里）
     cat = random.choice(categories)
-    chosen = random.choice(topics[cat]["subtopics"])
+    chosen = random.choice(all_subtopics[cat])
     return cat, chosen, topics[cat]
 
 # ============================================================
 # AI API 调用（支持多Provider: deepseek / claude）
 # ============================================================
 SYSTEM_PROMPT = "你是一位资深技术博客作者，拥有10年以上Java/Go/Python全栈开发经验，擅长将复杂的技术原理用通俗易懂的方式讲清楚。文章内容要有源码级深度，同时用生活化类比降低理解门槛。"
+
+EXPAND_SYSTEM_PROMPT = "你是一位资深技术内容策划，擅长为技术博客设计具体、有深度、可落地的文章选题。你只输出合法的 JSON，不输出任何解释或多余文字。"
 
 def _get_api_key(config):
     """获取 API Key，优先级：环境变量 > .apikey 文件"""
@@ -156,7 +160,7 @@ def _get_api_key(config):
         f"获取 Claude API Key: https://console.anthropic.com/settings/keys"
     )
 
-def call_deepseek_api(prompt, config):
+def call_deepseek_api(prompt, config, system=None):
     """调用 DeepSeek API（兼容 OpenAI 格式）"""
     import urllib.request
     import urllib.error
@@ -170,7 +174,7 @@ def call_deepseek_api(prompt, config):
         "max_tokens": gen_cfg.get("max_tokens", 8000),
         "temperature": gen_cfg.get("temperature", 0.8),
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system if system else SYSTEM_PROMPT},
             {"role": "user", "content": prompt}
         ]
     })
@@ -205,7 +209,7 @@ def call_deepseek_api(prompt, config):
             else:
                 raise RuntimeError(f"DeepSeek API 网络错误: {e}")
 
-def call_claude_api(prompt, config):
+def call_claude_api(prompt, config, system=None):
     """调用 Anthropic Claude API"""
     import urllib.request
     import urllib.error
@@ -218,7 +222,7 @@ def call_claude_api(prompt, config):
         "model": model,
         "max_tokens": gen_cfg.get("max_tokens", 8000),
         "temperature": gen_cfg.get("temperature", 0.8),
-        "system": SYSTEM_PROMPT,
+        "system": system if system else SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": prompt}]
     })
 
@@ -256,16 +260,133 @@ def call_claude_api(prompt, config):
             else:
                 raise RuntimeError(f"Claude API 网络错误: {e}")
 
-def call_ai_api(prompt, config):
+def call_ai_api(prompt, config, system=None):
     """统一的 AI API 调用入口，根据配置选择 provider"""
     provider = config["generation"].get("api_provider", "deepseek")
     print(f"[API] Provider: {provider}, Model: {config['generation'].get('model', 'default')}")
 
     if provider == "claude":
-        return call_claude_api(prompt, config)
+        return call_claude_api(prompt, config, system)
     else:
         # 默认使用 DeepSeek
-        return call_deepseek_api(prompt, config)
+        return call_deepseek_api(prompt, config, system)
+
+# ============================================================
+# 题库自动扩充（快见底时调用 AI 生成新子话题）
+# ============================================================
+def _parse_json_object(raw):
+    """从 AI 输出中稳健地提取 JSON 对象（容忍 markdown 代码块等杂质）"""
+    if not raw:
+        return {}
+    text = raw.strip()
+    # 去掉 ```json ... ``` 包裹
+    m = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if m:
+        text = m.group(1)
+    try:
+        obj = json.loads(text)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+    # 退而求其次：截取第一个 { 到最后一个 }
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end > start:
+        try:
+            obj = json.loads(text[start:end + 1])
+            if isinstance(obj, dict):
+                return obj
+        except Exception:
+            pass
+    return {}
+
+
+def _generate_new_subtopics(config, history, count):
+    """调用 AI 生成一批新的子话题，返回 {分类key: [新子话题...]}"""
+    topics = config["topics"]
+    all_subtopics = _get_all_subtopics(config, history)
+    used = set()
+    for subs in all_subtopics.values():
+        used.update(subs)
+
+    cat_lines = "\n".join(f"- {key}（{tcfg['category']}）" for key, tcfg in topics.items())
+    used_text = "；".join(sorted(used)[:400])
+
+    prompt = f"""请为技术博客补充 {count} 个全新的文章子话题（标题级，具体且有深度）。
+
+现有分类如下：
+{cat_lines}
+
+已有子话题（请勿重复）：
+{used_text}
+
+要求：
+1. 子话题必须是具体的文章标题级别，8~40 个汉字，例如"从零构建一个 AI Agent：ReAct 模式与工具调用"
+2. 覆盖 AI/Agent、大模型、后端、架构、数据库、前端、DevOps、安全等方向，适当向 AI/Agent 倾斜
+3. 严格禁止与上面列出的已有子话题重复
+4. 只输出一个 JSON 对象，key 用上面列出的分类 key，value 是该分类新增子话题的字符串数组；没有新话题的分类不要出现
+5. 不要输出 JSON 之外的任何文字、注释或 markdown 代码块
+
+输出示例：
+{{"agent": ["新话题A", "新话题B"], "ai": ["新话题C"]}}"""
+
+    print("[扩充] 正在调用 AI 生成新子话题...")
+    try:
+        raw = call_ai_api(prompt, config, system=EXPAND_SYSTEM_PROMPT)
+    except Exception as e:
+        print(f"[扩充] 调用 AI 生成新子话题失败（{e}），将回退到循环复用机制")
+        return {}
+    obj = _parse_json_object(raw)
+    if not obj:
+        print("[扩充] AI 返回内容无法解析为 JSON，将回退到循环复用机制")
+        return {}
+
+    result = {}
+    for cat, subs in obj.items():
+        if cat not in topics or not isinstance(subs, list):
+            continue
+        fresh = []
+        for s in subs:
+            if isinstance(s, str):
+                s = s.strip()
+                if s and s not in used and s not in fresh:
+                    fresh.append(s)
+                    used.add(s)
+        if fresh:
+            result[cat] = fresh
+    return result
+
+
+def ensure_topic_supply(config, history):
+    """当剩余未生成过的子话题 <= 阈值时，自动调用 AI 扩充题库；返回是否扩充过"""
+    threshold = config["generation"].get("expand_threshold", 5)
+    expand_count = config["generation"].get("expand_count", 20)
+    content_hashes = history.get("content_hashes", {})
+    all_subtopics = _get_all_subtopics(config, history)
+
+    fresh_count = sum(1 for subs in all_subtopics.values() for s in subs if s not in content_hashes)
+    if fresh_count > threshold:
+        return False
+
+    print(f"[扩充] 剩余未生成子话题仅 {fresh_count} 个（阈值 {threshold}），开始自动扩充...")
+    new_subs = _generate_new_subtopics(config, history, expand_count)
+    if not new_subs:
+        print("[扩充] 未能生成新子话题，将回退到循环复用机制")
+        return False
+
+    extra = history.setdefault("extra_subtopics", {})
+    added_total = 0
+    for cat, subs in new_subs.items():
+        bucket = extra.setdefault(cat, [])
+        for s in subs:
+            if s not in bucket:
+                bucket.append(s)
+                added_total += 1
+    history["extra_subtopics"] = extra
+    save_history(history)
+    print(f"[扩充] 成功新增 {added_total} 个子话题，题库已补充")
+    return True
 
 # ============================================================
 # AI 输出后处理（切除元信息引用块）
@@ -322,7 +443,7 @@ def build_prompt(category, subtopic, topic_config, config):
     prompt = f"""请以一位资深全栈架构师的身份，撰写一篇高质量中文技术博客。
 
 ## 文章信息（仅供你参考，不要在正文中重复输出！）
-- 博客标题：{subtopic}
+- 文章主题方向：{subtopic}
 - 所属分类：{topic_config['category']}
 - 标签：{', '.join(topic_config['tags'])}
 - 发布日期：{date_str}
@@ -340,6 +461,12 @@ def build_prompt(category, subtopic, topic_config, config):
 - 对比不同实现方案，分析优缺点和适用场景
 - 给出最佳实践和常见坑
 
+### 标题要求
+- 请为这篇文章拟一个**全新、有观点、具体**的标题
+- 标题要体现本文独特的切入点、核心结论或对比视角
+- **禁止**直接照抄"文章主题方向"里的原句作为标题
+- 即使主题方向相同，每次也要从不同角度拟出不同的标题
+
 ### 文章结构
 1. **引言**：用实际场景引出问题
 2. **核心概念**：生活类比 + 技术定义
@@ -356,7 +483,7 @@ graph TD
 ```
 
 ## 输出格式（严格遵守！）
-1. 第一行必须是 "# 标题" 格式的 Markdown 标题
+1. 第一行必须是 "# 标题" 格式的 Markdown 标题（标题须为原创、不得照抄"文章主题方向"）
 2. **绝对不要**在正文中输出"发布日期"、"分类"、"标签"、"博客名称"等元信息
 3. **绝对不要**用 blockquote（>）包裹任何元信息
 4. **绝对不要**输出"发表于"、"发布于"、"分类："、"标签："等内容
@@ -1003,6 +1130,10 @@ def main():
     # 1. 加载配置和历史
     config = load_config()
     history = load_history()
+
+    # 1.5 题库快见底时自动扩充（避免停更/重复；dry-run 不触发）
+    if not args.dry_run:
+        ensure_topic_supply(config, history)
 
     # 2. 选题（带去重检查）
     category_key, subtopic, topic_config = choose_topic(config, history)

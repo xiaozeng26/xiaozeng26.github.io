@@ -8,17 +8,31 @@
     "repo_path": "D:/xiaozeng26.github.io"
   },
   "topic_weights": {
-    "java": 25,
-    "python": 20,
-    "go": 20,
-    "docker_kubernetes": 15,
-    "ai": 15,
-    "architecture": 15
+    "agent": 30,
+    "ai": 25,
+    "java": 18,
+    "python": 16,
+    "go": 16,
+    "architecture": 15,
+    "database": 14,
+    "docker_kubernetes": 12,
+    "frontend": 12,
+    "devops": 12,
+    "security": 10,
+    "bigdata": 8,
+    "network": 8,
+    "os_linux": 8
   },
   "topics": {
     "java": {
       "category": "java",
-      "tags": ["java", "jvm", "Spring", "concurrency", "source-code"],
+      "tags": [
+        "java",
+        "jvm",
+        "Spring",
+        "concurrency",
+        "source-code"
+      ],
       "subtopics": [
         "JVM内存模型与垃圾回收器深度解析",
         "ThreadPoolExecutor源码拆解与最佳实践",
@@ -36,12 +50,38 @@
         "Nacos服务注册与配置中心原理",
         "Sentinel流控降级源码分析",
         "Java Agent字节码增强技术实战",
-        "HashMap并发问题与ConcurrentHashMap分段锁演进"
+        "HashMap并发问题与ConcurrentHashMap分段锁演进",
+        "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata",
+        "JVM 类加载与字节码：从 .class 到对象的完整生命周期",
+        "Java 泛型擦除、类型边界与通配符的高级用法",
+        "JIT 编译器与逃逸分析：从字节码到机器码的优化之旅",
+        "线程池参数调优：corePoolSize、队列与拒绝策略的科学配置",
+        "Kafka 高性能背后的设计：顺序写、零拷贝与分区模型",
+        "Dubbo SPI 机制与 RPC 框架扩展点设计",
+        "ZooKeeper 一致性协议 ZAB 源码解析",
+        "Java 21 结构化并发与 ScopedValue 实战",
+        "Disruptor 无锁队列原理与高性能环形缓冲区",
+        "从零实现一个 Spring Boot Starter：自动装配与条件注解",
+        "Spring Cloud Gateway 路由、过滤器与限流源码剖析",
+        "ShardingSphere 分库分表与读写分离实战",
+        "深入理解 ClassLoader：双亲委派模型与 Tomcat 类加载机制",
+        "JVM 内存泄漏排查实战：MAT 与 jstat 工具链",
+        "响应式编程：Project Reactor 与 WebFlux 背压机制",
+        "Java 内存模型 JMM 与 happens-before 规则详解",
+        "GraalVM 原生镜像：让 Java 启动快到毫秒级",
+        "虚拟线程与协程：Java 21 并发编程新范式",
+        "分布式链路追踪：SkyWalking 与 OpenTelemetry 落地"
       ]
     },
     "python": {
       "category": "python",
-      "tags": ["python", "fastapi", "async", "django", "source-code"],
+      "tags": [
+        "python",
+        "fastapi",
+        "async",
+        "django",
+        "source-code"
+      ],
       "subtopics": [
         "asyncio事件循环源码级分析与实战",
         "FastAPI依赖注入系统设计剖析",
@@ -56,12 +96,34 @@
         "Python协程与生成器的底层实现（yield from解析）",
         "FastAPI + Tortoise ORM异步数据库实践",
         "Python性能调优：cProfile、memory_profiler实战",
-        "微服务框架Nameko的设计与使用"
+        "微服务框架Nameko的设计与使用",
+        "Python 3.13 自由线程与无 GIL 时代的多线程实践",
+        "pandas 高效数据处理：向量化操作与内存优化",
+        "NumPy 广播机制与 ndarray 底层存储",
+        "Python 类型系统：typing 与 mypy 静态检查实战",
+        "Web 爬虫工程化：Scrapy 框架与反爬对抗",
+        "Jupyter 生态：从分析到生产化的数据科学工作流",
+        "Python 打包发布：Poetry、uv 与 wheel 分发",
+        "gRPC + Python 构建高性能微服务通信",
+        "异步 Web 框架对比：FastAPI、Sanic 与 aiohttp",
+        "Python 并发：多进程、线程池与 asyncio 的选型",
+        "机器学习工程化：scikit-learn Pipeline 与模型持久化",
+        "PyTorch 张量计算与自动求导机制",
+        "Python 装饰器、描述符与元类的进阶用法",
+        "pytest 插件开发与自定义 Fixture 深度实践",
+        "SQLAlchemy 2.0 异步 ORM 与 Unit of Work 模式",
+        "Python 性能分析：line_profiler 与 py-spy 实战"
       ]
     },
     "go": {
       "category": "golang",
-      "tags": ["go", "golang", "concurrency", "microservices", "source-code"],
+      "tags": [
+        "go",
+        "golang",
+        "concurrency",
+        "microservices",
+        "source-code"
+      ],
       "subtopics": [
         "Go调度器GMP模型深度剖析",
         "Channel底层实现与select多路复用",
@@ -76,12 +138,34 @@
         "protobuf + gRPC拦截器链实现",
         "Go Embed静态资源嵌入实战",
         "Zap + Lumberjack高性能日志架构",
-        "Go项目工程化：wire依赖注入与分层架构"
+        "Go项目工程化：wire依赖注入与分层架构",
+        "Go 泛型实战：类型约束、约束推导与泛型库设计",
+        "Go 并发模式：worker pool、fan-in/fan-out 与 pipeline",
+        "Go 内存逃逸分析：从堆分配优化到性能调优",
+        "Go 反射机制与 unsafe 包的使用边界",
+        "Go 网络编程：从 net 包到手写一个 HTTP 服务器",
+        "Go 错误处理：error wrapping 与自定义错误类型",
+        "Go 依赖注入：wire 与 fx 框架对比",
+        "Go 测试进阶：表驱动测试、子测试与 fuzzing",
+        "Go 性能分析：pprof 与 benchmark 实战",
+        "Go 微服务框架：go-kit、go-micro 与 Kratos 对比",
+        "Go 与 gRPC 拦截器：鉴权、日志与限流的统一封装",
+        "Go 数据库访问：GORM 与 sqlx 的最佳实践",
+        "Go 并发安全：sync 包深入与 atomic 操作",
+        "Go 泛型与集合库：slices、maps 与 iter 包",
+        "Go 内存模型与并发原语的 happens-before",
+        "Go 构建与部署：CGO、交叉编译与最小镜像"
       ]
     },
     "docker_kubernetes": {
       "category": "cloud-native",
-      "tags": ["Docker", "kubernetes", "cloud-native", "devops", "container"],
+      "tags": [
+        "Docker",
+        "kubernetes",
+        "cloud-native",
+        "devops",
+        "container"
+      ],
       "subtopics": [
         "Docker网络模式：bridge、host、overlay深入对比",
         "Docker存储驱动：overlay2、aufs、devicemapper原理",
@@ -94,12 +178,36 @@
         "K8s Operator模式与自定义资源CRD开发",
         "Helm Chart模板开发与Release管理",
         "K8s RBAC权限控制与安全上下文",
-        "容器化应用的12-Factor原则实践"
+        "容器化应用的12-Factor原则实践",
+        "Kubernetes 控制器模型与自定义 Controller 开发",
+        "K8s 网络策略与 Service 类型：ClusterIP/NodePort/LoadBalancer",
+        "K8s 存储体系：PV/PVC、StorageClass 与 CSI 驱动",
+        "K8s 安全：Pod Security、RBAC 与 ServiceAccount",
+        "K8s 灰度发布：金丝雀、蓝绿与 Argo Rollouts",
+        "K8s 多集群管理：Karmada 与 Federation",
+        "K8s 资源配额与 QoS：request/limit 的科学配置",
+        "K8s 调度器扩展：自定义调度策略与拓扑分布",
+        "云原生可观测性：Prometheus + Grafana + Loki 全家桶",
+        "Service Mesh 进阶：Istio 流量镜像与故障注入",
+        "GitOps 实践：ArgoCD 声明式持续交付",
+        "Serverless 与 Knative：事件驱动弹性伸缩",
+        "Docker 安全：镜像扫描、非 root 运行与 seccomp",
+        "K8s 边缘计算：K3s 与 KubeEdge 落地",
+        "容器运行时演进：containerd、CRI-O 与 Kata Containers",
+        "K8s 故障排查：从 CrashLoopBackOff 到网络不通"
       ]
     },
     "ai": {
       "category": "ai-ml",
-      "tags": ["ai", "machine-learning", "deep-learning", "llm", "langchain", "langgraph", "rag"],
+      "tags": [
+        "ai",
+        "machine-learning",
+        "deep-learning",
+        "llm",
+        "langchain",
+        "langgraph",
+        "rag"
+      ],
       "subtopics": [
         "Transformer架构深度解读：Self-Attention数学原理",
         "RAG（检索增强生成）系统设计与实现",
@@ -117,12 +225,39 @@
         "大模型部署优化：量化（GPTQ/AWQ）、vLLM推理加速",
         "Embedding模型选型与语义搜索实践",
         "多模态AI应用开发：GPT-4V + LangChain",
-        "LangGraph Checkpointing：持久化与Human-in-the-Loop模式"
+        "LangGraph Checkpointing：持久化与Human-in-the-Loop模式",
+        "Transformer 变体：BERT、GPT、T5 的架构演进",
+        "注意力机制进阶：多头注意力、稀疏注意力与 FlashAttention",
+        "扩散模型原理：Stable Diffusion 与文生图实战",
+        "强化学习基础：从 Q-Learning 到 PPO 算法",
+        "大模型微调实战：LoRA/QLoRA 在消费级显卡上的落地",
+        "多模态大模型：CLIP、视觉语言模型与多模态对齐",
+        "Embedding 技术：从 Word2Vec 到 Sentence-Transformers",
+        "向量数据库原理：HNSW 索引与近似最近邻搜索",
+        "RAG 进阶：混合检索、重排序与查询改写",
+        "大模型幻觉问题：成因分析与缓解策略",
+        "提示工程进阶：CoT、ToT 与 Self-Refine 策略",
+        "大模型评估：从基准测试到 LLM-as-Judge",
+        "知识蒸馏与模型压缩：让小模型发挥大能力",
+        "联邦学习：隐私保护下的分布式训练",
+        "图神经网络 GNN：从图卷积到推荐系统应用",
+        "时间序列预测：从 ARIMA 到深度学习模型",
+        "MLOps 实践：模型训练、部署与监控全链路",
+        "大模型推理优化：vLLM、量化与批处理",
+        "函数调用 Function Calling 原理与实现",
+        "RLHF 与对齐技术：从 SFT 到 DPO",
+        "AI 可解释性：SHAP、LIME 与注意力可视化"
       ]
     },
     "architecture": {
       "category": "architecture",
-      "tags": ["architecture", "distributed-systems", "high-availability", "design-patterns", "microservices"],
+      "tags": [
+        "architecture",
+        "distributed-systems",
+        "high-availability",
+        "design-patterns",
+        "microservices"
+      ],
       "subtopics": [
         "DDD领域驱动设计落地实践与六边形架构",
         "事件驱动架构：Kafka/RabbitMQ/Pulsar选型对比",
@@ -136,7 +271,237 @@
         "最终一致性方案：本地消息表、事务消息、Saga模式",
         "全链路压测方案设计与流量染色",
         "服务网格Service Mesh架构演进",
-        "多活数据中心架构设计"
+        "多活数据中心架构设计",
+        "分布式一致性：Paxos 与 Raft 从理论到工程",
+        "分布式事务：TCC、Saga 与最终一致性的选型",
+        "服务治理：注册发现、配置中心与网关的完整方案",
+        "高并发系统的限流算法：令牌桶、漏桶与滑动窗口",
+        "分布式任务调度：XXL-Job 与 ElasticJob 原理",
+        "消息队列选型：Kafka、RocketMQ、Pulsar 对比",
+        "分布式缓存架构：Redis 集群、热点与多级缓存",
+        "数据库中间件：读写分离与分库分表的演进",
+        "微服务拆分：DDD 落地与边界划分实战",
+        "API 设计规范：REST、GraphQL 与 gRPC 的取舍",
+        "系统稳定性建设：混沌工程与容灾演练",
+        "全链路压测：流量录制回放与容量规划",
+        "可观测性体系：Metrics、Logging、Tracing 三支柱",
+        "服务网格：Istio 流量治理与安全",
+        "云原生架构：从单体到微服务再到 Serverless",
+        "分布式 ID 与唯一键生成方案深度对比",
+        "幂等性设计：分布式系统的关键一环",
+        "异步架构：事件驱动与 CQRS 模式实战"
+      ]
+    },
+    "agent": {
+      "category": "ai-agent",
+      "tags": [
+        "ai",
+        "agent",
+        "llm",
+        "langchain",
+        "langgraph",
+        "multi-agent",
+        "mcp",
+        "autogen"
+      ],
+      "subtopics": [
+        "从零构建一个 AI Agent：ReAct 模式与工具调用全解析",
+        "多 Agent 协同架构：如何设计 Supervisor 与 Swarm 模式",
+        "Agent 记忆系统设计：短期记忆、长期记忆与向量检索",
+        "Agent 规划能力：任务分解、Plan-and-Execute 与反思机制",
+        "Agent 工具调用：Function Calling 与 Tool Schema 设计",
+        "MCP 协议（Model Context Protocol）：打通 Agent 与外部世界",
+        "LangGraph 实战：状态图驱动的多节点 Agent 工作流",
+        "Agent 评估：如何衡量一个 Agent 是否可靠",
+        "Agent 安全与护栏：提示注入攻击与防御",
+        "Human-in-the-Loop：Agent 人工介入机制设计",
+        "AutoGPT 与 BabyAGI：自主 Agent 的架构解析",
+        "多 Agent 通信协议：消息传递与共享状态设计",
+        "Agent 与 RAG 结合：知识库驱动的智能问答助手",
+        "构建企业级 Agent 平台：任务编排、权限与审计",
+        "Agent 的上下文管理：长对话的压缩与检索策略",
+        "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen",
+        "Agent 的错误处理与自愈机制：重试、回退与降级",
+        "流式输出与实时交互：Agent 的 SSE 与 WebSocket 设计",
+        "多模态 Agent：让 Agent 看懂图、听懂话、会操作",
+        "Agent 的可观测性：LangSmith/LangFuse 全链路追踪",
+        "从单体 Agent 到 Agent 生态：插件化与可扩展架构",
+        "Agent 与工作流引擎结合：DAG 任务编排实战",
+        "如何完整搭建一个多 Agent 协同工作的项目：从需求到上线",
+        "CrewAI 实战：角色化多 Agent 团队的搭建与协作",
+        "AutoGen 实战：对话式多 Agent 框架与人工协作模式",
+        "Agent 的反思与自我改进：Reflexion 与 Self-Refine",
+        "基于 MCP 构建可插拔 Agent 工具生态",
+        "Agent 权限控制与沙箱隔离：安全执行外部工具"
+      ]
+    },
+    "frontend": {
+      "category": "frontend",
+      "tags": [
+        "frontend",
+        "vue",
+        "react",
+        "typescript",
+        "javascript",
+        "nodejs"
+      ],
+      "subtopics": [
+        "Vue 3 响应式原理：Proxy 与依赖收集源码解析",
+        "React 18 并发特性：useTransition 与 Suspense 实战",
+        "TypeScript 高级类型：泛型、条件类型与类型体操",
+        "前端工程化：从 Vite 到模块联邦的构建优化",
+        "前端性能优化：首屏加载、懒加载与缓存策略",
+        "前端状态管理：Pinia、Redux 与 Zustand 对比",
+        "CSS 现代布局：Grid、Flexbox 与容器查询",
+        "微前端架构：qiankun 与 Module Federation 落地",
+        "前端测试：Vitest、Playwright 与 E2E 测试实践",
+        "Node.js 服务端：Express、NestJS 与中间件机制",
+        "前端监控：错误上报、性能指标与用户行为分析",
+        "WebAssembly：前端高性能计算的新选择",
+        "SSR 与 SSG：Nuxt、Next.js 服务端渲染实践",
+        "前端安全：XSS、CSRF 与 CSP 防护",
+        "前端架构演进：从 jQuery 到组件化到微前端",
+        "跨端开发：uni-app、Taro 与 React Native 对比",
+        "设计系统：组件库构建与 Design Token 体系",
+        "浏览器工作原理：渲染流程、重排重绘与合成层"
+      ]
+    },
+    "database": {
+      "category": "database",
+      "tags": [
+        "database",
+        "mysql",
+        "redis",
+        "postgresql",
+        "mongodb",
+        "elasticsearch"
+      ],
+      "subtopics": [
+        "MySQL InnoDB 存储引擎：B+ 树索引与页结构",
+        "MySQL 事务与 MVCC：从 undo log 到一致性读",
+        "MySQL 锁机制：行锁、间隙锁与死锁排查",
+        "MySQL 慢查询优化：EXPLAIN 与索引优化实战",
+        "PostgreSQL 高级特性：JSONB、窗口函数与物化视图",
+        "Redis 数据结构底层：SDS、跳表与压缩列表",
+        "Redis 持久化：RDB 与 AOF 的取舍与混合模式",
+        "Redis 集群：主从、哨兵与 Cluster 分片",
+        "MongoDB 副本集与分片集群架构",
+        "Elasticsearch 倒排索引与全文检索原理",
+        "Elasticsearch 查询优化：DSL 调优与聚合分析",
+        "数据库高可用：主从复制、故障切换与数据一致性",
+        "分布式数据库：TiDB、OceanBase 架构解析",
+        "数据库分库分表与分布式 ID 的协同",
+        "时序数据库：InfluxDB 与 Prometheus 存储原理",
+        "图数据库：Neo4j 与知识图谱应用"
+      ]
+    },
+    "devops": {
+      "category": "devops",
+      "tags": [
+        "devops",
+        "ci-cd",
+        "kubernetes",
+        "monitoring",
+        "terraform",
+        "gitops"
+      ],
+      "subtopics": [
+        "CI/CD 流水线设计：从 Jenkins 到 GitHub Actions",
+        "可观测性落地：Prometheus、Grafana 与告警体系",
+        "日志系统：ELK、Loki 与结构化日志最佳实践",
+        "分布式追踪：OpenTelemetry 与 Jaeger 落地",
+        "基础设施即代码：Terraform 与 Pulumi 实践",
+        "配置管理：Ansible、SaltStack 与自动化运维",
+        "容器镜像优化：多阶段构建与最小化镜像",
+        "GitOps 与持续交付：ArgoCD 完整实践",
+        "Kubernetes 运维：集群升级、备份与灾备",
+        "服务发布策略：蓝绿、金丝雀与灰度发布",
+        "云成本优化：FinOps 与资源利用率治理",
+        "混沌工程：故障注入与系统韧性验证"
+      ]
+    },
+    "security": {
+      "category": "security",
+      "tags": [
+        "security",
+        "web-security",
+        "cryptography",
+        "zero-trust",
+        "penetration-testing"
+      ],
+      "subtopics": [
+        "Web 安全：SQL 注入、XSS、CSRF 攻防实战",
+        "身份认证与授权：OAuth2、OIDC 与 JWT 安全",
+        "密码学基础：对称加密、非对称加密与哈希算法",
+        "零信任安全架构：从理念到落地",
+        "云原生安全：K8s 安全基线、镜像扫描与供应链安全",
+        "API 安全：鉴权、限流、加密与防护",
+        "渗透测试方法论：信息收集、漏洞挖掘与提权",
+        "日志审计与安全监控：SIEM 与威胁检测",
+        "数据安全与隐私：脱敏、加密与合规（GDPR/等保）",
+        "社会工程学与安全意识：人类是最大的漏洞"
+      ]
+    },
+    "bigdata": {
+      "category": "big-data",
+      "tags": [
+        "big-data",
+        "flink",
+        "spark",
+        "hadoop",
+        "data-warehouse",
+        "olap"
+      ],
+      "subtopics": [
+        "Flink 流式计算：状态管理与 Exactly-Once 语义",
+        "Spark 内核：RDD、DAG 调度与内存管理",
+        "Hadoop 生态：HDFS、MapReduce 与 YARN 原理",
+        "数据仓库：从 Hive 到数仓分层建模",
+        "数据湖：Iceberg、Hudi 与 Delta Lake 对比",
+        "实时数仓：Flink + Kafka 构建 Lambda/Kappa 架构",
+        "OLAP 引擎：ClickHouse、Doris 与 Presto 对比",
+        "数据血缘与治理：DataHub 与数据质量管理"
+      ]
+    },
+    "network": {
+      "category": "network",
+      "tags": [
+        "network",
+        "tcp",
+        "http",
+        "tls",
+        "dns",
+        "load-balancing"
+      ],
+      "subtopics": [
+        "TCP 深入：三次握手、拥塞控制与可靠传输",
+        "HTTP 协议演进：HTTP/1.1、HTTP/2 到 HTTP/3",
+        "HTTPS 与 TLS：证书、握手与加密原理",
+        "DNS 解析：从递归查询到 CDN 调度",
+        "负载均衡：LVS、Nginx 与四层/七层负载",
+        "网络编程模型：BIO、NIO、AIO 与 epoll",
+        "WebSocket 与长连接：实时通信的实现",
+        "网络故障排查：抓包分析与 tcpdump 实战"
+      ]
+    },
+    "os_linux": {
+      "category": "linux",
+      "tags": [
+        "linux",
+        "os",
+        "kernel",
+        "performance",
+        "shell"
+      ],
+      "subtopics": [
+        "Linux 进程与线程：fork、exec 与内核调度",
+        "Linux 内存管理：虚拟内存、页表与换页机制",
+        "Linux 文件系统：inode、软硬链接与日志文件系统",
+        "Linux 网络栈：从 socket 到内核协议栈",
+        "Linux 性能调优：CPU、内存、IO 与上下文切换",
+        "Linux 安全：权限模型、SELinux 与内核加固",
+        "系统调用与内核态：从用户态到内核态之旅",
+        "Linux 工具链：strace、perf、bpftrace 调试实战"
       ]
     }
   },
@@ -154,7 +519,9 @@
     "model": "deepseek-chat",
     "temperature": 0.8,
     "max_tokens": 8192,
-    "retry_count": 3
+    "retry_count": 3,
+    "expand_threshold": 5,
+    "expand_count": 20
   },
   "dedup": {
     "check_title_similarity": true,
