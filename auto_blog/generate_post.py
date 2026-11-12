@@ -37,7 +37,7 @@ def load_history():
     if HISTORY_PATH.exists():
         with open(HISTORY_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"generated": [], "used_subtopics": {}, "content_hashes": {}}
+    return {"generated": [], "content_hashes": {}}
 
 def save_history(history):
     with open(HISTORY_PATH, "w", encoding="utf-8") as f:
@@ -75,7 +75,6 @@ def choose_topic(config, history):
     """
     topics = config["topics"]
     weights = config["topic_weights"]
-    used_subtopics = history.get("used_subtopics", {})
     dedup_cfg = config.get("dedup", {})
     min_days = dedup_cfg.get("min_days_between_same_category", 3)
     content_hashes = history.get("content_hashes", {})
@@ -113,8 +112,6 @@ def choose_topic(config, history):
         if not pool:
             continue
         chosen = random.choice(pool)
-        used_subtopics[cat] = used_subtopics.get(cat, []) + [chosen]
-        history["used_subtopics"] = used_subtopics
         return cat, chosen, topics[cat]
 
     # fallback: 全随机（理论上不会到达这里）
@@ -311,7 +308,7 @@ def _generate_new_subtopics(config, history, count):
         used.update(subs)
 
     cat_lines = "\n".join(f"- {key}（{tcfg['category']}）" for key, tcfg in topics.items())
-    used_text = "；".join(sorted(used)[:400])
+    used_text = "；".join(sorted(used)[:1000])
 
     prompt = f"""请为技术博客补充 {count} 个全新的文章子话题（标题级，具体且有深度）。
 
