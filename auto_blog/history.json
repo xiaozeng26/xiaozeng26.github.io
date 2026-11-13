@@ -615,6 +615,13 @@
       "subtopic": "Flink 流式计算：状态管理与 Exactly-Once 语义",
       "date": "2026-11-12",
       "url": "/2026/11/13/从“记账本”到“原子提交”：拆解 Flink 状态管理与 Exactly-Once 的底层账本逻辑/"
+    },
+    {
+      "title": "别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭",
+      "category": "ai-agent",
+      "subtopic": "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen",
+      "date": "2026-11-13",
+      "url": "/2026/11/14/别再只盯着 LangChain 了：从执行模型源码看 LangChain-LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭/"
     }
   ],
   "used_subtopics": {
@@ -765,6 +772,7 @@
     "FastAPI + Tortoise ORM异步数据库实践": "064ac01b6e1f5155531bae213c32f3bb27d7bf3b7d902cd3d76e53d6c0edcae7",
     "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240",
     "Django ORM查询优化与N+1问题解决": "3024085962aae852ebff994865d9544fe399b5156d3ebfb91175ffff4868b506",
-    "Flink 流式计算：状态管理与 Exactly-Once 语义": "4679f639094284ae8b6896ebc3406467213ae4639ce540c61fecfc8eeac88239"
+    "Flink 流式计算：状态管理与 Exactly-Once 语义": "4679f639094284ae8b6896ebc3406467213ae4639ce540c61fecfc8eeac88239",
+    "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen": "727499da5d54c2d9f678b1df79424d9b4afcb1a8ac36681766ca1ee82384c1af"
   }
 }

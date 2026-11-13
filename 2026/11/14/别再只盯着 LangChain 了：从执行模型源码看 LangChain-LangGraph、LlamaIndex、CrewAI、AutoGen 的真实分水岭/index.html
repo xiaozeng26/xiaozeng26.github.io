@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭 | 小曾博客</title>
+  <meta name="description" content="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭 引言 先说一个我去年踩过的坑。 团队要做一个\"合同审阅 Agent\"：解析 PDF → 抽取条款 → 对照法规库检索 → 逐条给出风险评级 → 生成审阅报告。第一版我们用 LangChain 的 AgentExecutor + 一堆 Too">
+  <meta name="keywords" content="ai,agent,llm,langchain,langgraph,multi-agent,mcp,autogen">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭">
+  <meta name="twitter:description" content="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭 引言 先说一个我去年踩过的坑。 团队要做一个\"合同审阅 Agent\"：解析 PDF → 抽取条款 → 对照法规库检索 → 逐条给出风险评级 → 生成审阅报告。第一版我们用 LangChain 的 AgentExecutor + 一堆 Too">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2157">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭 引言 先说一个我去年踩过的坑。 团队要做一个\"合同审阅 Agent\"：解析 PDF → 抽取条款 → 对照法规库检索 → 逐条给出风险评级 → 生成审阅报告。第一版我们用 LangChain 的 AgentExecutor + 一堆 Too">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2157">
+  <meta property="article:published_time" content="2026-11-14T02:56:12.000Z">
+  <meta property="article:modified_time" content="2026-11-14T02:56:12.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#别再只盯着-LangChain-了-从执行模型源码看-LangChain-LangGraph-LlamaIndex-CrewAI-AutoGen-的真实分水岭"><span class="toc-text">别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-控制流到底归谁管"><span class="toc-text">核心概念：控制流到底归谁管？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-LangChain-AgentExecutor-为什么它天生-健忘-且-难并行"><span class="toc-text">AgentExecutor：为什么它天生"健忘"且"难并行"">1. LangChain AgentExecutor：为什么它天生"健忘"且"难并行"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-LangGraph-把-隐式循环-变成-显式状态机"><span class="toc-text">2. LangGraph：把"隐式循环"变成"显式状态机"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-LlamaIndex-Workflow-事件驱动的-松耦合流水线"><span class="toc-text">3. LlamaIndex Workflow：事件驱动的"松耦合流水线"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#4-CrewAI-与-AutoGen-多-Agent-协作的两种哲学"><span class="toc-text">4. CrewAI 与 AutoGen：多 Agent 协作的两种哲学</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个完整可运行示例"><span class="toc-text">实战代码：三个完整可运行示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-LangGraph-实现-可恢复-并行-的合同审阅"><span class="toc-text">示例 1：LangGraph 实现"可恢复 + 并行"的合同审阅</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-LlamaIndex-Workflow-做-事件驱动-的文档处理流水线"><span class="toc-text">示例 2：LlamaIndex Workflow 做"事件驱动"的文档处理流水线</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-CrewAI-多-Agent-协作-AutoGen-对话式协作对照"><span class="toc-text">示例 3：CrewAI 多 Agent 协作 + AutoGen 对话式协作对照</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-一张决策表"><span class="toc-text">方案对比：一张决策表</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2157)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-14"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-14</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-14"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-14</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-agent</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="别再只盯着-LangChain-了-从执行模型源码看-LangChain-LangGraph-LlamaIndex-CrewAI-AutoGen-的真实分水岭"><a href="#别再只盯着-LangChain-了-从执行模型源码看-LangChain-LangGraph-LlamaIndex-CrewAI-AutoGen-的真实分水岭" class="headerlink" title="别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭"></a>别再只盯着 LangChain 了：从执行模型源码看 LangChain/LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先说一个我去年踩过的坑。</p>
+<p>团队要做一个"合同审阅 Agent"：解析 PDF → 抽取条款 → 对照法规库检索 → 逐条给出风险评级 → 生成审阅报告。第一版我们用 LangChain 的 <code>AgentExecutor</code> + 一堆 Tool 拼出来，Demo 跑得飞快，老板很满意。上线两周后问题来了：</p>
+<ol>
+<li>审阅到第 3 条时模型突然"忘记"前面已经查过哪条法规，重复检索，token 烧得飞快；</li>
+<li>某次法规库 API 超时，整个流程直接抛出 <code>MaxIterationsExceeded</code>，前面 20 分钟的解析全白干；</li>
+<li>我们想让"抽取 Agent"和"评级 Agent"并行跑，发现 <code>AgentExecutor</code> 的 ReAct 循环是<strong>串行文本驱动</strong>的，根本插不进去。</li>
+</ol>
+<p>痛定思痛，我把四个框架的源码翻了一遍，最后用 LangGraph 重写，问题 2、3 迎刃而解。那次之后我形成一个观点：<strong>选 Agent 框架，别看它有多少 Star、多少 Tool 集成，要看它的"执行模型"——也就是"控制流由谁来编排"</strong>。这个差异，比任何 API 表面差异都致命。</p>
+<p>这篇文章就从这个角度切入，带你从源码层面看清四个框架的分水岭。</p>
+<hr>
+<h2 id="核心概念-控制流到底归谁管"><a href="#核心概念-控制流到底归谁管" class="headerlink" title="核心概念：控制流到底归谁管？"></a>核心概念：控制流到底归谁管？</h2>
+<p>先上一个生活化类比。</p>
+<p>想象你开一家餐厅，厨房里有一群厨师（LLM + Tool）：</p>
+<ul>
+<li><strong>LangChain 的 AgentExecutor</strong>：像一个"传菜员"，他拿着顾客的原始需求，跑到后厨问大厨"下一步干啥？"，大厨说"切菜"，传菜员就去切菜窗口；切完再跑回来问"下一步？"，大厨说"下锅"…… <strong>每一步都要回到大厨那里问一次，而且传菜员脑子里只有"大厨刚说的那句话"，没有全局菜单</strong>。这就是 ReAct 循环的本质：<strong>文本驱动的单步决策</strong>。</li>
+</ul>
+<ul>
+<li><strong>LangGraph</strong>：像一张"厨房流程图"贴在墙上，每个工位（Node）负责一道工序，工序之间用箭头（Edge）连起来，还有"如果汤咸了就回锅"这种条件分支（Conditional Edge）。<strong>控制流被显式地画出来了，状态放在中央备餐台（State）上，谁都能看</strong>。</li>
+</ul>
+<ul>
+<li><strong>LlamaIndex</strong>：像一本"索引目录 + 标准菜谱"。它最擅长的是"根据关键词快速翻到对应菜谱页"（检索），然后按菜谱步骤做。它的 Workflow 是<strong>事件驱动</strong>的，比 LangGraph 更"松耦合"，适合以"数据/文档"为中心的流程。</li>
+</ul>
+<ul>
+<li><strong>CrewAI</strong>：像一个"餐厅管理团队"，有店长（Manager）、服务员（Role）、后厨（Task），店长负责分派任务、检查成果。<strong>它把"角色 + 任务 + 协作"作为一等公民</strong>，本质是"多 Agent 编排层"。</li>
+</ul>
+<ul>
+<li><strong>AutoGen</strong>：像一个"开放式厨房"，几个厨师围着一口锅，谁有想法谁说话（GroupChat），或者两两结对（Two-Agent）。<strong>它把"对话"作为协作原语</strong>，控制流是"涌现"出来的，而不是预先画好的。</li>
+</ul>
+<p>用一张表先钉住四者的执行模型差异：</p>
+<table>
+<thead>
+<tr>
+<th>框架</th>
+<th>控制流归属</th>
+<th>状态管理</th>
+<th>协作原语</th>
+<th>典型心智模型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LangChain (AgentExecutor)</td>
+<td>框架内部循环</td>
+<td>隐式（在 scratchpad 文本里）</td>
+<td>Tool 调用</td>
+<td>单 Agent + 工具</td>
+</tr><tr>
+<td>LangGraph</td>
+<td>开发者显式编排</td>
+<td>显式 State（TypedDict/Pydantic）</td>
+<td>图节点/边</td>
+<td>状态机</td>
+</tr><tr>
+<td>LlamaIndex (Workflow)</td>
+<td>事件触发</td>
+<td>Context（可持久化）</td>
+<td>Event</td>
+<td>事件驱动流水线</td>
+</tr><tr>
+<td>CrewAI</td>
+<td>Manager/流程</td>
+<td>Task 上下文</td>
+<td>Role + Task</td>
+<td>组织架构</td>
+</tr><tr>
+<td>AutoGen</td>
+<td>对话协议</td>
+<td>消息历史</td>
+<td>消息/GroupChat</td>
+<td>多智能体对话</td>
+</tr></tbody></table>
+<p>下面进入源码深水区。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="1-LangChain-AgentExecutor-为什么它天生-健忘-且-难并行"><a href="#1-LangChain-AgentExecutor-为什么它天生-健忘-且-难并行" class="headerlink" title="1. LangChain <code>AgentExecutor</code>：为什么它天生"健忘"且"难并行""></a>1. LangChain <code>AgentExecutor</code>：为什么它天生"健忘"且"难并行"</h3>
+<p>我们直接看 <code>langchain</code> 包里 <code>AgentExecutor</code> 的核心循环（简化自 <code>libs/langchain/langchain/agents/agent.py</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化版 AgentExecutor._call 核心逻辑
+async def _call(self, inputs, run_manager=None):
+    # 1. 初始化中间步骤记录（scratchpad）
+    intermediate_steps = []
+    # 2. 进入 ReAct 循环，最多 max_iterations 次
+    for i in range(self.max_iterations):
+        # 2.1 用 agent 的 plan 方法决定下一步动作
+        #     注意：这里把 intermediate_steps 序列化成文本喂给 LLM
+        action = await self._agent.plan(
+            intermediate_steps, callbacks, **inputs
+        )
+        # 2.2 如果 agent 认为可以结束了，就返回
+        if isinstance(action, AgentFinish):
+            return action.return_values
+        # 2.3 否则执行工具，把结果 append 回 intermediate_steps
+        observation = await self._tool_run(action, ...)
+        intermediate_steps.append((action, observation))
+    raise MaxIterationsExceeded(...)  # 循环耗尽直接抛异常</code></pre></figure>
+<p>关键点有三个，全是从这段代码里能读出来的：</p>
+<p><strong>第一，"状态"其实就是 <code>intermediate_steps</code> 这个 list。</strong> 而它被 <code>_agent.plan</code> 序列化成一段文本（<code>Thought/Action/Observation</code> 的格式）塞进 prompt。这意味着：所谓"记忆"，本质是<strong>把历史对话拼成字符串</strong>。上下文窗口一满，早期的 Observation 就被截断——这就是我遇到的"忘记查过哪条法规"的根因。它不是 bug，是<strong>设计使然</strong>。</p>
+<p><strong>第二，循环是串行且"黑盒"的。</strong> <code>for i in range(max_iterations)</code> 里每一步都强依赖上一步的 <code>observation</code>。你想让"抽取"和"检索"并行？在这个循环里没有位置。<code>max_iterations</code> 耗尽直接抛异常，中间产物不落盘，这就是我"20 分钟白干"的原因。</p>
+<p><strong>第三，<code>plan</code> 的决策权完全在 LLM 手里。</strong> 框架不知道"下一步该干什么"，它只知道"问 LLM"。这种<strong>文本驱动</strong>的架构优点是灵活（LLM 想怎么走怎么走），缺点是<strong>不可预测、不可测试、不可恢复</strong>。</p>
+<blockquote>
+<p>一句话总结：<code>AgentExecutor</code> 是一个"while 循环 + LLM 做 if-else"的朴素实现。它能跑通 Demo，但撑不起生产级的可观测性和可恢复性。</p>
+</blockquote>
+<h3 id="2-LangGraph-把-隐式循环-变成-显式状态机"><a href="#2-LangGraph-把-隐式循环-变成-显式状态机" class="headerlink" title="2. LangGraph：把"隐式循环"变成"显式状态机""></a>2. LangGraph：把"隐式循环"变成"显式状态机"</h3>
+<p>LangGraph 的核心抽象就三个：<code>StateGraph</code>、<code>Node</code>、<code>Edge</code>。看它的编译和执行逻辑（简化自 <code>langgraph/graph/state.py</code> 和 <code>pregel</code> 执行器）：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化版 StateGraph 定义与编译
+class StateGraph:
+    def __init__(self, state_schema):
+        self.schema = state_schema      # 状态结构，如 TypedDict
+        self.nodes = {}                 # 节点：name -&gt; callable
+        self.edges = []                 # 普通边
+        self.conditional_edges = {}     # 条件边
+
+    def add_node(self, name, action):
+        self.nodes[name] = action
+
+    def add_edge(self, start, end):
+        self.edges.append((start, end))
+
+    def add_conditional_edges(self, source, path_fn, mapping):
+        # path_fn(state) 返回一个 key，mapping[key] 决定下一个节点
+        self.conditional_edges[source] = (path_fn, mapping)
+
+    def compile(self):
+        # 编译成 Pregel 执行器（超步/BSP 模型）
+        return PregelExecutor(self.nodes, self.edges, self.conditional_edges, self.schema)</code></pre></figure>
+<p>执行器用的是 <strong>Pregel/BSP（Bulk Synchronous Parallel）模型</strong>：每一"超步"里，所有活跃节点并行执行，产出对 State 的<strong>增量更新</strong>，然后用 <strong>reducer</strong> 合并。这是它和 <code>AgentExecutor</code> 最本质的区别——<strong>状态是显式的、可合并的、可持久化的</strong>。</p>
+<figure class="highlight python"><pre><code class="language-python"># 状态合并的 reducer 语义（示意）
+from typing import Annotated
+from operator import add
+
+class ReviewState(TypedDict):
+    clauses: list[str]
+    # Annotated + reducer：每次节点返回的新 list 会与旧值 add 合并
+    findings: Annotated[list[dict], add]
+    # 不带 reducer 的字段：默认&quot;后写覆盖&quot;
+    report: str</code></pre></figure>
+<p>这个 reducer 机制是精髓。你在一个超步里并行跑"抽取条款""检索法规""风控校验"三个节点，它们各自只返回自己那部分增量，执行器负责合并。<strong>并发天然被支持，因为节点之间通过 State 解耦，而不是通过 observation 文本串行传递</strong>。</p>
+<p>再看它的 <strong>checkpointer</strong>（<code>langgraph/checkpoint/</code>）：每个超步结束，State 被序列化落盘（SQLite/Postgres/内存）。这意味着流程可以<strong>断点续跑</strong>——我那个"API 超时"的痛点，在 LangGraph 里只需在失败节点加重试策略，或从上一个 checkpoint 恢复，前面的解析结果都还在。这就是"显式状态"带来的工程红利。</p>
+<p>用图直观对比两种执行模型：</p>
+<div class="mermaid">
+graph TD
+    subgraph LangChain_AgentExecutor["LangChain AgentExecutor（隐式串行循环）"]
+        A1[用户输入] --> A2[LLM 决策 plan]
+        A2 --> A3{是 Finish?}
+        A3 -->|否| A4[执行单个 Tool]
+        A4 -->|observation 拼回文本| A2
+        A3 -->|是| A5[返回结果]
+        A6[max_iterations 耗尽 → 抛异常] -.-> A2
+    end
+
+    subgraph LangGraph_Pregel["LangGraph Pregel（显式并行状态机）"]
+        B1[START] --> B2[Superstep 1: 并行节点 A/B/C]
+        B2 --> B3[Reducer 合并 State]
+        B3 --> B4{条件边 path_fn}
+        B4 -->|retry| B2
+        B4 -->|done| B5[END]
+        B3 -.checkpoint 落盘.-> B6[(Checkpointer)]
+        B6 -.断点恢复.-> B2
+    end
+</div>
+<h3 id="3-LlamaIndex-Workflow-事件驱动的-松耦合流水线"><a href="#3-LlamaIndex-Workflow-事件驱动的-松耦合流水线" class="headerlink" title="3. LlamaIndex Workflow：事件驱动的"松耦合流水线""></a>3. LlamaIndex Workflow：事件驱动的"松耦合流水线"</h3>
+<p>LlamaIndex 早期以 RAG 闻名，但它的 <code>Workflow</code>（<code>llama_index/core/workflow/</code>）是一个被低估的编排引擎。核心是 <code>@step</code> 装饰器 + <code>Event</code>：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化自 llama_index/core/workflow/workflow.py
+class Workflow:
+    def __init__(self):
+        self._steps = {}        # event_type -&gt; [step_fn]
+        self._queues = {}       # 每个 step 的输入队列
+
+    def _get_steps(self, event):
+        # 根据 Event 类型分发到对应的 step
+        return self._steps.get(type(event), [])
+
+    async def run(self, ctx=None):
+        # 事件循环：从队列取 Event，分发给 step，step 产出新 Event 入队
+        while not self._done():
+            event = await self._queue.get()
+            for step in self._get_steps(event):
+                new_events = await step(event)   # step 返回 Event 或 list[Event]
+                for e in new_events:
+                    await self._queue.put(e)</code></pre></figure>
+<p>和 LangGraph 的差异在于：LangGraph 的边是<strong>显式画出来的</strong>（<code>add_edge</code>），而 LlamaIndex 的 step 之间是<strong>通过 Event 类型隐式连接</strong>的——<code>step A</code> 产出 <code>EventX</code>，<code>step B</code> 声明 <code>accept EventX</code>，两者就自动接上了。这是<strong>发布/订阅</strong>模型。</p>
+<p>优点：解耦彻底，加一个 step 不用改图；step 可以并发（多个 step 订阅同一 Event）。缺点：<strong>控制流不直观</strong>，调试时你得"顺着 Event 类型"去追，图不在你脑子里。所以它更适合<strong>以数据处理为中心</strong>的流水线（文档解析 → 分块 → 嵌入 → 检索 → 生成），而不是复杂的多轮决策。</p>
+<h3 id="4-CrewAI-与-AutoGen-多-Agent-协作的两种哲学"><a href="#4-CrewAI-与-AutoGen-多-Agent-协作的两种哲学" class="headerlink" title="4. CrewAI 与 AutoGen：多 Agent 协作的两种哲学"></a>4. CrewAI 与 AutoGen：多 Agent 协作的两种哲学</h3>
+<p><strong>CrewAI</strong>（<code>crewai/crew.py</code>）的核心是 <code>Crew</code> + <code>Agent</code> + <code>Task</code>。它有两种 Process：<code>sequential</code>（按 Task 顺序）和 <code>hierarchical</code>（有个 Manager Agent 分派）。看它的 <code>sequential</code> 执行：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化自 crewai/crew.py 的 _run_sequential_process
+def _run_sequential_process(self):
+    for task in self.tasks:
+        # 每个 task 绑定一个 agent，agent 执行 task
+        output = task.execute_sync(agent=task.agent, context=...)
+        # 上一个 task 的输出作为下一个 task 的 context
+        self._task_outputs.append(output)</code></pre></figure>
+<p>它的价值在<strong>抽象层次高</strong>：你写的是"角色、目标、任务"，而不是"节点、边"。对业务同学友好。但代价是<strong>控制流灵活性受限</strong>——你要做复杂分支、循环、并行，就得下沉到它的底层或换框架。它本质是"<strong>在 LangChain 等底座上加了一层组织编排 DSL</strong>"。</p>
+<p><strong>AutoGen</strong>（<code>autogen/agentchat/</code>）的核心是 <code>ConversableAgent</code> + <code>GroupChat</code>。它的协作原语是<strong>消息</strong>：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化自 autogen 的 GroupChat 发言选择逻辑
+class GroupChat:
+    def select_speaker(self, last_speaker, selector):
+        # 由 selector（可以是 LLM，也可以是规则）决定下一个发言者
+        return selector.select(self.agents, self.messages)
+
+    async def run_chat(self):
+        while not self._is_termination_msg(self.messages[-1]):
+            speaker = self.select_speaker(...)
+            reply = await speaker.generate_reply(self.messages)
+            self.messages.append(reply)</code></pre></figure>
+<p>它的控制流是<strong>涌现式</strong>的：谁发言由 selector 决定（可以是 LLM 投票、可以是轮询、可以是自定义规则）。优点是极其灵活，能模拟"头脑风暴""辩论""结对编程"；缺点是<strong>不可预测、容易跑飞、成本不可控</strong>（多 Agent 互相聊，token 爆炸）。生产上必须配 <code>max_round</code> 和严格的终止条件。</p>
+<hr>
+<h2 id="实战代码-三个完整可运行示例"><a href="#实战代码-三个完整可运行示例" class="headerlink" title="实战代码：三个完整可运行示例"></a>实战代码：三个完整可运行示例</h2>
+<blockquote>
+<p>依赖：<code>pip install langgraph langchain-openai llama-index-core crewai</code>，并设置 <code>OPENAI_API_KEY</code>。以下代码均为可运行的最小完整示例。</p>
+</blockquote>
+<h3 id="示例-1-LangGraph-实现-可恢复-并行-的合同审阅"><a href="#示例-1-LangGraph-实现-可恢复-并行-的合同审阅" class="headerlink" title="示例 1：LangGraph 实现"可恢复 + 并行"的合同审阅"></a>示例 1：LangGraph 实现"可恢复 + 并行"的合同审阅</h3>
+<p>这是我把引言里那个坑填上的方案。核心：State 显式化、并行节点、checkpointer 断点续跑。</p>
+<figure class="highlight python"><pre><code class="language-python"># contract_review_graph.py
+import operator
+from typing import Annotated, TypedDict
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(model=&quot;gpt-4o-mini&quot;, temperature=0)
+
+# ---------- 1. 显式定义状态，用 reducer 支持并行合并 ----------
+class ReviewState(TypedDict):
+    contract_text: str
+    # 三个并行节点各自追加 findings，用 add 合并
+    findings: Annotated[list[dict], operator.add]
+    retry_count: int
+    report: str
+
+# ---------- 2. 定义节点（每个节点只做一件事） ----------
+def extract_clauses(state: ReviewState) -&gt; dict:
+    &quot;&quot;&quot;抽取条款：真实场景可换成 LLM 结构化抽取&quot;&quot;&quot;
+    clauses = [c.strip() for c in state[&quot;contract_text&quot;].split(&quot;；&quot;) if c.strip()]
+    return {&quot;findings&quot;: [{&quot;type&quot;: &quot;clause&quot;, &quot;value&quot;: c} for c in clauses]}
+
+def check_regulation(state: ReviewState) -&gt; dict:
+    &quot;&quot;&quot;法规检索：这里 mock，真实场景接向量库&quot;&quot;&quot;
+    # 模拟一次可能失败的检索
+    if state.get(&quot;retry_count&quot;, 0) &lt; 1 and &quot;违约&quot; in state[&quot;contract_text&quot;]:
+        # 故意制造一次失败，演示条件边重试
+        raise RuntimeError(&quot;法规库超时&quot;)
+    return {&quot;findings&quot;: [{&quot;type&quot;: &quot;regulation&quot;, &quot;value&quot;: &quot;民法典第577条&quot;}]}
+
+def risk_rating(state: ReviewState) -&gt; dict:
+    &quot;&quot;&quot;风险评级：汇总 findings 交给 LLM&quot;&quot;&quot;
+    prompt = f&quot;根据以下发现给出风险评级：{state[&#x27;findings&#x27;]}&quot;
+    rating = llm.invoke(prompt).content
+    return {&quot;findings&quot;: [{&quot;type&quot;: &quot;risk&quot;, &quot;value&quot;: rating}]}
+
+def generate_report(state: ReviewState) -&gt; dict:
+    return {&quot;report&quot;: f&quot;审阅完成，共 {len(state[&#x27;findings&#x27;])} 条发现。&quot;}
+
+# ---------- 3. 构建图 ----------
+builder = StateGraph(ReviewState)
+builder.add_node(&quot;extract&quot;, extract_clauses)
+builder.add_node(&quot;regulation&quot;, check_regulation)
+builder.add_node(&quot;risk&quot;, risk_rating)
+builder.add_node(&quot;report&quot;, generate_report)
+
+# 并行：START 同时扇出到三个节点
+builder.add_edge(START, &quot;extract&quot;)
+builder.add_edge(START, &quot;regulation&quot;)
+builder.add_edge(START, &quot;risk&quot;)
+# 三个节点都完成后汇聚到 report（LangGraph 会等全部入边就绪）
+builder.add_edge([&quot;extract&quot;, &quot;regulation&quot;, &quot;risk&quot;], &quot;report&quot;)
+builder.add_edge(&quot;report&quot;, END)
+
+# ---------- 4. 编译时挂 checkpointer，支持断点恢复 ----------
+graph = builder.compile(checkpointer=MemorySaver())
+
+# ---------- 5. 运行 ----------
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;contract-001&quot;}}
+text = &quot;甲方应于30日内付款；乙方违约需支付违约金；合同有效期一年&quot;
+try:
+    result = graph.invoke({&quot;contract_text&quot;: text, &quot;findings&quot;: [], &quot;retry_count&quot;: 0}, config)
+    print(result[&quot;report&quot;])
+except RuntimeError as e:
+    # 法规库失败：从 checkpoint 恢复，递增 retry_count 后重跑
+    print(f&quot;节点失败：{e}，准备从 checkpoint 恢复&quot;)
+    snapshot = graph.get_state(config)      # 拿到失败前的状态
+    print(&quot;已恢复状态：&quot;, snapshot.values)
+    result = graph.invoke(
+        {&quot;contract_text&quot;: text, &quot;findings&quot;: [], &quot;retry_count&quot;: 1}, config
+    )
+    print(result[&quot;report&quot;])</code></pre></figure>
+<p><strong>要点</strong>：<code>Annotated[..., operator.add]</code> 让三个并行节点的 <code>findings</code> 自动合并，无需手工协调；<code>checkpointer</code> 让失败后可 <code>get_state</code> 恢复。这就是"显式状态"的工程价值。</p>
+<h3 id="示例-2-LlamaIndex-Workflow-做-事件驱动-的文档处理流水线"><a href="#示例-2-LlamaIndex-Workflow-做-事件驱动-的文档处理流水线" class="headerlink" title="示例 2：LlamaIndex Workflow 做"事件驱动"的文档处理流水线"></a>示例 2：LlamaIndex Workflow 做"事件驱动"的文档处理流水线</h3>
+<p>适合"解析 → 分块 → 嵌入 → 入库"这类松耦合数据处理。</p>
+<figure class="highlight python"><pre><code class="language-python"># doc_pipeline_workflow.py
+from llama_index.core.workflow import (
+    Workflow, step, Event, StartEvent, StopEvent, Context
+)
+
+# ---------- 定义事件类型（这就是 step 之间的&quot;接线端子&quot;） ----------
+class ParsedEvent(Event):
+    text: str
+
+class ChunkedEvent(Event):
+    chunks: list[str]
+
+class EmbeddedEvent(Event):
+    vectors: list[list[float]]
+
+class DocPipeline(Workflow):
+    @step
+    async def parse(self, ctx: Context, ev: StartEvent) -&gt; ParsedEvent:
+        # 真实场景：PDF 解析
+        raw = ev.get(&quot;raw_text&quot;, &quot;&quot;)
+        return ParsedEvent(text=raw)
+
+    @step
+    async def chunk(self, ctx: Context, ev: ParsedEvent) -&gt; ChunkedEvent:
+        # 按固定长度切块
+        size = 200
+        chunks = [ev.text[i:i+size] for i in range(0, len(ev.text), size)]
+        return ChunkedEvent(chunks=chunks)
+
+    @step
+    async def embed(self, ctx: Context, ev: ChunkedEvent) -&gt; EmbeddedEvent:
+        # 真实场景：调用 embedding 模型；这里 mock
+        vectors = [[float(len(c))] for c in ev.chunks]
+        return EmbeddedEvent(vectors=vectors)
+
+    @step
+    async def store(self, ctx: Context, ev: EmbeddedEvent) -&gt; StopEvent:
+        # 真实场景：写入向量库
+        return StopEvent(result={&quot;stored&quot;: len(ev.vectors)})
+
+# ---------- 运行 ----------
+import asyncio
+async def main():
+    wf = DocPipeline(timeout=30)
+    result = await wf.run(raw_text=&quot;这是一段很长的合同文本。&quot; * 50)
+    print(result)   # {&#x27;stored&#x27;: N}
+
+asyncio.run(main())</code></pre></figure>
+<p><strong>要点</strong>：step 之间靠 Event 类型自动接续，加一个 step 只需定义新 Event 并 <code>@step</code>，<strong>不用改已有代码</strong>。这是发布/订阅的威力，但也意味着你必须"顺着 Event 追控制流"。</p>
+<h3 id="示例-3-CrewAI-多-Agent-协作-AutoGen-对话式协作对照"><a href="#示例-3-CrewAI-多-Agent-协作-AutoGen-对话式协作对照" class="headerlink" title="示例 3：CrewAI 多 Agent 协作 + AutoGen 对话式协作对照"></a>示例 3：CrewAI 多 Agent 协作 + AutoGen 对话式协作对照</h3>
+<p>先看 CrewAI（角色/任务 DSL）：</p>
+<figure class="highlight python"><pre><code class="language-python"># crew_review.py
+from crewai import Agent, Task, Crew, Process
+
+# ---------- 定义角色 ----------
+extractor = Agent(
+    role=&quot;条款抽取专家&quot;,
+    goal=&quot;从合同中抽取所有关键条款&quot;,
+    backstory=&quot;你是一名资深法务，擅长快速定位合同风险点&quot;,
+    verbose=True,
+)
+rater = Agent(
+    role=&quot;风险评估专家&quot;,
+    goal=&quot;对抽取的条款做风险评级&quot;,
+    backstory=&quot;你熟悉民法典，能给出专业风险判断&quot;,
+    verbose=True,
+)
+
+# ---------- 定义任务，注意 context 传递 ----------
+task1 = Task(
+    description=&quot;抽取合同中的付款、违约、有效期条款&quot;,
+    expected_output=&quot;条款列表&quot;,
+    agent=extractor,
+)
+task2 = Task(
+    description=&quot;对以下条款做风险评级：{task1_output}&quot;,
+    expected_output=&quot;风险评级报告&quot;,
+    agent=rater,
+    context=[task1],          # 显式声明依赖，task1 输出注入 task2
+)
+
+# ---------- 顺序执行 ----------
+crew = Crew(
+    agents=[extractor, rater],
+    tasks=[task1, task2],
+    process=Process.sequential,   # 也可 Process.hierarchical 加 Manager
+)
+result = crew.kickoff(inputs={&quot;contract&quot;: &quot;...&quot;})
+print(result)</code></pre></figure>
+<p>再看 AutoGen（对话式协作，同一问题的另一种解法）：</p>
+<figure class="highlight python"><pre><code class="language-python"># autogen_review.py
+from autogen import ConversableAgent, GroupChat, GroupChatManager
+
+llm_config = {&quot;model&quot;: &quot;gpt-4o-mini&quot;, &quot;api_key&quot;: &quot;...&quot;}
+
+extractor = ConversableAgent(
+    name=&quot;Extractor&quot;,
+    system_message=&quot;你负责抽取合同条款，完成后说 TERMINATE。&quot;,
+    llm_config=llm_config,
+    is_termination_msg=lambda m: &quot;TERMINATE&quot; in (m.get(&quot;content&quot;) or &quot;&quot;),
+)
+rater = ConversableAgent(
+    name=&quot;Rater&quot;,
+    system_message=&quot;你负责对条款做风险评级，完成后说 TERMINATE。&quot;,
+    llm_config=llm_config,
+    is_termination_msg=lambda m: &quot;TERMINATE&quot; in (m.get(&quot;content&quot;) or &quot;&quot;),
+)
+
+# GroupChat：谁发言由 selector 决定（默认 LLM 自动选择）
+groupchat = GroupChat(agents=[extractor, rater], messages=[], max_round=6)
+manager = GroupChatManager(groupchat=groupchat, llm_config=llm_config)
+
+# 启动对话
+extractor.initiate_chat(manager, message=&quot;请审阅这份合同：...&quot;)</code></pre></figure>
+<p><strong>对照</strong>：CrewAI 用 <code>context=[task1]</code> <strong>显式</strong>声明依赖，控制流可预测；AutoGen 靠 <code>GroupChat</code> + <code>max_round</code> <strong>隐式</strong>协商，灵活但容易跑飞。生产上我通常给 AutoGen 配严格的 <code>is_termination_msg</code> 和 <code>max_round</code>。</p>
+<hr>
+<h2 id="方案对比-一张决策表"><a href="#方案对比-一张决策表" class="headerlink" title="方案对比：一张决策表"></a>方案对比：一张决策表</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>LangChain AgentExecutor</th>
+<th>LangGraph</th>
+<th>LlamaIndex Workflow</th>
+<th>CrewAI</th>
+<th>AutoGen</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>控制流</td>
+<td>LLM 文本驱动</td>
+<td>显式图/状态机</td>
+<td>事件驱动</td>
+<td>Task 顺序/Manager</td>
+<td>对话涌现</td>
+</tr><tr>
+<td>状态可持久化</td>
+<td>❌（文本 scratchpad）</td>
+<td>✅ Checkpointer</td>
+<td>✅ Context</td>
+<td>部分</td>
+<td>消息历史</td>
+</tr><tr>
+<td>并行能力</td>
+<td>❌</td>
+<td>✅ 超步并行</td>
+<td>✅ Event 并发</td>
+<td>有限</td>
+<td>有限</td>
+</tr><tr>
+<td>可测试性</td>
+<td>差</td>
+<td>好（节点单测）</td>
+<td>好（step 单测）</td>
+<td>中</td>
+<td>差</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>低</td>
+<td>中高</td>
+<td>中</td>
+<td>低</td>
+<td>中</td>
+</tr><tr>
+<td>适合场景</td>
+<td>Demo/单 Agent</td>
+<td>复杂有状态流程</td>
+<td>数据/RAG 流水线</td>
+<td>角色化多 Agent</td>
+<td>开放式多 Agent 讨论</td>
+</tr><tr>
+<td>生产可用性</td>
+<td>低</td>
+<td>高</td>
+<td>高</td>
+<td>中高</td>
+<td>中（需强约束）</td>
+</tr></tbody></table>
+<p><strong>选型建议</strong>（我的经验法则）：</p>
+<ul>
+<li>流程有<strong>明确分支、循环、需要断点续跑</strong> → LangGraph；</li>
+</ul>
+<ul>
+<li>流程是<strong>文档/数据流水线</strong>、要频繁加处理环节 → LlamaIndex Workflow；</li>
+</ul>
+<ul>
+<li>业务方参与设计、强调<strong>角色分工</strong>、流程相对线性 → CrewAI；</li>
+</ul>
+<ul>
+<li>需要<strong>开放式多 Agent 讨论/辩论/结对</strong>、能接受一定不确定性 → AutoGen；</li>
+</ul>
+<ul>
+<li>只是做个<strong>单 Agent 调几个 Tool 的 Demo</strong> → LangChain AgentExecutor 够用，但别上生产。</li>
+</ul>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<ol>
+<li><strong>状态别塞进 prompt。</strong> <code>AgentExecutor</code> 的 <code>intermediate_steps</code> 序列化是反模式。用 LangGraph 的显式 State，或至少自己维护结构化记忆，别指望 LLM 记住 20 轮前的 Observation。</li>
+</ol>
+<ol>
+<li><strong>给每个 Agent 设"预算"。</strong> AutoGen 的 <code>max_round</code>、LangGraph 的 <code>recursion_limit</code>、CrewAI 的 <code>max_iter</code>，不设就是给账单开盲盒。我见过 AutoGen 两个 Agent 互相客套聊了 40 轮烧掉 3 美元的。</li>
+</ol>
+<ol>
+<li><strong>节点/step 要幂等。</strong> 断点恢复意味着节点可能被重跑，写库、发消息这类副作用必须幂等（用 upsert 而非 insert，用幂等 key）。</li>
+</ol>
+<ol>
+<li><strong>并行节点别共享可变对象。</strong> LangGraph 的 reducer 只合并"返回值增量"，如果你在节点里 <code>state["findings"].append(...)</code> 原地改，会踩并发坑。<strong>永远返回新对象</strong>。</li>
+</ol>
+<ol>
+<li><strong>可观测性从第一天就上。</strong> 用 LangSmith / Langfuse 之类追踪每个节点的输入输出。多 Agent 系统出问题时，"谁在哪一步说了什么"是唯一救命稻草。</li>
+</ol>
+<ol>
+<li><strong>别为了"多 Agent"而多 Agent。</strong> 很多需求单 Agent + 好工具就能解决。多 Agent 的通信开销和不确定性是指数级的，CrewAI/AutoGen 不是银弹。</li>
+</ol>
+<ol>
+<li><strong>MCP 作为工具层解耦。</strong> 2025 年后 MCP（Model Context Protocol）逐渐成为工具接入的事实标准。把 Tool 实现成 MCP Server，四个框架都能接，避免工具层和编排层绑死——这是我今年最推荐的架构习惯。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个坑。四个框架的分水岭，不在 API 多花哨，而在<strong>"控制流归谁管"</strong>：</p>
+<ul>
+<li><code>AgentExecutor</code> 把控制流交给 LLM 的文本决策，简单但不可控、不可恢复；</li>
+</ul>
+<ul>
+<li>LangGraph 把控制流<strong>显式画成状态机</strong>，用 reducer 支持并行、用 checkpointer 支持恢复，是复杂生产流程的首选；</li>
+</ul>
+<ul>
+<li>LlamaIndex Workflow 用<strong>事件</strong>解耦，适合数据流水线；</li>
+</ul>
+<ul>
+<li>CrewAI 和 AutoGen 把协作抽象成<strong>角色/任务</strong>和<strong>对话</strong>，前者可预测、后者更灵活，都需强约束才能上生产。</li>
+</ul>
+<p>一个延伸思考：这四种执行模型其实对应了分布式系统里四种经典范式——<strong>命令式循环、状态机、发布订阅、Actor 对话</strong>。理解了这层映射，你换任何新框架都能快速定位它的"性格"。下次再有人问你"选哪个 Agent 框架"，你可以反问他一句：<strong>"你的控制流，是想画出来，还是想聊出来？"</strong></p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
