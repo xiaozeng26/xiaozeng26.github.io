@@ -622,6 +622,13 @@
       "subtopic": "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen",
       "date": "2026-11-13",
       "url": "/2026/11/14/别再只盯着 LangChain 了：从执行模型源码看 LangChain-LangGraph、LlamaIndex、CrewAI、AutoGen 的真实分水岭/"
+    },
+    {
+      "title": "从队头阻塞到 QUIC 握手：一次抓包看懂 HTTP/1.1、HTTP/2、HTTP/3 的二十年攻防",
+      "category": "network",
+      "subtopic": "HTTP 协议演进：HTTP/1.1、HTTP/2 到 HTTP/3",
+      "date": "2026-11-14",
+      "url": "/2026/11/15/从队头阻塞到 QUIC 握手：一次抓包看懂 HTTP-1.1、HTTP-2、HTTP-3 的二十年攻防/"
     }
   ],
   "used_subtopics": {
@@ -773,6 +780,7 @@
     "LangGraph多Agent协作模式：Supervisor与Swarm架构": "a035cc59cd0953f91afbd0fe41cd487f95a456e1c505581fde1f48a1289a9240",
     "Django ORM查询优化与N+1问题解决": "3024085962aae852ebff994865d9544fe399b5156d3ebfb91175ffff4868b506",
     "Flink 流式计算：状态管理与 Exactly-Once 语义": "4679f639094284ae8b6896ebc3406467213ae4639ce540c61fecfc8eeac88239",
-    "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen": "727499da5d54c2d9f678b1df79424d9b4afcb1a8ac36681766ca1ee82384c1af"
+    "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen": "727499da5d54c2d9f678b1df79424d9b4afcb1a8ac36681766ca1ee82384c1af",
+    "HTTP 协议演进：HTTP/1.1、HTTP/2 到 HTTP/3": "36f1f35152eee9788e9a225e1bf55648d22b24a2e2afcd38b5f18ba87762b783"
   }
 }
