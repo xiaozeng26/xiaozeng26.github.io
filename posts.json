@@ -1,5 +1,25 @@
 [
  {
+  "title": "当 ARIMA 遇上 Transformer：一份架构师的时间序列预测选型与落地手记",
+  "url": "/2026/11/16/%E5%BD%93%20ARIMA%20%E9%81%87%E4%B8%8A%20Transformer%EF%BC%9A%E4%B8%80%E4%BB%BD%E6%9E%B6%E6%9E%84%E5%B8%88%E7%9A%84%E6%97%B6%E9%97%B4%E5%BA%8F%E5%88%97%E9%A2%84%E6%B5%8B%E9%80%89%E5%9E%8B%E4%B8%8E%E8%90%BD%E5%9C%B0%E6%89%8B%E8%AE%B0/",
+  "date": "2026-11-16",
+  "year": 2026,
+  "month": 11,
+  "day": 16,
+  "category": "ai-ml",
+  "tags": [
+   "ai",
+   "machine-learning",
+   "deep-learning",
+   "llm",
+   "langchain",
+   "langgraph",
+   "rag"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2459",
+  "excerpt": "引言 去年我接手一个工业物联网平台的重构。平台接入了 3000 多台注塑机，每台机器每 5 秒上报一次模温、压力、保压时间等 12 个传感器指标。业务方的需求很朴素：\\"
+ },
+ {
   "title": "从队头阻塞到 QUIC 握手：一次抓包看懂 HTTP/1.1、HTTP/2、HTTP/3 的二十年攻防",
   "url": "/2026/11/15/%E4%BB%8E%E9%98%9F%E5%A4%B4%E9%98%BB%E5%A1%9E%E5%88%B0%20QUIC%20%E6%8F%A1%E6%89%8B%EF%BC%9A%E4%B8%80%E6%AC%A1%E6%8A%93%E5%8C%85%E7%9C%8B%E6%87%82%20HTTP-1.1%E3%80%81HTTP-2%E3%80%81HTTP-3%20%E7%9A%84%E4%BA%8C%E5%8D%81%E5%B9%B4%E6%94%BB%E9%98%B2/",
   "date": "2026-11-15",
