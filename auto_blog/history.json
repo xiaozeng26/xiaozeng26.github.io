@@ -643,6 +643,13 @@
       "subtopic": "容器镜像优化：多阶段构建与最小化镜像",
       "date": "2026-11-16",
       "url": "/2026/11/17/别再用单阶段构建了：从 1.2GB 到 8MB，多阶段构建如何把镜像“榨干”/"
+    },
+    {
+      "title": "拆掉 GIL 这堵墙之后：Python 3.13 自由线程在 FastAPI 与 Django 里的真实取舍",
+      "category": "python",
+      "subtopic": "Python 3.13 自由线程与无 GIL 时代的多线程实践",
+      "date": "2026-11-17",
+      "url": "/2026/11/18/拆掉 GIL 这堵墙之后：Python 3.13 自由线程在 FastAPI 与 Django 里的真实取舍/"
     }
   ],
   "used_subtopics": {
@@ -797,6 +804,7 @@
     "AI Agent 框架对比：LangChain、LlamaIndex、CrewAI、AutoGen": "727499da5d54c2d9f678b1df79424d9b4afcb1a8ac36681766ca1ee82384c1af",
     "HTTP 协议演进：HTTP/1.1、HTTP/2 到 HTTP/3": "36f1f35152eee9788e9a225e1bf55648d22b24a2e2afcd38b5f18ba87762b783",
     "时间序列预测：从 ARIMA 到深度学习模型": "e8fd6e4b95ee0eb05fcc4721dd6bdbed4e5078378c4fccbe618920c014bd5791",
-    "容器镜像优化：多阶段构建与最小化镜像": "8183bfe13351921306bf082a25d87eeda198f8d0ead09f344f53b6e52f051ca5"
+    "容器镜像优化：多阶段构建与最小化镜像": "8183bfe13351921306bf082a25d87eeda198f8d0ead09f344f53b6e52f051ca5",
+    "Python 3.13 自由线程与无 GIL 时代的多线程实践": "527a7e9c30b7b6bf5ede618ec22cfa18de58a3088e952f8217a6ecb6333b1f1c"
   }
 }
