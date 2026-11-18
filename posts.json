@@ -1,5 +1,24 @@
 [
  {
+  "title": "别让前端监控变成“数据坟场”：从错误采集到行为回放的架构级拆解",
+  "url": "/2026/11/19/%E5%88%AB%E8%AE%A9%E5%89%8D%E7%AB%AF%E7%9B%91%E6%8E%A7%E5%8F%98%E6%88%90%E2%80%9C%E6%95%B0%E6%8D%AE%E5%9D%9F%E5%9C%BA%E2%80%9D%EF%BC%9A%E4%BB%8E%E9%94%99%E8%AF%AF%E9%87%87%E9%9B%86%E5%88%B0%E8%A1%8C%E4%B8%BA%E5%9B%9E%E6%94%BE%E7%9A%84%E6%9E%B6%E6%9E%84%E7%BA%A7%E6%8B%86%E8%A7%A3/",
+  "date": "2026-11-19",
+  "year": 2026,
+  "month": 11,
+  "day": 19,
+  "category": "frontend",
+  "tags": [
+   "frontend",
+   "vue",
+   "react",
+   "typescript",
+   "javascript",
+   "nodejs"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=2264",
+  "excerpt": "引言 先讲个真实场景。某电商大促前夜，运营反馈“支付页偶发白屏”，但研发本地复现不了。查日志——后端接口一切正常；查监控——只有一条 ChunkLoadError 孤零零躺着，没有用户 ID、没有路由、没有网络状态。三天后靠用户录屏才定位到：某个 lazily load 的 chunk 在 CDN 边缘节点 404，只"
+ },
+ {
   "title": "拆掉 GIL 这堵墙之后：Python 3.13 自由线程在 FastAPI 与 Django 里的真实取舍",
   "url": "/2026/11/18/%E6%8B%86%E6%8E%89%20GIL%20%E8%BF%99%E5%A0%B5%E5%A2%99%E4%B9%8B%E5%90%8E%EF%BC%9APython%203.13%20%E8%87%AA%E7%94%B1%E7%BA%BF%E7%A8%8B%E5%9C%A8%20FastAPI%20%E4%B8%8E%20Django%20%E9%87%8C%E7%9A%84%E7%9C%9F%E5%AE%9E%E5%8F%96%E8%88%8D/",
   "date": "2026-11-18",
