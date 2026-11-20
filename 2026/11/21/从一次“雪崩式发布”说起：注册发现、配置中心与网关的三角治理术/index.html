@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术 | 小曾博客</title>
+  <meta name="description" content="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术 引言 去年双十一前夜，我所在的团队经历了一次典型的“雪崩式发布”。事情很简单：配置中心推送了一个新的超时参数，网关侧生效了，但下游某个服务的配置监听器因为一次罕见的线程池拒绝策略而漏掉了这次推送。结果就是——网关以 3 秒超时调用下游，下游还在用 30 秒的旧超时值等待更底层的数据库。瞬时并发翻了三倍，数据库连接池被打满，整个链路像多">
+  <meta name="keywords" content="architecture,distributed-systems,high-availability,design-patterns,microservices">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术">
+  <meta name="twitter:description" content="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术 引言 去年双十一前夜，我所在的团队经历了一次典型的“雪崩式发布”。事情很简单：配置中心推送了一个新的超时参数，网关侧生效了，但下游某个服务的配置监听器因为一次罕见的线程池拒绝策略而漏掉了这次推送。结果就是——网关以 3 秒超时调用下游，下游还在用 30 秒的旧超时值等待更底层的数据库。瞬时并发翻了三倍，数据库连接池被打满，整个链路像多">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3994">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术 引言 去年双十一前夜，我所在的团队经历了一次典型的“雪崩式发布”。事情很简单：配置中心推送了一个新的超时参数，网关侧生效了，但下游某个服务的配置监听器因为一次罕见的线程池拒绝策略而漏掉了这次推送。结果就是——网关以 3 秒超时调用下游，下游还在用 30 秒的旧超时值等待更底层的数据库。瞬时并发翻了三倍，数据库连接池被打满，整个链路像多">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3994">
+  <meta property="article:published_time" content="2026-11-21T03:25:33.000Z">
+  <meta property="article:modified_time" content="2026-11-21T03:25:33.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#从一次-雪崩式发布-说起-注册发现-配置中心与网关的三角治理术"><span class="toc-text">从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-把服务治理想象成一家大型连锁餐厅"><span class="toc-text">核心概念：把服务治理想象成一家大型连锁餐厅</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级深度分析-三个耦合点"><span class="toc-text">源码级深度分析：三个耦合点</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#耦合点一-网关如何-看见-服务实例"><span class="toc-text">耦合点一：网关如何“看见”服务实例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#耦合点二-配置变更与路由规则的联动"><span class="toc-text">耦合点二：配置变更与路由规则的联动</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#耦合点三-健康检查语义的贯穿"><span class="toc-text">耦合点三：健康检查语义的贯穿</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的治理示例"><span class="toc-text">实战代码：三个可运行的治理示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-带-延迟注册-优雅下线-的-Nacos-服务-Spring-Boot-3"><span class="toc-text">示例一：带“延迟注册 + 优雅下线”的 Nacos 服务（Spring Boot 3）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-配置变更的原子性与校验-Nacos-监听器"><span class="toc-text">示例二：配置变更的原子性与校验（Nacos 监听器）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-网关侧自定义-注册中心感知-的负载均衡器-Go-实现-Envoy-风格"><span class="toc-text">示例三：网关侧自定义“注册中心感知”的负载均衡器（Go 实现，Envoy 风格）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-三套主流组合的取舍"><span class="toc-text">方案对比：三套主流组合的取舍</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=3994)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-21"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-21</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-21"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-21</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">architecture</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="从一次-雪崩式发布-说起-注册发现-配置中心与网关的三角治理术"><a href="#从一次-雪崩式发布-说起-注册发现-配置中心与网关的三角治理术" class="headerlink" title="从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术"></a>从一次“雪崩式发布”说起：注册发现、配置中心与网关的三角治理术</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一前夜，我所在的团队经历了一次典型的“雪崩式发布”。事情很简单：配置中心推送了一个新的超时参数，网关侧生效了，但下游某个服务的配置监听器因为一次罕见的线程池拒绝策略而漏掉了这次推送。结果就是——网关以 3 秒超时调用下游，下游还在用 30 秒的旧超时值等待更底层的数据库。瞬时并发翻了三倍，数据库连接池被打满，整个链路像多米诺骨牌一样倒下。</p>
+<p>事后复盘，问题不在于某个组件不够强，而在于<strong>注册发现、配置中心、网关这三者从来没有被当成一个整体来设计</strong>。它们各自都有成熟的开源实现，Nacos、Consul、Apollo、Spring Cloud Gateway、Envoy 随手就能拼出一套“能跑”的架构。但“能跑”和“能在故障时自愈”之间，隔着对它们协同机制的深刻理解。</p>
+<p>这篇文章不打算再罗列一遍各组件的基础用法。我想从<strong>三者之间的耦合点</strong>切入——服务实例如何被网关感知、配置变更如何与路由规则联动、健康检查的语义如何贯穿整条链路——并深入到源码级去解释这些机制为什么这样设计，以及在哪里会踩坑。</p>
+<hr>
+<h2 id="核心概念-把服务治理想象成一家大型连锁餐厅"><a href="#核心概念-把服务治理想象成一家大型连锁餐厅" class="headerlink" title="核心概念：把服务治理想象成一家大型连锁餐厅"></a>核心概念：把服务治理想象成一家大型连锁餐厅</h2>
+<p>先建立一个整体图景。假设你经营着一家拥有数百家门店的连锁餐厅：</p>
+<ul>
+<li><strong>注册发现</strong> 是门店的“实时通讯录”。每家门店开业时到总部报到（注册），定期汇报“我还在营业”（心跳）。总部的调度系统需要知道哪些门店在营业、哪些在装修，才能把外卖订单派过去。关键点在于：<strong>通讯录的准确性直接决定了订单会不会派给一家已经关门的店</strong>。</li>
+</ul>
+<ul>
+<li><strong>配置中心</strong> 是总部的“运营手册下发系统”。今天所有门店的营业时间从 22:00 调整到 23:00，总部不需要挨个打电话，而是统一推送。但每家门店的“手册接收员”必须可靠——如果他漏接了通知，这家店就会按旧时间打烊，顾客扑空。</li>
+</ul>
+<ul>
+<li><strong>网关</strong> 是“前台接待 + 总调度台”。所有外部订单先到这里，由它根据通讯录把请求分发到正确的门店，同时执行限流、鉴权、熔断等策略。</li>
+</ul>
+<p>三者协同的核心矛盾在于：<strong>通讯录（注册中心）和运营手册（配置中心）是两套独立的数据源，而网关同时依赖这两者</strong>。当它们之间出现“认知不一致”——比如网关认为某门店营业中，但该门店的配置里已经把某个依赖服务标记为降级——就会产生我们在引言中遇到的那类故障。</p>
+<p>技术上定义：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>核心职责</th>
+<th>一致性模型</th>
+<th>典型延迟</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>注册中心</td>
+<td>维护服务实例的实时拓扑</td>
+<td>AP（可用性优先）</td>
+<td>秒级感知</td>
+</tr><tr>
+<td>配置中心</td>
+<td>下发动态配置与开关</td>
+<td>最终一致</td>
+<td>秒级推送</td>
+</tr><tr>
+<td>网关</td>
+<td>流量入口、路由、策略执行</td>
+<td>依赖上述两者</td>
+<td>毫秒级决策</td>
+</tr></tbody></table>
+<p>注意一致性模型的差异：注册中心通常选 AP（Nacos 的临时实例、Eureka 都是），因为“少知道一个实例”比“整个注册中心不可用”要好得多；而配置中心往往需要更强的顺序保证（Apollo 的发布是带版本号的）。<strong>网关站在两者之上，必须容忍它们各自的不一致窗口</strong>。</p>
+<hr>
+<h2 id="源码级深度分析-三个耦合点"><a href="#源码级深度分析-三个耦合点" class="headerlink" title="源码级深度分析：三个耦合点"></a>源码级深度分析：三个耦合点</h2>
+<h3 id="耦合点一-网关如何-看见-服务实例"><a href="#耦合点一-网关如何-看见-服务实例" class="headerlink" title="耦合点一：网关如何“看见”服务实例"></a>耦合点一：网关如何“看见”服务实例</h3>
+<p>很多人以为网关是实时查询注册中心来路由的。实际上，主流网关都采用<strong>本地缓存 + 订阅推送</strong>的模型。以 Spring Cloud Gateway 配合 Nacos 为例，核心逻辑在 <code>NacosServiceInstanceListSupplier</code> 及其父类 <code>DiscoveryClientServiceInstanceListSupplier</code> 中。</p>
+<p>关键源码路径（Spring Cloud Commons）：</p>
+<figure class="highlight java"><pre><code class="language-java">// DiscoveryClientServiceInstanceListSupplier#get
+@Override
+public Flux&lt;List&lt;ServiceInstance&gt;&gt; get() {
+    // 注意：这里默认是 35 秒的缓存窗口！
+    return Flux.defer(() -&gt; {
+        if (this.cache.shouldFetch()) {
+            return getInstances();  // 真正去 DiscoveryClient 拉
+        }
+        return Flux.just(this.cache.getCachedInstances());
+    });
+}</code></pre></figure>
+<p>这里的 <code>cache</code> 是一个带 TTL 的缓存，默认 <code>cacheTtl</code> 为 35 秒（<code>spring.cloud.loadbalancer.cache.ttl</code>）。这意味着：<strong>即使 Nacos 在 1 秒内就推送了下线事件，网关的路由决策也可能在最长 35 秒内仍然把流量打到已下线实例上</strong>。</p>
+<p>那 Nacos 的推送机制呢？Nacos 客户端通过 UDP 接收服务端推送（<code>PushReceiver</code>），但 UDP 不可靠，所以还有定时轮询兜底（<code>NamingService</code> 的 <code>updateThread</code>，默认 10 秒一次）。两层缓存叠加，最坏情况下网关对实例下线的感知延迟 = Nacos 推送失败 + 轮询间隔 + 网关本地 TTL ≈ 数十秒。</p>
+<p><strong>这是设计上的有意取舍</strong>：如果网关每次请求都实时查注册中心，注册中心会成为整个系统的性能瓶颈和单点。但这也意味着<strong>优雅下线的时长必须大于这个感知窗口</strong>，否则就会出现“实例已经停掉，网关还在往里打流量”的 502。</p>
+<h3 id="耦合点二-配置变更与路由规则的联动"><a href="#耦合点二-配置变更与路由规则的联动" class="headerlink" title="耦合点二：配置变更与路由规则的联动"></a>耦合点二：配置变更与路由规则的联动</h3>
+<p>网关的路由规则本身也可以是动态配置。Spring Cloud Gateway 通过 <code>RouteDefinitionLocator</code> 接口抽象路由来源，<code>DiscoveryClientRouteDefinitionLocator</code> 让路由规则从注册中心的服务列表自动生成。</p>
+<p>问题在于<strong>配置推送的原子性</strong>。设想一个场景：你把服务的超时配置放在配置中心，路由规则也放在配置中心。发布时，超时配置推送成功，但路由规则推送失败——网关就会用旧路由 + 新超时，产生不一致状态。</p>
+<p>Nacos 的配置推送走的是 <code>ClientWorker</code> 的长轮询机制：</p>
+<figure class="highlight java"><pre><code class="language-java">// Nacos ClientWorker 的核心长轮询逻辑（简化）
+public void checkUpdateDataIds() {
+    // 把本地监听的 dataId 打包，向服务端发起长轮询（默认 30 秒超时）
+    // 服务端如果有变更，立即返回变更的 dataId 列表
+    // 客户端拿到列表后，再逐个拉取最新内容
+}</code></pre></figure>
+<p>注意这是<strong>两次网络往返</strong>：先拿到“哪些 key 变了”，再拉取“变后的内容”。这个间隙里，如果客户端崩溃，就会出现“知道有更新但没拉到”的状态。更重要的是，<strong>多个 dataId 的更新不是原子的</strong>。如果你的路由和超时分散在两个 dataId 里，它们会分别触发变更事件，网关可能在中间态运行几百毫秒。</p>
+<p><strong>最佳实践是用一个聚合的 dataId 承载强关联的配置</strong>，或者引入带版本号的配置发布（Apollo 的 namespace 发布就是这种思路，一次发布对应一个 release 版本）。</p>
+<h3 id="耦合点三-健康检查语义的贯穿"><a href="#耦合点三-健康检查语义的贯穿" class="headerlink" title="耦合点三：健康检查语义的贯穿"></a>耦合点三：健康检查语义的贯穿</h3>
+<p>这是最容易被忽视的耦合点。注册中心的健康检查、网关的主动健康检查、以及服务自身的就绪探针（readiness probe），这三者语义不同却常被混为一谈。</p>
+<p>Nacos 的临时实例健康检查：客户端每 5 秒发心跳，服务端超过 15 秒未收到则标记不健康，超过 30 秒剔除。这是<strong>基于心跳的存活判断</strong>，粒度粗。</p>
+<p>Kubernetes 的 readiness probe：周期性 HTTP 探测，失败则从 Service Endpoints 移除。这是<strong>基于业务就绪的判断</strong>。</p>
+<p>网关的主动健康检查（如 Spring Cloud LoadBalancer 的 <code>HealthCheckServiceInstanceListSupplier</code>）：网关自己探测实例，与注册中心的判断独立。</p>
+<p>三者如果配置不当，会打架。举个真实坑：某服务在启动时需要 20 秒预热（加载本地缓存），readiness probe 配置了 10 秒初始延迟，于是 K8s 在 10 秒时探测失败并重启 Pod，陷入 CrashLoopBackOff。而 Nacos 心跳是通的，注册中心认为它健康，网关照样打流量进来，打到还没预热完的实例上。</p>
+<p>正确的做法是让<strong>就绪语义单向流动</strong>：服务只在真正 ready 后才向注册中心注册（延迟注册），网关的健康检查作为第二道防线，而不是让三者各自为政。</p>
+<p>下面用一张图串起这三个耦合点和数据流：</p>
+<div class="mermaid">
+graph TD
+    subgraph 控制面
+        RC[注册中心 Nacos/Consul<br/>AP 模型 心跳感知]
+        CC[配置中心 Apollo/Nacos<br/>版本化发布]
+    end
+    subgraph 数据面
+        GW[网关<br/>本地缓存 + 订阅]
+        SVC[服务实例<br/>延迟注册 + 就绪探针]
+    end
+    SVC -->|1. 心跳/注册| RC
+    SVC -->|2. 监听配置| CC
+    RC -->|3. 推送实例变更| GW
+    CC -->|4. 推送路由/超时配置| GW
+    GW -->|5. 路由转发| SVC
+    GW -.->|6. 主动健康检查 兜底| SVC
+    note1[感知窗口: 推送失败+轮询+本地TTL<br/>优雅下线须大于此窗口]
+    RC -.-> note1
+</div>
+<hr>
+<h2 id="实战代码-三个可运行的治理示例"><a href="#实战代码-三个可运行的治理示例" class="headerlink" title="实战代码：三个可运行的治理示例"></a>实战代码：三个可运行的治理示例</h2>
+<h3 id="示例一-带-延迟注册-优雅下线-的-Nacos-服务-Spring-Boot-3"><a href="#示例一-带-延迟注册-优雅下线-的-Nacos-服务-Spring-Boot-3" class="headerlink" title="示例一：带“延迟注册 + 优雅下线”的 Nacos 服务（Spring Boot 3）"></a>示例一：带“延迟注册 + 优雅下线”的 Nacos 服务（Spring Boot 3）</h3>
+<p>这个示例解决“实例未就绪就被打流量”和“下线时流量未排空”两个问题。</p>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.cloud.nacos.NacosServiceManager;
+import com.alibaba.nacos.api.nacos.NamingService;
+import com.alibaba.nacos.api.exception.NacosException;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+import jakarta.annotation.PreDestroy;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+@Component
+public class GracefulLifecycleManager {
+
+    private final NamingService namingService;
+    private final String serviceName;
+    private final String ip;
+    private final int port;
+    // 保证注册/注销的幂等与顺序
+    private final AtomicBoolean registered = new AtomicBoolean(false);
+
+    public GracefulLifecycleManager(NacosServiceManager manager,
+                                    org.springframework.core.env.Environment env) throws Exception {
+        this.namingService = manager.getNamingService();
+        this.serviceName = env.getProperty(&quot;spring.application.name&quot;);
+        this.ip = env.getProperty(&quot;spring.cloud.nacos.discovery.ip&quot;, &quot;127.0.0.1&quot;);
+        this.port = env.getProperty(&quot;server.port&quot;, Integer.class, 8080);
+    }
+
+    /**
+     * 关键点：监听 ApplicationReadyEvent 而非 ApplicationStartedEvent。
+     * ApplicationReadyEvent 在 Web 容器启动完成、所有 Bean 初始化后触发，
+     * 此时服务才真正具备处理请求的能力。
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void registerWhenReady() throws NacosException {
+        if (registered.compareAndSet(false, true)) {
+            // 显式注册，替代 spring.cloud.nacos.discovery.auto-register=true
+            namingService.registerInstance(serviceName, ip, port);
+            System.out.println(&quot;[治理] 服务就绪，已注册到 Nacos: &quot; + ip + &quot;:&quot; + port);
+        }
+    }
+
+    /**
+     * 优雅下线三步走：
+     * 1. 先从注册中心摘除（停止接收新流量）
+     * 2. 等待网关感知窗口（必须 &gt; 网关本地缓存 TTL + 注册中心推送延迟）
+     * 3. 再关闭 Web 容器（等待在途请求处理完）
+     */
+    @PreDestroy
+    public void deregisterGracefully() throws Exception {
+        if (!registered.compareAndSet(true, false)) {
+            return;
+        }
+        // 第一步：摘除
+        namingService.deregisterInstance(serviceName, ip, port);
+        System.out.println(&quot;[治理] 已从 Nacos 摘除，开始排空流量&quot;);
+
+        // 第二步：等待感知窗口。这里 35s 对应网关 cacheTtl(默认35s) + 安全余量
+        // 生产环境应做成可配置项，并确保 &lt; K8s terminationGracePeriodSeconds
+        Thread.sleep(35_000L);
+
+        System.out.println(&quot;[治理] 流量排空完成，允许关闭容器&quot;);
+    }
+}</code></pre></figure>
+<p>配套的 <code>application.yml</code> 关键配置：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">spring:
+  cloud:
+    nacos:
+      discovery:
+        # 关闭自动注册，由上面的管理器接管
+        register-enabled: false
+    loadbalancer:
+      cache:
+        # 网关侧建议调小，缩短感知窗口（代价是注册中心压力增大）
+        ttl: 10s
+      health-check:
+        initial-delay: 10s
+        interval: 5s
+server:
+  shutdown: graceful  # 开启优雅停机
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 60s</code></pre></figure>
+<h3 id="示例二-配置变更的原子性与校验-Nacos-监听器"><a href="#示例二-配置变更的原子性与校验-Nacos-监听器" class="headerlink" title="示例二：配置变更的原子性与校验（Nacos 监听器）"></a>示例二：配置变更的原子性与校验（Nacos 监听器）</h3>
+<p>这个示例演示如何在一个监听器里安全地处理多个关联配置，并做变更校验，避免“中间态”生效。</p>
+<figure class="highlight java"><pre><code class="language-java">import com.alibaba.nacos.api.config.ConfigService;
+import com.alibaba.nacos.api.config.listener.Listener;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
+
+@Component
+public class AtomicConfigWatcher {
+
+    private final ConfigService configService;
+    private final ObjectMapper mapper = new ObjectMapper();
+    // 用引用持有“上一次校验通过的完整配置快照”，而非逐字段生效
+    private final AtomicReference&lt;GatewayPolicy&gt; currentPolicy = new AtomicReference&lt;&gt;();
+    private final Executor notifyExecutor = Executors.newSingleThreadExecutor();
+
+    private static final String DATA_ID = &quot;gateway-policy.json&quot;;
+    private static final String GROUP = &quot;GATEWAY&quot;;
+
+    public AtomicConfigWatcher(ConfigService configService) {
+        this.configService = configService;
+    }
+
+    @PostConstruct
+    public void init() throws Exception {
+        // 启动时先拉一次全量，失败则用默认值兜底
+        String initial = configService.getConfig(DATA_ID, GROUP, 3000);
+        applySafely(initial, true);
+
+        configService.addListener(DATA_ID, GROUP, new Listener() {
+            @Override
+            public Executor getExecutor() {
+                return notifyExecutor; // 单线程，保证变更串行处理
+            }
+
+            @Override
+            public void receiveConfigInfo(String configInfo) {
+                // 关键：整个配置作为一个整体校验、整体生效
+                applySafely(configInfo, false);
+            }
+        });
+    }
+
+    private void applySafely(String content, boolean isInitial) {
+        try {
+            JsonNode root = mapper.readTree(content);
+            GatewayPolicy next = mapper.treeToValue(root, GatewayPolicy.class);
+
+            // 业务校验：例如超时必须为正、路由权重和必须为 100
+            validate(next);
+
+            // 原子替换，读者要么看到旧快照要么看到新快照，绝无中间态
+            GatewayPolicy prev = currentPolicy.getAndSet(next);
+            System.out.printf(&quot;[治理] 策略已原子切换: timeout %s -&gt; %s%n&quot;,
+                    prev == null ? &quot;null&quot; : prev.timeoutMs, next.timeoutMs);
+        } catch (Exception e) {
+            // 校验失败：保留旧配置，绝不半生效，并告警
+            System.err.println(&quot;[治理] 配置非法，已拒绝本次变更: &quot; + e.getMessage());
+            if (isInitial) {
+                throw new IllegalStateException(&quot;初始配置非法&quot;, e);
+            }
+        }
+    }
+
+    private void validate(GatewayPolicy p) {
+        if (p.timeoutMs &lt;= 0 || p.timeoutMs &gt; 60_000) {
+            throw new IllegalArgumentException(&quot;timeoutMs 越界: &quot; + p.timeoutMs);
+        }
+        int weightSum = p.routes.stream().mapToInt(r -&gt; r.weight).sum();
+        if (weightSum != 100) {
+            throw new IllegalArgumentException(&quot;路由权重和必须为 100，实际: &quot; + weightSum);
+        }
+    }
+
+    public GatewayPolicy snapshot() {
+        return currentPolicy.get();
+    }
+
+    // 简化的配置模型
+    public static class GatewayPolicy {
+        public int timeoutMs = 3000;
+        public java.util.List&lt;Route&gt; routes = new java.util.ArrayList&lt;&gt;();
+    }
+    public static class Route {
+        public String service;
+        public int weight;
+    }
+}</code></pre></figure>
+<h3 id="示例三-网关侧自定义-注册中心感知-的负载均衡器-Go-实现-Envoy-风格"><a href="#示例三-网关侧自定义-注册中心感知-的负载均衡器-Go-实现-Envoy-风格" class="headerlink" title="示例三：网关侧自定义“注册中心感知”的负载均衡器（Go 实现，Envoy 风格）"></a>示例三：网关侧自定义“注册中心感知”的负载均衡器（Go 实现，Envoy 风格）</h3>
+<p>为了不把视角局限在 Java 生态，这里用 Go 手写一个极简的负载均衡器，演示如何从注册中心订阅实例并做<strong>带感知窗口一致性检查</strong>的转发决策。这更贴近 Envoy 的 xDS 订阅模型。</p>
+<figure class="highlight go"><pre><code class="language-go">package main
+
+import (
+	&quot;fmt&quot;
+	&quot;sync&quot;
+	&quot;time&quot;
+)
+
+// Instance 表示一个服务实例，带注册时间戳用于判断“新鲜度”
+type Instance struct {
+	Addr      string
+	Healthy   bool
+	UpdatedAt time.Time // 最后一次从注册中心同步该实例状态的时间
+}
+
+// Registry 模拟注册中心的订阅推送
+type Registry struct {
+	mu        sync.RWMutex
+	instances map[string]*Instance
+	// 感知窗口：超过该时间未收到更新，视为“状态可疑”，转发时降权
+	staleWindow time.Duration
+}
+
+func NewRegistry(staleWindow time.Duration) *Registry {
+	return &amp;Registry{
+		instances:   make(map[string]*Instance),
+		staleWindow: staleWindow,
+	}
+}
+
+// OnPush 模拟注册中心推送回调
+func (r *Registry) OnPush(addr string, healthy bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	inst := r.instances[addr]
+	if inst == nil {
+		inst = &amp;Instance{Addr: addr}
+		r.instances[addr] = inst
+	}
+	inst.Healthy = healthy
+	inst.UpdatedAt = time.Now() // 每次推送刷新新鲜度
+}
+
+// Pick 选出一个可用实例。核心逻辑：只选“健康且状态新鲜”的实例。
+// 若某实例状态已超过 staleWindow 未更新，即使标记健康也降权，避免打到僵尸实例。
+func (r *Registry) Pick() (*Instance, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	now := time.Now()
+	var fresh []*Instance
+	var stale []*Instance
+	for _, inst := range r.instances {
+		if !inst.Healthy {
+			continue
+		}
+		if now.Sub(inst.UpdatedAt) &lt;= r.staleWindow {
+			fresh = append(fresh, inst)
+		} else {
+			stale = append(stale, inst)
+		}
+	}
+	// 优先新鲜实例；没有新鲜实例才退而求其次用僵尸实例（总比全拒好，体现 AP 精神）
+	pick := fresh
+	if len(pick) == 0 {
+		pick = stale
+	}
+	if len(pick) == 0 {
+		return nil, fmt.Errorf(&quot;no available instance&quot;)
+	}
+	return pick[now.UnixNano()%int64(len(pick))], nil
+}
+
+// 后台巡检：把长期无更新的实例标记为不健康（模拟主动健康检查兜底）
+func (r *Registry) HealthCheckLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		r.mu.Lock()
+		for _, inst := range r.instances {
+			if time.Since(inst.UpdatedAt) &gt; 3*r.staleWindow {
+				inst.Healthy = false
+				fmt.Printf(&quot;[巡检] 实例 %s 长期无更新，标记不健康\n&quot;, inst.Addr)
+			}
+		}
+		r.mu.Unlock()
+	}
+}
+
+func main() {
+	reg := NewRegistry(15 * time.Second) // 感知窗口 15s
+	go reg.HealthCheckLoop(5 * time.Second)
+
+	// 模拟推送：两个实例上线
+	reg.OnPush(&quot;10.0.0.1:8080&quot;, true)
+	reg.OnPush(&quot;10.0.0.2:8080&quot;, true)
+
+	for i := 0; i &lt; 5; i++ {
+		if inst, err := reg.Pick(); err == nil {
+			fmt.Printf(&quot;第 %d 次转发 -&gt; %s\n&quot;, i+1, inst.Addr)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	// 模拟 10.0.0.1 下线推送
+	reg.OnPush(&quot;10.0.0.1:8080&quot;, false)
+	fmt.Println(&quot;--- 实例 10.0.0.1 已下线 ---&quot;)
+	for i := 0; i &lt; 5; i++ {
+		if inst, err := reg.Pick(); err == nil {
+			fmt.Printf(&quot;下线后第 %d 次转发 -&gt; %s\n&quot;, i+1, inst.Addr)
+		}
+	}
+}</code></pre></figure>
+<p>这段代码虽然简化，但体现了两个真实设计要点：<strong>新鲜度降权</strong>（fresh/stale 分级）和<strong>主动巡检兜底</strong>（HealthCheckLoop），这正是生产级网关负载均衡器的核心骨架。</p>
+<hr>
+<h2 id="方案对比-三套主流组合的取舍"><a href="#方案对比-三套主流组合的取舍" class="headerlink" title="方案对比：三套主流组合的取舍"></a>方案对比：三套主流组合的取舍</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Nacos + Nacos Config + SCG</th>
+<th>Consul + Vault/Consul KV + Envoy</th>
+<th>Eureka + Spring Cloud Config + Zuul</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>注册发现一致性</td>
+<td>AP，临时实例心跳</td>
+<td>CP（Raft），强一致但分区时可能不可写</td>
+<td>AP，纯客户端缓存</td>
+</tr><tr>
+<td>配置推送</td>
+<td>长轮询，秒级</td>
+<td>Consul Watch，秒级</td>
+<td>需配合 Bus + MQ，较笨重</td>
+</tr><tr>
+<td>网关与注册联动</td>
+<td>本地缓存 TTL 可调</td>
+<td>xDS 订阅，感知最灵敏</td>
+<td>Ribbon 缓存，感知偏慢</td>
+</tr><tr>
+<td>生态定位</td>
+<td>一站式、国内社区强</td>
+<td>云原生、跨语言、K8s 友好</td>
+<td>老牌，逐渐被替代</td>
+</tr><tr>
+<td>适用场景</td>
+<td>中小团队快速落地</td>
+<td>多语言、Service Mesh 演进</td>
+<td>存量 Spring Cloud 项目</td>
+</tr></tbody></table>
+<p><strong>结论性观点</strong>：如果你的团队规模在 50 人以内、以 Java 为主，Nacos 系是性价比最高的选择，但一定要把本文提到的感知窗口和优雅下线配好；如果目标是多语言、未来要上 Service Mesh，Envoy + Consul/istio 的 xDS 模型在“感知灵敏度”上有结构性优势——xDS 的增量推送（Delta xDS）能把感知延迟压到亚秒级，代价是运维复杂度陡增。Eureka + Zuul 这套组合除非是存量包袱，新项目不建议再选。</p>
+<p>再补充一个常被讨论的点：<strong>Nacos 的临时实例 vs 持久化实例</strong>。临时实例走心跳、AP、适合无状态服务；持久化实例走服务端主动探测、CP、适合数据库这类“必须精确知道存活”的场景。选错类型是很多生产事故的根源——把无状态微服务配成持久化实例，注册中心的 Raft 写入就成了瓶颈。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<ol>
+<li><strong>优雅下线时长必须 > 网关感知窗口</strong>。这是本文引言事故的直接教训。公式：<code>terminationGracePeriod > 注册中心推送延迟 + 网关 cacheTtl + 在途请求最大耗时</code>。默认值往往不够，务必实测。</li>
+</ol>
+<ol>
+<li><strong>延迟注册，而非启动即注册</strong>。用 <code>ApplicationReadyEvent</code> 而非 <code>ApplicationStartedEvent</code>，确保预热完成才对外可见。</li>
+</ol>
+<ol>
+<li><strong>关联配置打包成单一 dataId 并整体校验</strong>。不要让“超时”和“路由”分散在两个 key 里各自生效，中间态就是故障态。</li>
+</ol>
+<ol>
+<li><strong>健康检查语义单向流动</strong>。就绪探针 → 注册中心 → 网关，形成单向依赖，不要三者互相独立判断。K8s 环境尤其注意 readiness probe 初始延迟要覆盖预热时间。</li>
+</ol>
+<ol>
+<li><strong>警惕注册中心成为性能单点</strong>。网关用本地缓存是对的，但要把 TTL 做成可配置，根据服务规模权衡“感知速度”与“注册中心压力”。</li>
+</ol>
+<ol>
+<li><strong>监控“认知差”</strong>。埋点统计“网关认为健康但实际调用失败”的比例，这个指标能提前暴露感知窗口配置不当的问题。</li>
+</ol>
+<ol>
+<li><strong>配置变更要有回滚预案</strong>。带版本号的配置发布（Apollo 的 release、Nacos 的历史版本）是底线能力，没有版本回滚的配置中心不要用于生产。</li>
+</ol>
+<ol>
+<li><strong>不要用注册中心做配置中心的事，反之亦然</strong>。见过把路由规则塞进注册中心 metadata 的，结果 metadata 更新不触发推送，网关永远拿不到新规则。职责边界要清晰。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>注册发现、配置中心、网关不是三个可以独立选型的积木，而是一个<strong>共享同一份“系统认知”的三角</strong>。它们的协同质量，取决于三个耦合点是否被认真对待：网关看见实例的<strong>感知窗口</strong>、配置变更的<strong>原子性</strong>、健康检查语义的<strong>单向流动</strong>。</p>
+<p>回到开头那场事故——根因不是某个组件坏了，而是配置推送的“两次网络往返”间隙里，网关和下游对“超时应该是多少”产生了认知分裂。修复方案也很朴素：把关联配置打包、整体校验、原子切换，同时把优雅下线时长对齐到感知窗口。技术方案的高级感，往往就藏在这些“对齐”的细节里。</p>
+<p>延伸思考：当我们把视角再拉高一层，Service Mesh 的 xDS 协议本质上就是在试图用<strong>统一的增量订阅模型</strong>同时解决注册发现和配置下发的一致性问题，让数据面和控制面之间的“认知”天然同步。这或许是这个三角关系的终极形态——但在那之前，把本文这些耦合点吃透，已经能让你的系统少挂好几次了。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
