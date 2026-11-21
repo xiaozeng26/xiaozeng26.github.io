@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相 | 小曾博客</title>
+  <meta name="description" content="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相 引言 去年我帮一个电商团队做商品检索系统。他们的诉求听起来很简单：用户传一张“红色碎花连衣裙”的照片，系统要能从 200 万商品里找回同款。团队第一反应是“上一套 CLIP，算 embedding 走向量检索不就行了”，结果上线后翻车——用户传一张只拍了下摆的图，召回的全是“红色桌布”；传一张模特全身照，召回的">
+  <meta name="keywords" content="ai,machine-learning,deep-learning,llm,langchain,langgraph,rag">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相">
+  <meta name="twitter:description" content="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相 引言 去年我帮一个电商团队做商品检索系统。他们的诉求听起来很简单：用户传一张“红色碎花连衣裙”的照片，系统要能从 200 万商品里找回同款。团队第一反应是“上一套 CLIP，算 embedding 走向量检索不就行了”，结果上线后翻车——用户传一张只拍了下摆的图，召回的全是“红色桌布”；传一张模特全身照，召回的">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8100">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相 引言 去年我帮一个电商团队做商品检索系统。他们的诉求听起来很简单：用户传一张“红色碎花连衣裙”的照片，系统要能从 200 万商品里找回同款。团队第一反应是“上一套 CLIP，算 embedding 走向量检索不就行了”，结果上线后翻车——用户传一张只拍了下摆的图，召回的全是“红色桌布”；传一张模特全身照，召回的">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8100">
+  <meta property="article:published_time" content="2026-11-22T02:27:12.000Z">
+  <meta property="article:modified_time" content="2026-11-22T02:27:12.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#从-看图说话-到-图文同频-拆解-CLIP-双塔-视觉语言模型与多模态对齐的工程真相"><span class="toc-text">从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-先讲清楚-对齐-到底在干什么"><span class="toc-text">核心概念：先讲清楚“对齐”到底在干什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个生活类比-双语词典-vs-同声传译"><span class="toc-text">一个生活类比：双语词典 vs 同声传译</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义-对齐是-共享语义空间-的构造过程"><span class="toc-text">技术定义：对齐是“共享语义空间”的构造过程</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析-CLIP-的-InfoNCE-与-VLM-的桥接层"><span class="toc-text">源码/原理深度分析：CLIP 的 InfoNCE 与 VLM 的桥接层</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#CLIP-的核心-一个-batch-内的对称对比损失"><span class="toc-text">CLIP 的核心：一个 batch 内的对称对比损失</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#为什么双塔天然做不了细粒度-注意力的缺席"><span class="toc-text">为什么双塔天然做不了细粒度：注意力的缺席</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#VLM-的桥接层-三种主流流派"><span class="toc-text">VLM 的桥接层：三种主流流派</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三段能直接跑的完整示例"><span class="toc-text">实战代码：三段能直接跑的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例一-手写一个-mini-CLIP-对比训练循环-含温度参数"><span class="toc-text">示例一：手写一个 mini-CLIP 对比训练循环（含温度参数）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例二-用-CLIP-做图文检索-一个-细粒度补救-技巧"><span class="toc-text">示例二：用 CLIP 做图文检索 + 一个“细粒度补救”技巧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例三-用-LLaVA-风格接口做一次-VLM-推理-含-projector-加载"><span class="toc-text">示例三：用 LLaVA 风格接口做一次 VLM 推理（含 projector 加载）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-双塔-交叉注意力-VLM-混合检索"><span class="toc-text">方案对比：双塔、交叉注意力 VLM、混合检索</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8100)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-22"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-22</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-22"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-22</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-ml</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="从-看图说话-到-图文同频-拆解-CLIP-双塔-视觉语言模型与多模态对齐的工程真相"><a href="#从-看图说话-到-图文同频-拆解-CLIP-双塔-视觉语言模型与多模态对齐的工程真相" class="headerlink" title="从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相"></a>从“看图说话”到“图文同频”：拆解 CLIP 双塔、视觉语言模型与多模态对齐的工程真相</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年我帮一个电商团队做商品检索系统。他们的诉求听起来很简单：用户传一张“红色碎花连衣裙”的照片，系统要能从 200 万商品里找回同款。团队第一反应是“上一套 CLIP，算 embedding 走向量检索不就行了”，结果上线后翻车——用户传一张<strong>只拍了下摆</strong>的图，召回的全是“红色桌布”；传一张<strong>模特全身照</strong>，召回的是“碎花半身裙套装”。向量相似度算出来 0.85，但人眼一看根本不是一回事。</p>
+<p>问题出在哪？不是 CLIP 不行，而是团队把 CLIP 当成了“万能图像理解器”。CLIP 本质上是<strong>图文对齐的判别模型</strong>，它只回答“这张图和这句话配不配”，不回答“图里有什么、在哪、什么关系”。要做“看图说话”式的细粒度理解，得换视觉语言模型（VLM）；而要让图文真正“同频”，核心在于<strong>多模态对齐</strong>这件事本身——它既是训练目标，也是工程里最容易踩坑的地方。</p>
+<p>这篇文章我想从架构师的视角，把这条链路拆开：CLIP 的双塔到底怎么算、VLM 的桥接层有哪些流派、对齐在训练和推理阶段分别意味着什么，最后给三段能直接跑的代码和一套选型避坑清单。适合已经写过 PyTorch、调过 transformer、但被“多模态”概念绕晕的 3-5 年工程师。</p>
+<h2 id="核心概念-先讲清楚-对齐-到底在干什么"><a href="#核心概念-先讲清楚-对齐-到底在干什么" class="headerlink" title="核心概念：先讲清楚“对齐”到底在干什么"></a>核心概念：先讲清楚“对齐”到底在干什么</h2>
+<h3 id="一个生活类比-双语词典-vs-同声传译"><a href="#一个生活类比-双语词典-vs-同声传译" class="headerlink" title="一个生活类比：双语词典 vs 同声传译"></a>一个生活类比：双语词典 vs 同声传译</h3>
+<p>想象你要让一个只会中文的人和一个只会英文的人协作。</p>
+<p><strong>CLIP 干的事，像编一本双语词典</strong>：它把中文词和英文词分别映射到同一个“语义坐标系”里，“苹果”和“apple”的坐标靠得很近，“苹果”和“banana”离得远。它不负责翻译整句话，只负责判断“这两个词是不是一个意思”。所以 CLIP 是<strong>双塔（dual-encoder）</strong>：图像一个塔、文本一个塔，各自编码成向量，最后只做<strong>点积相似度</strong>。两个塔在推理时<strong>完全解耦</strong>，这正是它能做百万级检索的原因——图像向量离线算好建索引，文本向量在线算一次就能搜。</p>
+<p><strong>VLM 干的事，像同声传译</strong>：它要理解整段话的语法、上下文、指代，甚至言外之意。所以 VLM 里图像和文本的 token 必须在<strong>同一个 transformer 里做注意力交互</strong>，图像信息得“注入”到语言模型的每一层。代价是推理时图文不能解耦，计算量大得多。</p>
+<p>这个区别决定了后面所有工程选型：<strong>要检索，用双塔；要生成/推理，用 VLM。</strong></p>
+<h3 id="技术定义-对齐是-共享语义空间-的构造过程"><a href="#技术定义-对齐是-共享语义空间-的构造过程" class="headerlink" title="技术定义：对齐是“共享语义空间”的构造过程"></a>技术定义：对齐是“共享语义空间”的构造过程</h3>
+<p>多模态对齐（multimodal alignment）严格说包含三个层次，很多人混为一谈：</p>
+<table>
+<thead>
+<tr>
+<th>层次</th>
+<th>含义</th>
+<th>典型方法</th>
+<th>失败表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>表征对齐</td>
+<td>图文向量落在同一空间，距离有意义</td>
+<td>CLIP 对比学习</td>
+<td>检索召回语义漂移</td>
+</tr><tr>
+<td>语义对齐</td>
+<td>细粒度概念（物体、属性、关系）一一对应</td>
+<td>区域-短语对齐、VLM 指令微调</td>
+<td>“红色下摆”被理解成“红色桌布”</td>
+</tr><tr>
+<td>生成对齐</td>
+<td>模型输出符合人类偏好</td>
+<td>RLHF / DPO</td>
+<td>描述幻觉、答非所问</td>
+</tr></tbody></table>
+<p>引言里那个电商 case，本质是<strong>表征对齐做够了、语义对齐没做</strong>——CLIP 把“红色碎花裙下摆”和“红色桌布”都压到了“红色+纹理”这个粗粒度区域，向量近但语义错。</p>
+<h2 id="源码-原理深度分析-CLIP-的-InfoNCE-与-VLM-的桥接层"><a href="#源码-原理深度分析-CLIP-的-InfoNCE-与-VLM-的桥接层" class="headerlink" title="源码/原理深度分析：CLIP 的 InfoNCE 与 VLM 的桥接层"></a>源码/原理深度分析：CLIP 的 InfoNCE 与 VLM 的桥接层</h2>
+<h3 id="CLIP-的核心-一个-batch-内的对称对比损失"><a href="#CLIP-的核心-一个-batch-内的对称对比损失" class="headerlink" title="CLIP 的核心：一个 batch 内的对称对比损失"></a>CLIP 的核心：一个 batch 内的对称对比损失</h3>
+<p>CLIP 的训练目标可以用一句话概括：<strong>一个 batch 里，N 个图像和 N 个文本，只有对角线上的 N 对是真配对，其余 N²-N 对都是负样本。</strong> 它要拉近对角线、推远非对角线。</p>
+<p>用 PyTorch 伪代码还原其损失（对应官方 <code>clip/loss.py</code> 的 <code>clip_loss</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+def clip_contrastive_loss(image_emb, text_emb, logit_scale):
+    &quot;&quot;&quot;
+    image_emb, text_emb: [N, D]，已做 L2 归一化
+    logit_scale: 可学习的温度倒数，CLIP 初始化为 ln(1/0.07) ≈ 2.659
+    返回对称 InfoNCE：图像-&gt;文本 和 文本-&gt;图像 两个方向取平均
+    &quot;&quot;&quot;
+    N = image_emb.shape[0]
+    # 相似度矩阵 [N, N]，对角线是正样本
+    logits = logit_scale * image_emb @ text_emb.t()
+
+    # 标签就是 0..N-1，第 i 个图像对应第 i 个文本
+    labels = torch.arange(N, device=image_emb.device)
+
+    # 图像侧：对每行做 softmax，正样本在 labels[i] 位置
+    loss_i2t = F.cross_entropy(logits, labels)
+    # 文本侧：对每列做 softmax，等价于转置后按行
+    loss_t2i = F.cross_entropy(logits.t(), labels)
+
+    return (loss_i2t + loss_t2i) / 2</code></pre></figure>
+<p>几个源码级细节值得注意：</p>
+<ol>
+<li><strong><code>logit_scale</code> 是可学习参数</strong>，不是固定温度。CLIP 论文里用 <code>exp</code> 约束其范围，防止训练塌缩。代码里对应 <code>self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))</code>。</li>
+<li><strong>对称损失必须两个方向都算</strong>。只算 i2t 会让文本塔“偷懒”，因为文本侧梯度只来自被选中那一个正样本；对称后两个塔梯度均衡，这是 CLIP 能 work 的关键之一，很多人复现时漏掉。</li>
+<li><strong>batch size 是命门</strong>。原论文 batch=32768，因为负样本全靠 batch 内构造。小 batch 下负样本太少，模型学不到细粒度区分——这也是引言里“下摆 vs 桌布”失败的深层原因：<strong>对比学习只见过粗粒度负样本，就没学会区分细粒度</strong>。</li>
+</ol>
+<h3 id="为什么双塔天然做不了细粒度-注意力的缺席"><a href="#为什么双塔天然做不了细粒度-注意力的缺席" class="headerlink" title="为什么双塔天然做不了细粒度：注意力的缺席"></a>为什么双塔天然做不了细粒度：注意力的缺席</h3>
+<p>双塔的致命约束是：<strong>图像塔和文本塔在编码阶段零交互</strong>。图像塔看不到文本问的是什么，只能把所有信息压成一个 512/768 维向量。这个向量是“全局平均”的产物，空间信息（哪块区域是裙子、哪块是背景）在池化时就丢了。</p>
+<p>用 mermaid 看两条路线的结构差异：</p>
+<div class="mermaid">
+graph TD
+    subgraph 双塔 CLIP
+        I1[图像] --> IE[Image Encoder<br/>ViT/ResNet]
+        T1[文本] --> TE[Text Encoder<br/>Transformer]
+        IE --> IV[图像向量 512d]
+        TE --> TV[文本向量 512d]
+        IV --> SIM[点积相似度]
+        TV --> SIM
+    end
+
+    subgraph 交叉注意力 VLM
+        I2[图像] --> VE[Vision Encoder]
+        VE --> VP[Patch Tokens<br/>N x D]
+        T2[文本] --> TP[Text Tokens]
+        VP --> FUSION[LLM Decoder<br/>Cross/ Self Attention]
+        TP --> FUSION
+        FUSION --> OUT[生成 token 序列]
+    end
+</div>
+<p>左边两个塔永不相见，右边图像 patch 作为 token 和文本 token 在 LLM 里逐层做注意力。这就是为什么 VLM 能回答“图里左下角那件衣服什么颜色”，而 CLIP 只能给你一个整体相似度。</p>
+<h3 id="VLM-的桥接层-三种主流流派"><a href="#VLM-的桥接层-三种主流流派" class="headerlink" title="VLM 的桥接层：三种主流流派"></a>VLM 的桥接层：三种主流流派</h3>
+<p>图像编码器（通常是 CLIP ViT 或 SigLIP）输出的是 patch 特征，语言模型吃的是 token embedding，两者维度和语义空间都不同，中间必须有个“翻译官”。业界三大流派：</p>
+<p><strong>流派一：线性投影（LLaVA 早期）</strong>。一个 <code>nn.Linear(vision_dim, llm_dim)</code> 把每个 patch 投到 LLM 空间。极简，但信息损失大，适合快速原型。</p>
+<p><strong>流派二：MLP 投影（LLaVA-1.5）</strong>。两层 MLP + GELU，比线性强不少，是当前开源 VLM 的默认选择。</p>
+<p><strong>流派三：Q-Former / Perceiver Resampler（BLIP-2、Flamingo）</strong>。用一组可学习的 query token 通过交叉注意力“抽取”图像信息，把变长 patch 压成固定数量（如 32 个）的视觉 token。优点是<strong>大幅降低 LLM 的序列长度</strong>，推理快；缺点是压缩有损，细粒度任务（OCR、小物体）掉点明显。</p>
+<p>源码级看 LLaVA-1.5 的投影层（对应 <code>llava/model/llava_arch.py</code> 的 <code>mm_projector</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python">import torch.nn as nn
+
+class LlavaMLPProjector(nn.Module):
+    &quot;&quot;&quot;
+    LLaVA-1.5 的 multimodal projector
+    vision_hidden: 1024 (CLIP ViT-L/14 输出)
+    llm_hidden: 4096 (Vicuna-7B 隐层)
+    两层 MLP + GELU，是实测性价比最高的桥接方式
+    &quot;&quot;&quot;
+    def __init__(self, vision_hidden=1024, llm_hidden=4096):
+        super().__init__()
+        self.proj = nn.Sequential(
+            nn.Linear(vision_hidden, llm_hidden),
+            nn.GELU(),
+            nn.Linear(llm_hidden, llm_hidden),
+        )
+
+    def forward(self, vision_patches):
+        # vision_patches: [B, num_patches, vision_hidden]
+        # 输出: [B, num_patches, llm_hidden]，直接和 text embedding 拼接
+        return self.proj(vision_patches)</code></pre></figure>
+<p><strong>一个关键工程细节</strong>：LLaVA 训练时<strong>冻结 vision encoder 和 LLM，只训 projector</strong>（stage 1），然后解冻 LLM 联合微调（stage 2）。这个两阶段策略决定了 projector 必须“足够强”才能把视觉信息无损传递——这也是为什么线性投影在复杂任务上不如 MLP。</p>
+<h2 id="实战代码-三段能直接跑的完整示例"><a href="#实战代码-三段能直接跑的完整示例" class="headerlink" title="实战代码：三段能直接跑的完整示例"></a>实战代码：三段能直接跑的完整示例</h2>
+<h3 id="示例一-手写一个-mini-CLIP-对比训练循环-含温度参数"><a href="#示例一-手写一个-mini-CLIP-对比训练循环-含温度参数" class="headerlink" title="示例一：手写一个 mini-CLIP 对比训练循环（含温度参数）"></a>示例一：手写一个 mini-CLIP 对比训练循环（含温度参数）</h3>
+<p>这段代码不依赖 <code>open_clip</code>，用最朴素的 ViT 和文本编码器演示对齐训练的全流程，重点是让你看清 <code>logit_scale</code> 和对称损失怎么落地。</p>
+<figure class="highlight python"><pre><code class="language-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class TinyImageEncoder(nn.Module):
+    &quot;&quot;&quot;极简 ViT：patch 化 + 线性投影 + 全局池化，只为演示对齐流程&quot;&quot;&quot;
+    def __init__(self, img_size=64, patch=16, dim=128):
+        super().__init__()
+        self.num_patches = (img_size // patch) ** 2
+        self.proj = nn.Linear(3 * patch * patch, dim)
+        self.norm = nn.LayerNorm(dim)
+
+    def forward(self, x):
+        # x: [B, 3, H, W] -&gt; [B, num_patches, patch_dim]
+        p = self.proj(x.flatten(2).transpose(1, 2))  # [B, N, dim]
+        return F.normalize(self.norm(p.mean(dim=1)), dim=-1)  # 全局平均池化
+
+class TinyTextEncoder(nn.Module):
+    &quot;&quot;&quot;极简文本编码器：embedding + mean pooling&quot;&quot;&quot;
+    def __init__(self, vocab=1000, dim=128):
+        super().__init__()
+        self.emb = nn.Embedding(vocab, dim)
+        self.norm = nn.LayerNorm(dim)
+
+    def forward(self, ids):
+        # ids: [B, L]
+        return F.normalize(self.norm(self.emb(ids).mean(dim=1)), dim=-1)
+
+class MiniCLIP(nn.Module):
+    def __init__(self, dim=128):
+        super().__init__()
+        self.img_enc = TinyImageEncoder(dim=dim)
+        self.txt_enc = TinyTextEncoder(dim=dim)
+        # 可学习温度，初始 ln(1/0.07)，与官方 CLIP 一致
+        self.logit_scale = nn.Parameter(torch.tensor(2.6592))
+
+    def forward(self, imgs, txt_ids):
+        i = self.img_enc(imgs)          # [B, D]
+        t = self.txt_enc(txt_ids)       # [B, D]
+        # 限制温度范围，防止训练塌缩（官方做法）
+        scale = self.logit_scale.exp().clamp(max=100)
+        logits = scale * i @ t.t()      # [B, B]
+        labels = torch.arange(i.shape[0], device=i.device)
+        loss = (F.cross_entropy(logits, labels) +
+                F.cross_entropy(logits.t(), labels)) / 2
+        return loss, logits
+
+# 训练循环
+model = MiniCLIP()
+opt = torch.optim.AdamW(model.parameters(), lr=1e-3)
+for step in range(50):
+    imgs = torch.randn(16, 3, 64, 64)       # 模拟一个 batch 的图像
+    txt_ids = torch.randint(0, 1000, (16, 12))  # 模拟配对文本
+    loss, logits = model(imgs, txt_ids)
+    opt.zero_grad(); loss.backward(); opt.step()
+    if step % 10 == 0:
+        # 对角线相似度应逐渐高于非对角线
+        acc = (logits.argmax(dim=1) == torch.arange(16)).float().mean()
+        print(f&quot;step {step} loss {loss.item():.3f} i2t_acc {acc.item():.2f}&quot;)</code></pre></figure>
+<p><strong>注意点</strong>：<code>logit_scale.exp().clamp(max=100)</code> 这行不是装饰。我见过团队复现 CLIP 时忘了 clamp，训练到 2000 步温度爆掉，相似度矩阵全变成 one-hot，梯度直接消失。官方实现里有 <code>logit_scale.clamp_(0, math.log(100))</code>，务必保留。</p>
+<h3 id="示例二-用-CLIP-做图文检索-一个-细粒度补救-技巧"><a href="#示例二-用-CLIP-做图文检索-一个-细粒度补救-技巧" class="headerlink" title="示例二：用 CLIP 做图文检索 + 一个“细粒度补救”技巧"></a>示例二：用 CLIP 做图文检索 + 一个“细粒度补救”技巧</h3>
+<p>这段演示标准检索流程，并给出引言里“下摆 vs 桌布”问题的部分解法：<strong>区域裁剪 + 多向量检索</strong>。</p>
+<figure class="highlight python"><pre><code class="language-python">import torch
+import torch.nn.functional as F
+from PIL import Image
+from transformers import CLIPModel, CLIPProcessor
+
+device = &quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;
+model = CLIPModel.from_pretrained(&quot;openai/clip-vit-base-patch32&quot;).to(device).eval()
+processor = CLIPProcessor.from_pretrained(&quot;openai/clip-vit-base-patch32&quot;)
+
+@torch.no_grad()
+def encode_images(images):
+    inputs = processor(images=images, return_tensors=&quot;pt&quot;).to(device)
+    feats = model.get_image_features(**inputs)
+    return F.normalize(feats, dim=-1)
+
+@torch.no_grad()
+def encode_texts(texts):
+    inputs = processor(text=texts, return_tensors=&quot;pt&quot;, padding=True).to(device)
+    feats = model.get_text_features(**inputs)
+    return F.normalize(feats, dim=-1)
+
+def retrieve(query_img, gallery_imgs, texts, topk=3):
+    &quot;&quot;&quot;
+    关键改进：把查询图切成 3x3 网格，每个 patch 单独编码，
+    对每个候选文本取「所有 patch 的最大相似度」。
+    这样局部下摆也能匹配到「红色碎花裙」而不是被整体背景稀释。
+    &quot;&quot;&quot;
+    W, H = query_img.size
+    patches = [query_img.crop((i*W//3, j*H//3, (i+1)*W//3, (j+1)*H//3))
+               for i in range(3) for j in range(3)]
+    patch_emb = encode_images(patches)          # [9, D]
+    text_emb = encode_texts(texts)              # [T, D]
+    # 每个文本对 9 个 patch 取 max，模拟「局部命中即相关」
+    sim = (patch_emb @ text_emb.t()).max(dim=0).values  # [T]
+    top = sim.topk(min(topk, len(texts)))
+    return [(texts[i], float(s)) for s, i in zip(top.values, top.indices)]
+
+# 用法示意
+# query = Image.open(&quot;dress_bottom.jpg&quot;)
+# texts = [&quot;红色碎花连衣裙&quot;, &quot;红色桌布&quot;, &quot;碎花半身裙套装&quot;]
+# print(retrieve(query, [], texts))</code></pre></figure>
+<p>这个 trick 的本质是<strong>用区域级向量部分弥补双塔的全局池化损失</strong>，工程上比换模型便宜得多。缺点是要多算 9 倍图像编码，检索库要存多向量，存储成本上升。</p>
+<h3 id="示例三-用-LLaVA-风格接口做一次-VLM-推理-含-projector-加载"><a href="#示例三-用-LLaVA-风格接口做一次-VLM-推理-含-projector-加载" class="headerlink" title="示例三：用 LLaVA 风格接口做一次 VLM 推理（含 projector 加载）"></a>示例三：用 LLaVA 风格接口做一次 VLM 推理（含 projector 加载）</h3>
+<p>这段演示如何用 <code>transformers</code> 加载一个 VLM 并跑通“图像 + 指令 -> 文本”，重点在看清视觉 token 如何被拼进 LLM 输入。</p>
+<figure class="highlight python"><pre><code class="language-python">import torch
+from PIL import Image
+from transformers import LlavaForConditionalGeneration, AutoProcessor
+
+model_id = &quot;llava-hf/llava-1.5-7b-hf&quot;
+processor = AutoProcessor.from_pretrained(model_id)
+model = LlavaForConditionalGeneration.from_pretrained(
+    model_id, torch_dtype=torch.float16, device_map=&quot;auto&quot;
+).eval()
+
+image = Image.open(&quot;product.jpg&quot;).convert(&quot;RGB&quot;)
+prompt = (
+    &quot;USER: &lt;image&gt;\n这件商品是什么？颜色和图案分别是什么？&quot;
+    &quot;请只描述你确定看到的内容。\nASSISTANT:&quot;
+)
+
+inputs = processor(text=prompt, images=image, return_tensors=&quot;pt&quot;).to(model.device)
+
+with torch.no_grad():
+    out = model.generate(
+        **inputs,
+        max_new_tokens=128,
+        do_sample=False,          # 事实性描述用贪心，避免幻觉
+        repetition_penalty=1.1,
+    )
+print(processor.decode(out[0], skip_special_tokens=True))
+
+# 源码视角：inputs[&quot;input_ids&quot;] 里 &lt;image&gt; 会被替换成
+# 576 个（24x24 patch）视觉占位 token，forward 时由
+# model.multi_modal_projector 填入投影后的视觉 embedding。
+n_vis = (inputs[&quot;input_ids&quot;] == model.config.image_token_index).sum()
+print(f&quot;视觉 token 数: {n_vis.item()}&quot;)  # ViT-L/14 + 336 输入 -&gt; 576</code></pre></figure>
+<p><strong>关键洞察</strong>：<code><image></code> 占位符的数量就是视觉 token 数量，它直接决定推理成本和上下文占用。一张 336×336 的图在 ViT-L/14 下是 576 个 token，接近 600 字文本的量。长文档 + 多图场景下，这个开销会爆炸——这正是 Q-Former 类压缩方案存在的理由。</p>
+<h2 id="方案对比-双塔-交叉注意力-VLM-混合检索"><a href="#方案对比-双塔-交叉注意力-VLM-混合检索" class="headerlink" title="方案对比：双塔、交叉注意力 VLM、混合检索"></a>方案对比：双塔、交叉注意力 VLM、混合检索</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>CLIP 双塔</th>
+<th>交叉注意力 VLM</th>
+<th>混合（CLIP 召回 + VLM 重排）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>图文交互</td>
+<td>仅末端点积</td>
+<td>每层注意力</td>
+<td>粗排无交互，精排有交互</td>
+</tr><tr>
+<td>推理成本</td>
+<td>极低（向量可预计算）</td>
+<td>高（自回归生成）</td>
+<td>中（召回便宜 + 少量重排）</td>
+</tr><tr>
+<td>细粒度理解</td>
+<td>弱</td>
+<td>强</td>
+<td>中到强</td>
+</tr><tr>
+<td>检索规模</td>
+<td>百万级</td>
+<td>百级（不适合大规模）</td>
+<td>百万级召回 + 百级重排</td>
+</tr><tr>
+<td>典型代表</td>
+<td>CLIP、SigLIP、EVA-CLIP</td>
+<td>LLaVA、Qwen-VL、InternVL</td>
+<td>电商/图搜生产系统常用</td>
+</tr><tr>
+<td>适用场景</td>
+<td>以图搜图、零样本分类</td>
+<td>图文问答、OCR、复杂推理</td>
+<td>生产级图搜、内容审核</td>
+</tr></tbody></table>
+<p><strong>我的选型结论</strong>：绝大多数“图搜”业务应该走混合路线。CLIP 负责从百万库里召回 top-100，VLM 只对这 100 个做重排和属性校验。这样既保住延迟，又补上细粒度。引言里的电商团队如果一开始就这么搭，翻车概率会小很多。</p>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 别拿 CLIP 相似度当“相关性概率”用。</strong> CLIP 的 logits 不是校准过的概率，0.85 和 0.80 的绝对差值没有可比性。业务阈值必须按自己的数据分布重新标定，我习惯用正负样本对画 PR 曲线定阈值，而不是拍脑袋设 0.8。</p>
+<p><strong>2. 负样本质量决定对齐上限。</strong> 对比学习里，随机负样本（batch 内其他图）只能学到粗粒度区分。要解决“下摆 vs 桌布”，得引入<strong>难负样本</strong>（hard negative）：同品类不同细分类、同颜色不同物体。工程上可以在训练前用 CLIP 先召回 top-k 近邻当难负样本，二次训练。</p>
+<p><strong>3. 视觉 token 数量是成本开关。</strong> VLM 部署前一定算清楚：单图 576 token、8 张图就是 4600 token，加上系统 prompt 很容易顶满 8k 上下文。多图场景优先用支持动态分辨率的模型（Qwen-VL 的 NaViT 思路），或对非关键图降采样。</p>
+<p><strong>4. 对齐训练的两阶段别省。</strong> 直接端到端训 projector + LLM 容易把 LLM 的语言能力训崩（灾难性遗忘）。LLaVA 的 stage-1 只训 projector、stage-2 才解冻 LLM，是有道理的。我见过团队图省事一步到位，结果模型连基本指令都跟不上了。</p>
+<p><strong>5. 中文场景别迷信原版 CLIP。</strong> OpenAI CLIP 的中文对齐很弱，直接拿来做中文图搜召回率会明显掉。优先用 Chinese-CLIP、AltCLIP 或 SigLIP 的多语言版本，或者在自己的图文对上做继续预训练。</p>
+<p><strong>6. 生成任务关掉采样。</strong> VLM 做事实性描述（商品属性、OCR）时用 <code>do_sample=False</code>，配合 <code>repetition_penalty</code>。开启采样后幻觉率肉眼可见地上升，尤其是描述颜色、数量这类可验证属性时。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个电商 case。问题的根不在“CLIP 不够强”，而在<strong>把表征对齐当成了语义对齐</strong>。三个层次的区分是理解多模态的钥匙：</p>
+<ul>
+<li><strong>CLIP 的双塔</strong>用对称 InfoNCE 在 batch 内构造负样本，把图文压进共享空间，换来的是<strong>可预计算、可百万级检索</strong>的工程优势，代价是编码阶段零交互、细粒度天然弱。</li>
+</ul>
+<ul>
+<li><strong>VLM 的桥接层</strong>（线性/MLP/Q-Former）把视觉 patch 翻译成 LLM 能吃的 token，让图文在注意力里逐层交互，换来细粒度理解，代价是推理不能解耦、token 成本高。</li>
+</ul>
+<ul>
+<li><strong>生产系统</strong>的正确姿势是混合：CLIP 粗排保规模，VLM 精排保精度，区域多向量补细粒度。</li>
+</ul>
+<p>延伸思考两个方向：一是<strong>对齐的可解释性</strong>——现在我们知道向量近不代表语义对，但还缺一套工具去诊断“哪一维对齐错了”；二是<strong>动态分辨率与 token 压缩</strong>的平衡，NaViT、Q-Former 这类方案在往“按需分配视觉算力”走，这会是下一阶段多模态落地的关键工程命题。</p>
+<p>如果你正在搭图搜或图文审核系统，建议先从混合架构起步，把 CLIP 召回和 VLM 重排的边界划清楚，再逐步用难负样本和领域数据做对齐微调——比一上来就梭哈大 VLM 稳得多。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
