@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界” | 小曾博客</title>
+  <meta name="description" content="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界” 引言 先说一个我最近接手项目时看到的真实场景。 一个电商系统，拆了 20 多个微服务，Spring Cloud Alibaba 全家桶一应俱全：Nacos 做注册中心和配置中心，Sentinel 做限流熔断，Seata 做分布式事务。配置文件加起来上千行，看起来非常“云原生”。然后压测一开始，问题全来了：">
+  <meta name="keywords" content="java,jvm,Spring,concurrency,source-code">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”">
+  <meta name="twitter:description" content="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界” 引言 先说一个我最近接手项目时看到的真实场景。 一个电商系统，拆了 20 多个微服务，Spring Cloud Alibaba 全家桶一应俱全：Nacos 做注册中心和配置中心，Sentinel 做限流熔断，Seata 做分布式事务。配置文件加起来上千行，看起来非常“云原生”。然后压测一开始，问题全来了：">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9684">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界” 引言 先说一个我最近接手项目时看到的真实场景。 一个电商系统，拆了 20 多个微服务，Spring Cloud Alibaba 全家桶一应俱全：Nacos 做注册中心和配置中心，Sentinel 做限流熔断，Seata 做分布式事务。配置文件加起来上千行，看起来非常“云原生”。然后压测一开始，问题全来了：">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9684">
+  <meta property="article:published_time" content="2026-11-24T07:03:33.000Z">
+  <meta property="article:modified_time" content="2026-11-24T07:03:33.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#别再堆组件了-从-Nacos-Sentinel-Seata-的源码看微服务治理的-三层边界"><span class="toc-text">别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-三层边界-三个-后厨角色"><span class="toc-text">核心概念：三层边界，三个“后厨角色”</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一-Nacos-配置动态刷新的-推拉结合-真相"><span class="toc-text">一、Nacos：配置动态刷新的“推拉结合”真相</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#二-Sentinel-熔断不生效-90-是资源定义和规则下发的锅"><span class="toc-text">二、Sentinel：熔断不生效，90% 是资源定义和规则下发的锅</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#三-Seata-AT-模式的两阶段-以及-为什么没回滚"><span class="toc-text">三、Seata：AT 模式的两阶段，以及“为什么没回滚”</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-Nacos-动态配置-ConfigurationProperties-避坑版"><span class="toc-text">@ConfigurationProperties（避坑版）">示例 1：Nacos 动态配置 + @ConfigurationProperties（避坑版）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-Sentinel-资源定义-Nacos-持久化规则-熔断真正生效版"><span class="toc-text">示例 2：Sentinel 资源定义 + Nacos 持久化规则（熔断真正生效版）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-Seata-AT-全局事务-异步线程-XID-传递-回滚真正生效版"><span class="toc-text">示例 3：Seata AT 全局事务 + 异步线程 XID 传递（回滚真正生效版）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比"><span class="toc-text">方案对比</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=9684)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-24"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-24</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-24"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-24</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">java</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="别再堆组件了-从-Nacos-Sentinel-Seata-的源码看微服务治理的-三层边界"><a href="#别再堆组件了-从-Nacos-Sentinel-Seata-的源码看微服务治理的-三层边界" class="headerlink" title="别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”"></a>别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先说一个我最近接手项目时看到的真实场景。</p>
+<p>一个电商系统，拆了 20 多个微服务，Spring Cloud Alibaba 全家桶一应俱全：Nacos 做注册中心和配置中心，Sentinel 做限流熔断，Seata 做分布式事务。配置文件加起来上千行，看起来非常“云原生”。然后压测一开始，问题全来了：</p>
+<ul>
+<li>商品服务挂了，订单服务调用它超时 30 秒，线程池被拖死，接着整条链路雪崩——<strong>Sentinel 明明配了熔断，为什么没生效？</strong></li>
+</ul>
+<ul>
+<li>用户下单扣了库存，但支付服务抛异常回滚了，库存却没回滚——<strong>Seata 的 <code>@GlobalTransactional</code> 明明加了，为什么事务没回滚？</strong></li>
+</ul>
+<ul>
+<li>Nacos 配置改了一个限流阈值，过了 10 分钟才生效——<strong>说好的动态配置呢？</strong></li>
+</ul>
+<p>排查下来，三个问题的根因惊人地一致：<strong>大家都在“用”组件，但没人搞清楚每个组件到底治理的是哪一层的边界</strong>。Nacos 管的是“服务发现与配置”的边界，Sentinel 管的是“流量与调用”的边界，Seata 管的是“数据一致性”的边界。三条边界职责不同、失效模式不同、生效时机也不同。把它们当成三个可以随便堆砌的 SDK，出事是必然的。</p>
+<p>这篇文章，我想从源码层面把这三层边界彻底讲透，并且给出可直接落地的工程实践。读完你应该能回答：为什么你的 Sentinel 熔断没生效、为什么你的 Seata 事务不回滚、为什么你的 Nacos 配置不刷新。</p>
+<hr>
+<h2 id="核心概念-三层边界-三个-后厨角色"><a href="#核心概念-三层边界-三个-后厨角色" class="headerlink" title="核心概念：三层边界，三个“后厨角色”"></a>核心概念：三层边界，三个“后厨角色”</h2>
+<p>先用一个餐厅的类比把三者的定位说清楚。</p>
+<p>把整个微服务系统想象成一家大型连锁餐厅：</p>
+<ul>
+<li><strong>Nacos 是“前厅调度 + 菜谱公告栏”</strong>。它知道今天哪个厨师在岗（服务注册）、客人该去哪个窗口点菜（服务发现），同时墙上贴着所有菜谱（配置），菜谱改了要通知到每个厨房（配置刷新）。它管的是<strong>“谁在哪、规则是什么”</strong>。</li>
+</ul>
+<ul>
+<li><strong>Sentinel 是“门口的取号限流员 + 后厨的熔断开关”</strong>。客流太大就限流（FlowRule），某个灶台老是炒糊（异常比例高）就暂时关掉这个灶台，别让客人一直等（熔断降级）。它管的是<strong>“流量怎么进、调用失败了怎么办”</strong>。</li>
+</ul>
+<ul>
+<li><strong>Seata 是“跨多个档口的订单一致性管理员”</strong>。一笔订单要同时扣库存档口、扣款档口、生成物流单档口，任何一个档口失败，其他档口必须撤销。它管的是<strong>“多个数据源之间怎么保证原子性”</strong>。</li>
+</ul>
+<p>用一张图展示这三层边界在一个请求链路中的位置：</p>
+<div class="mermaid">
+graph TD
+    Client[客户端请求] --> Gateway[网关]
+    Gateway -->|1. 服务发现: 拿到实例列表| Nacos[(Nacos 注册/配置中心)]
+    Gateway -->|2. 流量控制/熔断| Sentinel[Sentinel 流量治理]
+    Sentinel --> OrderService[订单服务]
+    OrderService -->|3. 开启全局事务| Seata[Seata TC 事务协调器]
+    Seata --> OrderService
+    OrderService -->|Feign 调用 + 服务发现| Nacos
+    OrderService -->|调用| StockService[库存服务]
+    OrderService -->|调用| PayService[支付服务]
+    StockService -->|分支事务注册| Seata
+    PayService -->|分支事务注册| Seata
+    OrderService -.配置动态刷新.-> Nacos
+    
+    style Nacos fill:#e1f5ff
+    style Sentinel fill:#fff4e1
+    style Seata fill:#ffe1e1
+</div>
+<p>关键认知：<strong>这三层是正交的</strong>。Nacos 挂了，服务调不通，Sentinel 和 Seata 都无从谈起；Sentinel 配错了，流量打崩服务，Seata 事务也没机会提交；Seata 的事务边界没划对，数据就脏了。它们是<strong>串联在请求生命周期上的三道闸门</strong>，而不是三个并列的插件。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="一-Nacos-配置动态刷新的-推拉结合-真相"><a href="#一-Nacos-配置动态刷新的-推拉结合-真相" class="headerlink" title="一、Nacos：配置动态刷新的“推拉结合”真相"></a>一、Nacos：配置动态刷新的“推拉结合”真相</h3>
+<p>很多人以为 Nacos 配置刷新是纯推送。实际上 Nacos 客户端采用的是<strong>“长轮询（long polling）+ 本地缓存”</strong>的推拉结合模型。这是理解“为什么配置 10 分钟才生效”的钥匙。</p>
+<p>看 <code>nacos-client</code> 的核心类 <code>ClientWorker</code>，它内部维护了一个 <code>executor</code> 线程池，对每个监听的 dataId 发起长轮询请求：</p>
+<figure class="highlight java"><pre><code class="language-java">// 简化自 com.alibaba.nacos.client.config.impl.ClientWorker
+// 长轮询任务：向服务端发起 /v1/cs/configs/listener 请求
+class LongPollingRunnable implements Runnable {
+    @Override
+    public void run() {
+        // 1. 收集所有需要监听的 (dataId, group, tenant) 组合
+        List&lt;String&gt; changedGroupKeys = checkUpdateDataIds(cacheDatas, inInitializing);
+        // 2. 如果服务端返回有变更，重新拉取完整配置
+        for (String groupKey : changedGroupKeys) {
+            String[] key = GroupKey.parseKey(groupKey);
+            // 这一步才是真正 HTTP GET 拉取最新配置
+            String[] ct = getServerConfig(key[0], key[1], key[2], 3000L);
+            // 3. 更新本地缓存 + 触发监听器
+            CacheData cache = cacheDatas.get(groupKey);
+            cache.setContent(ct[0]);
+        }
+    }
+}</code></pre></figure>
+<p>服务端的 <code>LongPollingService</code> 收到请求后，<strong>不会立即返回</strong>，而是把请求挂起（默认 30 秒），期间如果有配置变更就立即唤醒返回；30 秒到了没变更就返回空，客户端再发起下一轮。这就是长轮询。</p>
+<p><strong>坑点一</strong>：如果你在 <code>bootstrap.yml</code> 里配置了 <code>nacos.config.refresh-enabled=false</code>，或者用了 <code>@Value</code> 而没加 <code>@RefreshScope</code>，配置压根不会注入到 Bean。<code>@Value</code> 只在 Bean 初始化时求值一次，刷新时 Nacos 虽然更新了 <code>Environment</code>，但老 Bean 里的字段还是旧值。</p>
+<p><strong>坑点二</strong>：<code>@RefreshScope</code> 的 Bean 在刷新时会被<strong>销毁重建</strong>（它是个代理，刷新时清空 target 缓存）。如果你的 Bean 持有连接池、线程池这类有状态资源，重建会导致泄漏。正确做法是把<strong>配置项抽到一个 <code>@ConfigurationProperties</code> 的 POJO</strong>，依赖它的 Bean 通过 getter 读，而不是把配置散落在业务 Bean 的字段里。</p>
+<h3 id="二-Sentinel-熔断不生效-90-是资源定义和规则下发的锅"><a href="#二-Sentinel-熔断不生效-90-是资源定义和规则下发的锅" class="headerlink" title="二、Sentinel：熔断不生效，90% 是资源定义和规则下发的锅"></a>二、Sentinel：熔断不生效，90% 是资源定义和规则下发的锅</h3>
+<p>Sentinel 的核心模型是 <strong>资源（Resource）+ 规则（Rule）+ 槽链（Slot Chain）</strong>。每次 <code>SphU.entry("resourceName")</code> 都会走一遍责任链：</p>
+<div class="mermaid">
+graph LR
+    A[entry] --> B[NodeSelectorSlot]
+    B --> C[ClusterBuilderSlot]
+    C --> D[StatisticSlot]
+    D --> E[FlowSlot 限流]
+    E --> F[DegradeSlot 熔断]
+    F --> G[SystemSlot 系统保护]
+    G --> H[业务逻辑]
+    D -.统计.-> Stat[滑动窗口统计]
+    E -.读规则.-> RuleMgr[FlowRuleManager]
+    F -.读规则.-> DegRuleMgr[DegradeRuleManager]
+</div>
+<p><strong>为什么你的熔断没生效？</strong> 源码层面有三个高频原因：</p>
+<p><strong>原因 1：资源名对不上。</strong> <code>DegradeRuleManager</code> 是按 <code>resource</code> 字符串精确匹配规则的。如果你用 <code>@SentinelResource("order")</code> 但规则里写的是 <code>"orderService"</code>，永远匹配不上。更隐蔽的是 Feign 场景：默认 Feign 资源名是 <code>GET:http://stock-service/stock/deduct</code> 这种格式，你在控制台按 <code>"stock/deduct"</code> 配规则当然无效。正确姿势是配置 <code>feign.sentinel.enabled=true</code> 并通过 <code>UrlCleaner</code> 或自定义 <code>RequestOriginParser</code> 统一资源名。</p>
+<p><strong>原因 2：熔断器的“半开”状态被误读。</strong> 看 <code>DegradeSlot</code> 依赖的 <code>CircuitBreaker</code> 状态机（以慢调用比例熔断为例）：</p>
+<figure class="highlight java"><pre><code class="language-java">// 简化自 com.alibaba.csp.sentinel.slots.block.degrade.circuitbreaker.ResponseTimeCircuitBreaker
+// 状态: CLOSED -&gt; OPEN -&gt; HALF_OPEN -&gt; CLOSED/OPEN
+@Override
+public boolean tryPass(Context context) {
+    if (currentState.get() == State.CLOSED) {
+        return true;                       // 正常放行
+    }
+    if (currentState.get() == State.OPEN) {
+        // OPEN 状态下，只有到了 retryTimeout 才允许一个探测请求进入 HALF_OPEN
+        return retryTimeoutArrived() &amp;&amp; fromOpenToHalfOpen(context);
+    }
+    return false;                          // HALF_OPEN 期间其他请求直接拒绝
+}</code></pre></figure>
+<p><strong>关键</strong>：熔断打开后，<strong>只有极少数探测请求</strong>能进入半开状态，如果探测请求成功才闭合。很多人压测时看到“熔断打开了但流量还在打业务”，是因为探测请求恰好成功，状态又回到 CLOSED。这不是 bug，是设计。你需要关注的是 <code>minRequestAmount</code>（最小请求数）和 <code>statIntervalMs</code>（统计窗口）是否合理——如果窗口内请求数达不到 <code>minRequestAmount</code>，熔断器根本不会被触发统计。</p>
+<p><strong>原因 3：规则下发的是“内存规则”，重启即丢。</strong> 直接调 <code>FlowRuleManager.loadRules()</code> 只改本地内存。生产必须接 <code>NacosDataSource</code> 做持久化：</p>
+<figure class="highlight java"><pre><code class="language-java">ReadableDataSource&lt;String, List&lt;FlowRule&gt;&gt; ds = new NacosDataSource&lt;&gt;(
+    serverAddr, groupId, dataId,
+    source -&gt; JSON.parseObject(source, new TypeReference&lt;List&lt;FlowRule&gt;&gt;() {}));
+FlowRuleManager.register2Property(ds.getProperty());</code></pre></figure>
+<h3 id="三-Seata-AT-模式的两阶段-以及-为什么没回滚"><a href="#三-Seata-AT-模式的两阶段-以及-为什么没回滚" class="headerlink" title="三、Seata：AT 模式的两阶段，以及“为什么没回滚”"></a>三、Seata：AT 模式的两阶段，以及“为什么没回滚”</h3>
+<p>Seata AT 模式的核心是<strong>全局锁 + undo_log 反向补偿</strong>。理解它必须看懂 <code>DataSourceProxy</code> 如何拦截 SQL 并生成前后镜像。</p>
+<figure class="highlight java"><pre><code class="language-java">// 简化自 io.seata.rm.datasource.exec.UpdateExecutor
+// 执行 UPDATE 前：先查前镜像（before image），加全局锁
+protected T executeAutoCommitFalse(Object[] args) throws Exception {
+    // 1. 查询前镜像：SELECT * FROM stock WHERE id = ? FOR UPDATE
+    TableRecords beforeImage = beforeImage();
+    // 2. 执行业务 SQL
+    T result = statementCallback.execute(statementProxy.getTargetStatement(), args);
+    // 3. 查询后镜像
+    TableRecords afterImage = afterImage(beforeImage);
+    // 4. 构建 undo_log 并写入本地（与业务 SQL 同一本地事务）
+    undoLogManager.buildUndoLog(...);
+    return result;
+}</code></pre></figure>
+<p>两阶段流程：</p>
+<ol>
+<li><strong>一阶段</strong>：各分支服务执行业务 SQL，同时写 <code>undo_log</code>，然后向 TC（Seata Server）注册分支事务。<strong>此时本地事务已提交</strong>（这是 AT 与 XA 的最大区别），但全局锁被持有。</li>
+<li><strong>二阶段</strong>：TC 通知全局提交 → 异步删除 undo_log；或全局回滚 → 各分支根据 undo_log 生成反向 SQL 补偿。</li>
+</ol>
+<p><strong>为什么你的 <code>@GlobalTransactional</code> 没回滚？</strong> 高频原因：</p>
+<ul>
+<li><strong>异常被吞了</strong>：<code>@GlobalTransactional</code> 默认只对 <code>RuntimeException</code> 和 <code>Error</code> 回滚。你 <code>catch (Exception e) { log.error(...); }</code> 没重新抛出，TC 收不到失败信号，全局提交。</li>
+</ul>
+<ul>
+<li><strong>跨了非 Seata 代理的数据源</strong>：只有被 <code>DataSourceProxy</code> 包装的数据源才受管。你手动 <code>new JdbcTemplate(rawDataSource)</code> 或用了没配置代理的 MyBatis-Plus 多数据源，那条 SQL 不在事务里。</li>
+</ul>
+<ul>
+<li><strong>Feign 调用没传 XID</strong>：分支事务靠 <code>RootContext</code> 里的 XID 关联。异步线程、线程池、<code>@Async</code> 会丢失 <code>RootContext</code>，必须手动 <code>RootContext.bind(xid)</code> 传递。</li>
+</ul>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<h3 id="示例-1-Nacos-动态配置-ConfigurationProperties-避坑版"><a href="#示例-1-Nacos-动态配置-ConfigurationProperties-避坑版" class="headerlink" title="示例 1：Nacos 动态配置 + <code>@ConfigurationProperties</code>（避坑版）"></a>示例 1：Nacos 动态配置 + <code>@ConfigurationProperties</code>（避坑版）</h3>
+<figure class="highlight java"><pre><code class="language-java">// 1. 配置类：用 @ConfigurationProperties 而非散落的 @Value
+// 关键：不要加 @RefreshScope！@ConfigurationProperties 本身支持动态刷新
+@Data
+@Component
+@ConfigurationProperties(prefix = &quot;order.limit&quot;)
+public class OrderLimitProperties {
+    /** 单用户下单 QPS 上限，修改后无需重启 */
+    private int userQps = 10;
+    /** 是否开启降级 */
+    private boolean degradeEnabled = false;
+}
+
+// 2. 业务 Bean 注入配置类，每次调用实时读取
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+    private final OrderLimitProperties limitProperties; // 单例，字段值随刷新更新
+
+    public void createOrder(OrderCmd cmd) {
+        // 每次调用都读最新值，而不是初始化时缓存
+        if (limitProperties.getUserQps() &lt;= 0) {
+            throw new BizException(&quot;下单已关闭&quot;);
+        }
+        // ... 业务逻辑
+    }
+}</code></pre></figure>
+<figure class="highlight yaml"><pre><code class="language-yaml"># bootstrap.yml（注意：Nacos 配置必须放 bootstrap，Spring Boot 2.4+ 需引入 spring-cloud-starter-bootstrap）
+spring:
+  application:
+    name: order-service
+  cloud:
+    nacos:
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yaml
+        refresh-enabled: true   # 默认 true，别手贱关掉</code></pre></figure>
+<h3 id="示例-2-Sentinel-资源定义-Nacos-持久化规则-熔断真正生效版"><a href="#示例-2-Sentinel-资源定义-Nacos-持久化规则-熔断真正生效版" class="headerlink" title="示例 2：Sentinel 资源定义 + Nacos 持久化规则（熔断真正生效版）"></a>示例 2：Sentinel 资源定义 + Nacos 持久化规则（熔断真正生效版）</h3>
+<figure class="highlight java"><pre><code class="language-java">@Configuration
+public class SentinelConfig {
+
+    private static final String NACOS_ADDR = &quot;127.0.0.1:8848&quot;;
+    private static final String GROUP = &quot;SENTINEL_GROUP&quot;;
+
+    /** 把限流规则和熔断规则都持久化到 Nacos，控制台改完立即生效 */
+    @PostConstruct
+    public void initRules() {
+        // 限流规则
+        ReadableDataSource&lt;String, List&lt;FlowRule&gt;&gt; flowDs = new NacosDataSource&lt;&gt;(
+                NACOS_ADDR, GROUP, &quot;order-service-flow-rules.json&quot;,
+                src -&gt; JSON.parseObject(src, new TypeReference&lt;List&lt;FlowRule&gt;&gt;() {}));
+        FlowRuleManager.register2Property(flowDs.getProperty());
+
+        // 熔断规则：慢调用比例，1s 窗口内 20 个请求，RT&gt;500ms 占比超 50% 则熔断 10s
+        ReadableDataSource&lt;String, List&lt;DegradeRule&gt;&gt; degradeDs = new NacosDataSource&lt;&gt;(
+                NACOS_ADDR, GROUP, &quot;order-service-degrade-rules.json&quot;,
+                src -&gt; JSON.parseObject(src, new TypeReference&lt;List&lt;DegradeRule&gt;&gt;() {}));
+        DegradeRuleManager.register2Property(degradeDs.getProperty());
+    }
+}
+
+@Service
+public class StockClient {
+
+    // 资源名必须与规则里的 resource 完全一致！
+    @SentinelResource(value = &quot;stock/deduct&quot;,
+            blockHandler = &quot;deductBlock&quot;,       // 被限流/熔断时走这里
+            fallback = &quot;deductFallback&quot;)        // 业务异常时走这里
+    public boolean deduct(Long skuId, Integer count) {
+        return restTemplate.postForObject(
+                &quot;http://stock-service/stock/deduct?skuId={1}&amp;count={2}&quot;,
+                null, Boolean.class, skuId, count);
+    }
+
+    // 注意：blockHandler 方法签名要和原方法一致，末尾多一个 BlockException
+    public boolean deductBlock(Long skuId, Integer count, BlockException ex) {
+        log.warn(&quot;stock deduct blocked, skuId={}, rule={}&quot;, skuId, ex.getRule());
+        return false;
+    }
+
+    public boolean deductFallback(Long skuId, Integer count, Throwable t) {
+        log.error(&quot;stock deduct failed, skuId={}&quot;, skuId, t);
+        return false;
+    }
+}</code></pre></figure>
+<p>对应的熔断规则 JSON（推送到 Nacos 的 <code>order-service-degrade-rules.json</code>）：</p>
+<figure class="highlight json"><pre><code class="language-json">[{
+  &quot;resource&quot;: &quot;stock/deduct&quot;,
+  &quot;grade&quot;: 0,
+  &quot;count&quot;: 500,
+  &quot;slowRatioThreshold&quot;: 0.5,
+  &quot;minRequestAmount&quot;: 20,
+  &quot;statIntervalMs&quot;: 1000,
+  &quot;timeWindow&quot;: 10
+}]</code></pre></figure>
+<h3 id="示例-3-Seata-AT-全局事务-异步线程-XID-传递-回滚真正生效版"><a href="#示例-3-Seata-AT-全局事务-异步线程-XID-传递-回滚真正生效版" class="headerlink" title="示例 3：Seata AT 全局事务 + 异步线程 XID 传递（回滚真正生效版）"></a>示例 3：Seata AT 全局事务 + 异步线程 XID 传递（回滚真正生效版）</h3>
+<figure class="highlight java"><pre><code class="language-java">@Service
+@RequiredArgsConstructor
+public class OrderTxService {
+    private final OrderMapper orderMapper;
+    private final StockFeignClient stockClient;
+    private final PayFeignClient payClient;
+    private final ThreadPoolTaskExecutor executor;
+
+    /** 全局事务入口：rollbackFor 显式声明，别依赖默认 */
+    @GlobalTransactional(name = &quot;create-order-tx&quot;, rollbackFor = Exception.class)
+    public void createOrder(OrderCmd cmd) {
+        // 1. 本地写订单
+        orderMapper.insert(cmd.toOrder());
+
+        // 2. 扣库存（Feign 调用，XID 通过拦截器自动透传）
+        if (!stockClient.deduct(cmd.getSkuId(), cmd.getCount())) {
+            throw new BizException(&quot;库存不足&quot;);
+        }
+
+        // 3. 异步任务：必须手动把 XID 传给子线程，否则分支事务注册不上
+        String xid = RootContext.getXID();
+        CompletableFuture.runAsync(() -&gt; {
+            RootContext.bind(xid);          // 关键：绑定 XID
+            try {
+                payClient.pay(cmd.getOrderId(), cmd.getAmount());
+            } finally {
+                RootContext.unbind();       // 必须解绑，防线程复用污染
+            }
+        }, executor).join();                // join 保证异常能抛回主线程触发回滚
+
+        // 4. 任何异常都会让 TC 通知所有分支回滚
+    }
+}</code></pre></figure>
+<figure class="highlight yaml"><pre><code class="language-yaml"># application.yml：确保数据源被 Seata 代理
+seata:
+  enabled: true
+  application-id: order-service
+  tx-service-group: my_tx_group
+  service:
+    vgroup-mapping:
+      my_tx_group: default
+  registry:
+    type: nacos
+    nacos:
+      server-addr: 127.0.0.1:8848
+  config:
+    type: nacos
+    nacos:
+      server-addr: 127.0.0.1:8848</code></pre></figure>
+<blockquote>
+<p>注意：<code>seata-spring-boot-starter</code> 会自动用 <code>DataSourceProxy</code> 包装主数据源。如果你用多数据源或 <code>@DS</code> 切换，需要手动包装，否则切过去的库不在事务内。</p>
+</blockquote>
+<hr>
+<h2 id="方案对比"><a href="#方案对比" class="headerlink" title="方案对比"></a>方案对比</h2>
+<p>三个组件在业界都有替代方案，理解差异才能选对：</p>
+<table>
+<thead>
+<tr>
+<th>能力层</th>
+<th>本文方案</th>
+<th>主流替代</th>
+<th>差异与适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>注册/配置</td>
+<td>Nacos</td>
+<td>Eureka + Config、Consul、Apollo</td>
+<td>Nacos 注册配置二合一、AP 模型、长轮询；Apollo 配置能力更强但注册需另配；Consul 强一致 CP，适合对一致性敏感但吞吐略低</td>
+</tr><tr>
+<td>流量治理</td>
+<td>Sentinel</td>
+<td>Hystrix（停更）、Resilience4j</td>
+<td>Sentinel 有控制台、规则动态下发、QPS/线程数双维度；Resilience4j 轻量、函数式、无中心控制台，适合 Serverless/函数场景</td>
+</tr><tr>
+<td>分布式事务</td>
+<td>Seata AT</td>
+<td>XA、TCC、Saga、本地消息表</td>
+<td>AT 对业务零侵入但有全局锁、性能中等；TCC 性能最好但要写三个方法；Saga 适合长流程但无隔离性；本地消息表最简单但要自己做幂等</td>
+</tr></tbody></table>
+<p>选型建议：</p>
+<ul>
+<li><strong>初创/中小规模</strong>：Nacos + Sentinel + Seata AT，全家桶开箱即用，成本最低。</li>
+</ul>
+<ul>
+<li><strong>高并发核心交易</strong>：Seata AT 的全局锁在热点行会成瓶颈，考虑 TCC 或“本地消息表 + 最终一致”。</li>
+</ul>
+<ul>
+<li><strong>已有 Spring Cloud Netflix 存量</strong>：Hystrix 已停更，逐步迁移到 Sentinel 或 Resilience4j，别为了迁移而迁移。</li>
+</ul>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>Nacos：</strong></p>
+<ol>
+<li>配置类统一用 <code>@ConfigurationProperties</code>，别用 <code>@Value</code> + <code>@RefreshScope</code> 组合，后者会销毁重建 Bean。</li>
+<li>生产开启 Nacos 鉴权，配置 <code>namespace</code> 隔离环境，<code>group</code> 隔离业务线。</li>
+<li>监听配置变更时，注意 <code>Listener</code> 回调里不要做重操作，它在长轮询线程里执行，会阻塞其他配置刷新。</li>
+</ol>
+<p><strong>Sentinel：</strong></p>
+<ol>
+<li>资源名统一规范，Feign 场景用 <code>UrlCleaner</code> 归一化，否则规则永远对不上。</li>
+<li>规则必须持久化到 Nacos，纯内存规则重启即丢。</li>
+<li><code>blockHandler</code> 和 <code>fallback</code> 别混用逻辑：前者是“被限流”，后者是“业务异常”，语义不同。</li>
+<li>熔断的 <code>minRequestAmount</code> 别设太大，否则低流量下永远不触发统计。</li>
+</ol>
+<p><strong>Seata：</strong></p>
+<ol>
+<li><code>@GlobalTransactional</code> 的 <code>rollbackFor</code> 显式写 <code>Exception.class</code>，别赌默认。</li>
+<li>异步/线程池必须手动 <code>RootContext.bind/unbind</code>，这是最高频的“事务丢失”根因。</li>
+<li><code>undo_log</code> 表要建在每个业务库，且定期清理，否则表会膨胀。</li>
+<li>热点行更新（如秒杀库存）慎用 AT，全局锁会串行化，考虑 TCC 或分段扣减。</li>
+</ol>
+<p><strong>通用：</strong></p>
+<ol>
+<li>三层边界要<strong>分别压测、分别观测</strong>。Nacos 看注册心跳和配置推送延迟，Sentinel 看 <code>block</code> 和 <code>fallback</code> 指标，Seata 看 TC 的全局事务数和分支回滚率。</li>
+<li>别在网关层同时堆 Sentinel 和 Seata——网关做流量治理，事务边界应该下沉到业务编排层。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那三个问题，现在应该能一句话回答了：</p>
+<ul>
+<li><strong>Sentinel 熔断没生效</strong>：资源名对不上 + 规则没持久化 + 没理解半开探测机制。</li>
+</ul>
+<ul>
+<li><strong>Seata 没回滚</strong>：异常被吞 + 数据源没被代理 + 异步丢了 XID。</li>
+</ul>
+<ul>
+<li><strong>Nacos 配置不刷新</strong>：<code>@Value</code> 没 <code>@RefreshScope</code>，或 <code>refresh-enabled</code> 被关。</li>
+</ul>
+<p>更深一层的认知是：<strong>微服务治理不是“把组件堆上去”，而是“把每层边界的职责和失效模式想清楚”</strong>。Nacos 治理的是“位置与规则”的边界，Sentinel 治理的是“流量与调用”的边界，Seata 治理的是“数据一致性”的边界。三条边界正交、串联、各有各的生效时机。把源码里那几个关键类（<code>ClientWorker</code>、<code>DegradeSlot</code>、<code>UpdateExecutor</code>）读一遍，比看十篇配置教程有用。</p>
+<p>延伸思考：当服务规模再上一个量级，这三层边界会开始“打架”——Nacos 的推送风暴、Sentinel 的规则一致性、Seata 的全局锁性能，都会成为新的瓶颈。那时你要考虑的就不是“怎么配”，而是“要不要下沉到 Service Mesh（Istio + Envoy 做流量，Saga 做长事务）”。但在那之前，先把这三层边界吃透，你才有资格谈架构演进。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

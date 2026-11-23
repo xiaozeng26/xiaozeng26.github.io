@@ -685,6 +685,13 @@
       "subtopic": "混沌工程：故障注入与系统韧性验证",
       "date": "2026-11-22",
       "url": "/2026/11/23/别在事故复盘会上才想起混沌工程：从 Kubernetes 源码看故障注入如何真正验证韧性/"
+    },
+    {
+      "title": "别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”",
+      "category": "java",
+      "subtopic": "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata",
+      "date": "2026-11-23",
+      "url": "/2026/11/24/别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”/"
     }
   ],
   "used_subtopics": {
@@ -845,6 +852,7 @@
     "Go 微服务框架：go-kit、go-micro 与 Kratos 对比": "cc0151f4ba42f5fd3696912412ae0125df5583197dce21601e1176e175d7461c",
     "服务治理：注册发现、配置中心与网关的完整方案": "848b5ed77f22ae98971b6728a09b8aae525b25f0ba7c95dc6501065a53884897",
     "多模态大模型：CLIP、视觉语言模型与多模态对齐": "c158388bdcc4da908b385cef40656fc59de75a4833827367e805ee8214b18a01",
-    "混沌工程：故障注入与系统韧性验证": "b24f7df475dbf963549349978ffd3d87e31883f2242e4f86048ee2acf197002f"
+    "混沌工程：故障注入与系统韧性验证": "b24f7df475dbf963549349978ffd3d87e31883f2242e4f86048ee2acf197002f",
+    "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44"
   }
 }
