@@ -692,6 +692,13 @@
       "subtopic": "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata",
       "date": "2026-11-23",
       "url": "/2026/11/24/别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”/"
+    },
+    {
+      "title": "别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱",
+      "category": "security",
+      "subtopic": "身份认证与授权：OAuth2、OIDC 与 JWT 安全",
+      "date": "2026-11-24",
+      "url": "/2026/11/25/别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱/"
     }
   ],
   "used_subtopics": {
@@ -853,6 +860,7 @@
     "服务治理：注册发现、配置中心与网关的完整方案": "848b5ed77f22ae98971b6728a09b8aae525b25f0ba7c95dc6501065a53884897",
     "多模态大模型：CLIP、视觉语言模型与多模态对齐": "c158388bdcc4da908b385cef40656fc59de75a4833827367e805ee8214b18a01",
     "混沌工程：故障注入与系统韧性验证": "b24f7df475dbf963549349978ffd3d87e31883f2242e4f86048ee2acf197002f",
-    "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44"
+    "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44",
+    "身份认证与授权：OAuth2、OIDC 与 JWT 安全": "d7fe07a93db58c887b5e40f3e4f5d5e666f003191d0a2029f3bf70d92705e826"
   }
 }

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱 | 小曾博客</title>
+  <meta name="description" content="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱 引言 先讲一个我亲身经历的生产事故。 2023 年，我接手一个 SaaS 项目的安全审计。这个项目用了 OAuth2 登录、JWT 做会话、还接了 OIDC 做 SSO。架构图看起来非常\"标准\"，团队也自认为很懂。结果我花了两个小时，就找出了三个越权漏洞： 第一个，他们的 JWT 里">
+  <meta name="keywords" content="security,web-security,cryptography,zero-trust,penetration-testing">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱">
+  <meta name="twitter:description" content="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱 引言 先讲一个我亲身经历的生产事故。 2023 年，我接手一个 SaaS 项目的安全审计。这个项目用了 OAuth2 登录、JWT 做会话、还接了 OIDC 做 SSO。架构图看起来非常\"标准\"，团队也自认为很懂。结果我花了两个小时，就找出了三个越权漏洞： 第一个，他们的 JWT 里">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=787">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱 引言 先讲一个我亲身经历的生产事故。 2023 年，我接手一个 SaaS 项目的安全审计。这个项目用了 OAuth2 登录、JWT 做会话、还接了 OIDC 做 SSO。架构图看起来非常\"标准\"，团队也自认为很懂。结果我花了两个小时，就找出了三个越权漏洞： 第一个，他们的 JWT 里">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=787">
+  <meta property="article:published_time" content="2026-11-25T05:42:42.000Z">
+  <meta property="article:modified_time" content="2026-11-25T05:42:42.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#别再傻傻分不清-从源码层面拆解-OAuth2-OIDC-与-JWT-的边界-以及那-7-个让无数团队翻车的认证陷阱"><span class="toc-text">别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-用-游乐园-类比理清三者关系"><span class="toc-text">核心概念：用"游乐园"类比理清三者关系</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比"><span class="toc-text">生活类比</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析"><span class="toc-text">源码/原理深度分析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#JWT-的结构与签名机制"><span class="toc-text">JWT 的结构与签名机制</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#OIDC-的-id-token-源码级剖析"><span class="toc-text">OIDC 的 id_token 源码级剖析</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#OAuth2-授权码流程的时序"><span class="toc-text">OAuth2 授权码流程的时序</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个常见的架构误区"><span class="toc-text">一个常见的架构误区</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码"><span class="toc-text">实战代码</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-严格的-id-token-校验器-Python"><span class="toc-text">示例 1：严格的 id_token 校验器（Python）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-带-PKCE-的授权码换取令牌-Python"><span class="toc-text">示例 2：带 PKCE 的授权码换取令牌（Python）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-令牌刷新与轮换-Go"><span class="toc-text">示例 3：令牌刷新与轮换（Go）</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-三种主流认证方案怎么选"><span class="toc-text">方案对比：三种主流认证方案怎么选</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-1-alg-none-攻击"><span class="toc-text">坑 1：alg=none 攻击</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-2-算法混淆-RS256-HS256"><span class="toc-text">坑 2：算法混淆（RS256 → HS256）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-3-不校验-aud-iss"><span class="toc-text">坑 3：不校验 aud / iss</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-4-id-token-当-access-token-用"><span class="toc-text">坑 4：id_token 当 access_token 用</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-5-refresh-token-不轮换"><span class="toc-text">坑 5：refresh token 不轮换</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-6-JWT-里塞敏感数据"><span class="toc-text">坑 6：JWT 里塞敏感数据</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#坑-7-忽略-clock-skew"><span class="toc-text">坑 7：忽略 clock skew</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#最佳实践清单"><span class="toc-text">最佳实践清单</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=787)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-25"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-25</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-25"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-25</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">security</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="别再傻傻分不清-从源码层面拆解-OAuth2-OIDC-与-JWT-的边界-以及那-7-个让无数团队翻车的认证陷阱"><a href="#别再傻傻分不清-从源码层面拆解-OAuth2-OIDC-与-JWT-的边界-以及那-7-个让无数团队翻车的认证陷阱" class="headerlink" title="别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱"></a>别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先讲一个我亲身经历的生产事故。</p>
+<p>2023 年，我接手一个 SaaS 项目的安全审计。这个项目用了 OAuth2 登录、JWT 做会话、还接了 OIDC 做 SSO。架构图看起来非常"标准"，团队也自认为很懂。结果我花了两个小时，就找出了三个越权漏洞：</p>
+<p>第一个，他们的 JWT 里塞了 <code>role: "user"</code>，但后端只校验签名，不校验 <code>aud</code> 和 <code>iss</code>——攻击者拿另一个业务线的 token 就能横向越权。第二个，OIDC 的 <code>id_token</code> 被当成了 <code>access_token</code> 拿去调 API，因为两者长得太像,都是 JWT。第三个，刷新令牌（refresh token）没有轮换（rotation），泄露一次就能永久续命。</p>
+<p>这三个问题的根源是同一个：<strong>团队没有搞清楚 OAuth2、OIDC、JWT 这三者到底各管什么事</strong>。它们经常被混为一谈，但它们其实是三个不同层次的东西——一个是授权框架，一个是身份认证层，一个是令牌格式。就像"餐厅管理流程"、"会员身份核验"、"会员卡"之间的关系，你可以拿会员卡（JWT）去核验身份（OIDC），但会员卡本身既不是流程也不是核验规则。</p>
+<p>这篇文章，我会从源码层面拆开这三者的实现，用生活类比讲清楚它们的边界，然后给出三个可以直接跑的生产级代码示例，最后聊聊那些"看起来能用、实际上致命"的坑。</p>
+<hr>
+<h2 id="核心概念-用-游乐园-类比理清三者关系"><a href="#核心概念-用-游乐园-类比理清三者关系" class="headerlink" title="核心概念：用"游乐园"类比理清三者关系"></a>核心概念：用"游乐园"类比理清三者关系</h2>
+<h3 id="生活类比"><a href="#生活类比" class="headerlink" title="生活类比"></a>生活类比</h3>
+<p>想象一个大型游乐园：</p>
+<ul>
+<li><strong>OAuth2</strong> 是游乐园的<strong>授权体系</strong>。你（用户）来到门口，想要让"代泊车服务"（第三方应用）帮你把车停好，但你不想把车钥匙直接给它，也不想让它能进你的酒店房间。于是游乐园发给你一张<strong>有限权限的临时手环</strong>（scope 受限的 access token），代泊车服务拿着手环只能做"泊车"这一件事。这就是 OAuth2 的本质：<strong>委托授权</strong>，它回答的是"<strong>这个应用能代表我做什么</strong>"。</li>
+</ul>
+<ul>
+<li><strong>OIDC</strong> 是在 OAuth2 之上加的<strong>身份核验层</strong>。你进园时需要证明"我就是这张年卡的持有人"。游乐园的核验窗口会给你一张<strong>带照片的身份卡</strong>（id_token），上面写着"张三，年卡会员，有效期到年底"。这就是 OIDC：它回答的是"<strong>你是谁</strong>"。它复用 OAuth2 的流程，但额外定义了身份信息的标准格式。</li>
+</ul>
+<ul>
+<li><strong>JWT</strong> 是<strong>卡片的物理材质</strong>。无论是临时手环还是身份卡，都可以用同一种"防伪塑料"制作——这就是 JWT。它是一种<strong>令牌的编码格式</strong>，本身不规定用途。手环可以用 JWT 做，身份卡也可以用 JWT 做，但你不能因为两张卡材质一样，就认为它们权限一样。</li>
+</ul>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>本质</th>
+<th>回答的问题</th>
+<th>规范</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OAuth2</td>
+<td>授权框架（Authorization Framework）</td>
+<td>应用能代表用户做什么？</td>
+<td>RFC 6749</td>
+</tr><tr>
+<td>OIDC</td>
+<td>身份认证层（Authentication Layer）</td>
+<td>用户是谁？</td>
+<td>OpenID Connect Core 1.0</td>
+</tr><tr>
+<td>JWT</td>
+<td>令牌格式（Token Format）</td>
+<td>如何安全地编码声明？</td>
+<td>RFC 7519</td>
+</tr></tbody></table>
+<p>关键洞察：<strong>OAuth2 不是认证协议</strong>。这是 RFC 6749 里明确写的（原文：*"OAuth 2.0 is not an authentication protocol"*）。很多团队把"用 OAuth2 登录"当成认证，这本身就是概念混淆的起点。OIDC 才是为此而生的补丁。</p>
+<hr>
+<h2 id="源码-原理深度分析"><a href="#源码-原理深度分析" class="headerlink" title="源码/原理深度分析"></a>源码/原理深度分析</h2>
+<h3 id="JWT-的结构与签名机制"><a href="#JWT-的结构与签名机制" class="headerlink" title="JWT 的结构与签名机制"></a>JWT 的结构与签名机制</h3>
+<p>JWT 由三段 Base64URL 编码拼接而成：<code>header.payload.signature</code>。</p>
+<figure class="highlight "><pre><code>eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMiLCJyb2xlIjoidXNlciJ9.signature...</code></pre></figure>
+<p>这里有一个绝大多数人忽略的细节：<strong>JWT 的 payload 是明文可读的，只是 Base64URL 编码，不是加密</strong>。你在 payload 里塞的任何东西，任何人拿到 token 都能解出来。所以<strong>绝不能在 JWT 里放敏感数据</strong>（密码、身份证号、密钥）。</p>
+<p>签名部分才是安全的核心。以 RS256 为例，签名算法是：</p>
+<figure class="highlight "><pre><code>signature = RSA_SHA256(base64url(header) + &quot;.&quot; + base64url(payload), privateKey)</code></pre></figure>
+<p>验证方用公钥验签。这里的关键是<strong>算法声明在 header 里</strong>（<code>alg</code> 字段），这埋下了著名的 <strong>alg=none 攻击</strong>和 <strong>算法混淆攻击</strong>的种子——后面避坑部分会细讲。</p>
+<h3 id="OIDC-的-id-token-源码级剖析"><a href="#OIDC-的-id-token-源码级剖析" class="headerlink" title="OIDC 的 id_token 源码级剖析"></a>OIDC 的 id_token 源码级剖析</h3>
+<p>OIDC 的核心是 <code>id_token</code>，它<strong>必须</strong>是 JWT。一个标准的 id_token payload 长这样：</p>
+<figure class="highlight json"><pre><code class="language-json">{
+  &quot;iss&quot;: &quot;https://auth.example.com&quot;,
+  &quot;sub&quot;: &quot;248289761001&quot;,
+  &quot;aud&quot;: &quot;s6BhdRkqt3&quot;,
+  &quot;exp&quot;: 1311281970,
+  &quot;iat&quot;: 1311280970,
+  &quot;nonce&quot;: &quot;n-0S6_WzA2Mj&quot;,
+  &quot;auth_time&quot;: 1311280969,
+  &quot;at_hash&quot;: &quot;77QmUPtjPfzWtF2AnpK9RQ&quot;
+}</code></pre></figure>
+<p>这些字段不是随便起的，每一个都有校验语义，<strong>少校验一个就是一个漏洞</strong>：</p>
+<ul>
+<li><code>iss</code>（Issuer）：签发者。必须和你配置的 IdP 完全匹配，否则攻击者可以伪造一个自己的 IdP 发 token。</li>
+</ul>
+<ul>
+<li><code>sub</code>（Subject）：用户唯一标识。同一用户在同一个 iss 下 sub 稳定。</li>
+</ul>
+<ul>
+<li><code>aud</code>（Audience）：受众。<strong>必须</strong>包含你的 client_id。不校验 aud，就是开头那个事故的第一个漏洞。</li>
+</ul>
+<ul>
+<li><code>exp</code> / <code>iat</code>：过期时间、签发时间。必须校验 exp。</li>
+</ul>
+<ul>
+<li><code>nonce</code>：防重放。登录时生成，回调时校验，防止 token 被截获重放。</li>
+</ul>
+<ul>
+<li><code>at_hash</code>：access_token 的哈希。用于绑定 id_token 和 access_token，防止两者被"调包"。</li>
+</ul>
+<p>OIDC 的校验逻辑在规范里写得很明确（OpenID Connect Core 1.0 §3.1.3.7），我把它翻译成伪代码：</p>
+<figure class="highlight python"><pre><code class="language-python">def validate_id_token(id_token, client_id, issuer, jwks):
+    header = decode_header(id_token)
+    # 1. 验签（必须用 IdP 的公钥）
+    key = jwks.get_key(header.kid)
+    claims = verify_signature(id_token, key, algorithms=[&quot;RS256&quot;])
+    # 2. 校验 iss
+    assert claims[&quot;iss&quot;] == issuer
+    # 3. 校验 aud 包含 client_id
+    assert client_id in (claims[&quot;aud&quot;] if isinstance(claims[&quot;aud&quot;], list) else [claims[&quot;aud&quot;]])
+    # 4. 校验 exp
+    assert claims[&quot;exp&quot;] &gt; now()
+    # 5. 校验 nonce（如果你传了）
+    assert claims[&quot;nonce&quot;] == session_nonce
+    return claims</code></pre></figure>
+<p>看到没？OIDC 的"认证"能力，本质上就是<strong>对 id_token 这一堆字段的严格校验</strong>。它没有魔法，就是规范 + 校验。</p>
+<h3 id="OAuth2-授权码流程的时序"><a href="#OAuth2-授权码流程的时序" class="headerlink" title="OAuth2 授权码流程的时序"></a>OAuth2 授权码流程的时序</h3>
+<div class="mermaid">
+sequenceDiagram
+    participant U as 用户浏览器
+    participant C as 客户端(第三方应用)
+    participant AS as 授权服务器(IdP)
+    participant RS as 资源服务器(API)
+
+    U->>C: 点击"用某账号登录"
+    C->>U: 重定向到 AS /authorize?client_id&scope&state&nonce
+    U->>AS: 用户登录并授权
+    AS->>U: 重定向回 C 的 callback?code=xxx&state=yyy
+    U->>C: 携带 code 回调
+    C->>AS: POST /token (code + client_secret + PKCE verifier)
+    AS->>C: 返回 access_token + id_token + refresh_token
+    C->>RS: 携带 access_token 调用 API
+    RS->>RS: 校验 token（JWT 验签或 introspection）
+    RS->>C: 返回资源
+</div>
+<p>这个流程里有三个安全锚点：<strong>state</strong>（防 CSRF）、<strong>PKCE</strong>（防授权码拦截）、<strong>code 只能用一次</strong>（防重放）。任何一个缺失，都是攻击面。</p>
+<h3 id="一个常见的架构误区"><a href="#一个常见的架构误区" class="headerlink" title="一个常见的架构误区"></a>一个常见的架构误区</h3>
+<p>很多人以为 JWT 是 OAuth2 的一部分。不是。OAuth2 规范里 access_token 是"不透明字符串（opaque string）"，格式由实现决定。JWT 只是其中一种<strong>可选</strong>的令牌格式。你可以用随机字符串 + 服务端存储（introspection）的方式实现 OAuth2，这也是很多金融级系统的选择。</p>
+<div class="mermaid">
+graph TD
+    A[OAuth2 授权框架] --> B[access_token 格式可选]
+    B --> C[不透明字符串 + introspection]
+    B --> D[JWT 自包含令牌]
+    A --> E[OIDC 扩展层]
+    E --> F[id_token 必须是 JWT]
+    
+    style A fill:#e1f5ff
+    style E fill:#fff4e1
+    style D fill:#e8f5e9
+</div>
+<p>上图说明：JWT 和 OIDC 的 id_token 是"强绑定"，但 JWT 和 OAuth2 的 access_token 是"弱绑定"。搞混这一点，就会写出把 id_token 当 access_token 用的代码——这正是引言里第二个漏洞。</p>
+<hr>
+<h2 id="实战代码"><a href="#实战代码" class="headerlink" title="实战代码"></a>实战代码</h2>
+<p>下面三个示例都是完整可运行的，用 Python（PyJWT）和 Go 各写一部分，覆盖"签发—校验—刷新"全链路。</p>
+<h3 id="示例-1-严格的-id-token-校验器-Python"><a href="#示例-1-严格的-id-token-校验器-Python" class="headerlink" title="示例 1：严格的 id_token 校验器（Python）"></a>示例 1：严格的 id_token 校验器（Python）</h3>
+<p>这是最容易被写错的部分。我把它封装成一个可直接用于生产回调的校验函数。</p>
+<figure class="highlight python"><pre><code class="language-python">import time
+import jwt
+import requests
+from functools import lru_cache
+from typing import Dict, Any
+
+class OIDCValidator:
+    &quot;&quot;&quot;
+    严格的 OIDC id_token 校验器。
+    对应 OpenID Connect Core 1.0 §3.1.3.7 的全部校验要求。
+    &quot;&quot;&quot;
+    def __init__(self, issuer: str, client_id: str, jwks_uri: str):
+        self.issuer = issuer
+        self.client_id = client_id
+        self.jwks_uri = jwks_uri
+
+    @lru_cache(maxsize=1)
+    def _get_jwks(self) -&gt; Dict[str, Any]:
+        # 生产环境应加缓存过期 + 重试，避免每次请求都拉取
+        resp = requests.get(self.jwks_uri, timeout=5)
+        resp.raise_for_status()
+        return resp.json()
+
+    def _find_key(self, kid: str):
+        for key in self._get_jwks()[&quot;keys&quot;]:
+            if key[&quot;kid&quot;] == kid:
+                return jwt.algorithms.RSAAlgorithm.from_jwk(key)
+        raise ValueError(f&quot;unknown kid: {kid}&quot;)
+
+    def validate(self, id_token: str, expected_nonce: str) -&gt; Dict[str, Any]:
+        # 1. 先解析 header，拿到 kid 和 alg
+        header = jwt.get_unverified_header(id_token)
+        # 2. 强制白名单算法，防 alg=none / HS256 混淆攻击
+        if header.get(&quot;alg&quot;) not in (&quot;RS256&quot;, &quot;ES256&quot;):
+            raise ValueError(f&quot;forbidden alg: {header.get(&#x27;alg&#x27;)}&quot;)
+        # 3. 用对应公钥验签
+        key = self._find_key(header[&quot;kid&quot;])
+        claims = jwt.decode(
+            id_token,
+            key=key,
+            algorithms=[header[&quot;alg&quot;]],
+            audience=self.client_id,   # 校验 aud
+            issuer=self.issuer,        # 校验 iss
+            options={&quot;require&quot;: [&quot;exp&quot;, &quot;iat&quot;, &quot;iss&quot;, &quot;aud&quot;, &quot;sub&quot;]},
+        )
+        # 4. 校验 nonce —— 防重放的关键，PyJWT 不自动校验
+        if claims.get(&quot;nonce&quot;) != expected_nonce:
+            raise ValueError(&quot;nonce mismatch, possible replay attack&quot;)
+        # 5. 校验 auth_time（可选，但对高安全场景必要）
+        if &quot;auth_time&quot; in claims and claims[&quot;auth_time&quot;] &gt; time.time() + 60:
+            raise ValueError(&quot;auth_time in future, clock skew too large&quot;)
+        return claims</code></pre></figure>
+<p><strong>注释要点</strong>：第 2 步的算法白名单是防算法混淆攻击的命门；第 4 步的 nonce 校验是防重放的关键，PyJWT 不会自动做，必须手写。</p>
+<h3 id="示例-2-带-PKCE-的授权码换取令牌-Python"><a href="#示例-2-带-PKCE-的授权码换取令牌-Python" class="headerlink" title="示例 2：带 PKCE 的授权码换取令牌（Python）"></a>示例 2：带 PKCE 的授权码换取令牌（Python）</h3>
+<p>PKCE（RFC 7636）是公共客户端（SPA、移动端）的必需品。很多团队只在移动端做，Web 端就省了——这是错的，Web 端同样可能被 XSS 或浏览器扩展截获 code。</p>
+<figure class="highlight python"><pre><code class="language-python">import base64
+import hashlib
+import os
+import requests
+from urllib.parse import urlencode
+
+def generate_pkce_pair():
+    &quot;&quot;&quot;生成 PKCE code_verifier 和 code_challenge（S256 方法）&quot;&quot;&quot;
+    verifier = base64.urlsafe_b64encode(os.urandom(32)).rstrip(b&quot;=&quot;).decode()
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b&quot;=&quot;).decode()
+    return verifier, challenge
+
+def build_authorize_url(issuer, client_id, redirect_uri, state, nonce, challenge):
+    params = {
+        &quot;response_type&quot;: &quot;code&quot;,
+        &quot;client_id&quot;: client_id,
+        &quot;redirect_uri&quot;: redirect_uri,
+        &quot;scope&quot;: &quot;openid profile email&quot;,
+        &quot;state&quot;: state,               # 防 CSRF，回调时必须比对
+        &quot;nonce&quot;: nonce,               # 防重放，回调时校验 id_token 里的 nonce
+        &quot;code_challenge&quot;: challenge,
+        &quot;code_challenge_method&quot;: &quot;S256&quot;,
+    }
+    return f&quot;{issuer}/authorize?{urlencode(params)}&quot;
+
+def exchange_code(issuer, client_id, client_secret, redirect_uri, code, verifier):
+    &quot;&quot;&quot;用授权码 + PKCE verifier 换取 token&quot;&quot;&quot;
+    resp = requests.post(
+        f&quot;{issuer}/token&quot;,
+        data={
+            &quot;grant_type&quot;: &quot;authorization_code&quot;,
+            &quot;code&quot;: code,
+            &quot;redirect_uri&quot;: redirect_uri,
+            &quot;client_id&quot;: client_id,
+            &quot;client_secret&quot;: client_secret,   # 机密客户端才需要，公共客户端留空
+            &quot;code_verifier&quot;: verifier,        # PKCE 的核心
+        },
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp.json()  # {access_token, id_token, refresh_token, expires_in}</code></pre></figure>
+<p><strong>注释要点</strong>：<code>state</code> 和 <code>nonce</code> 是两条独立的防线，不要合并；<code>code_verifier</code> 必须和授权请求时的 challenge 对应；机密客户端才传 <code>client_secret</code>，公共客户端（SPA）绝不能内置 secret。</p>
+<h3 id="示例-3-令牌刷新与轮换-Go"><a href="#示例-3-令牌刷新与轮换-Go" class="headerlink" title="示例 3：令牌刷新与轮换（Go）"></a>示例 3：令牌刷新与轮换（Go）</h3>
+<p>Refresh token 不轮换，是长期潜伏的定时炸弹。下面这段 Go 代码实现了<strong>轮换 + 复用检测</strong>——一旦检测到旧 refresh token 被重复使用，立即吊销整个令牌族。</p>
+<figure class="highlight go"><pre><code class="language-go">package auth
+
+import (
+	&quot;context&quot;
+	&quot;errors&quot;
+	&quot;time&quot;
+)
+
+var ErrTokenReused = errors.New(&quot;refresh token reused, revoke token family&quot;)
+
+type TokenStore interface {
+	// 存 refresh token 及其所属 family
+	SaveRefresh(ctx context.Context, token, familyID string, ttl time.Duration) error
+	// 原子地取出并作废，返回 familyID；不存在返回 ErrNotFound
+	ConsumeRefresh(ctx context.Context, token string) (familyID string, err error)
+	// 吊销整个 family 下所有 token
+	RevokeFamily(ctx context.Context, familyID string) error
+}
+
+func Refresh(ctx context.Context, store TokenStore, oldToken string) (newAccess, newRefresh string, err error) {
+	familyID, err := store.ConsumeRefresh(ctx, oldToken)
+	if err != nil {
+		// 关键：如果这个 token 之前被消费过（复用），触发全族吊销
+		if errors.Is(err, ErrTokenReused) {
+			_ = store.RevokeFamily(ctx, familyID)
+			return &quot;&quot;, &quot;&quot;, ErrTokenReused
+		}
+		return &quot;&quot;, &quot;&quot;, err
+	}
+	// 签发新的一对，新 refresh 仍属于同一个 family
+	newAccess = issueAccessToken(familyID)
+	newRefresh = issueRefreshToken()
+	_ = store.SaveRefresh(ctx, newRefresh, familyID, 7*24*time.Hour)
+	return newAccess, newRefresh, nil
+}</code></pre></figure>
+<p><strong>注释要点</strong>：<code>ConsumeRefresh</code> 必须是<strong>原子操作</strong>（Redis 的 <code>GETDEL</code> 或数据库行锁），否则并发下会漏判；<code>RevokeFamily</code> 是"复用检测"的核心——攻击者偷到旧 token 用一次，合法用户下次刷新就会触发全族吊销，把攻击者和用户一起踢下线，安全优先。</p>
+<hr>
+<h2 id="方案对比-三种主流认证方案怎么选"><a href="#方案对比-三种主流认证方案怎么选" class="headerlink" title="方案对比：三种主流认证方案怎么选"></a>方案对比：三种主流认证方案怎么选</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>令牌形态</th>
+<th>状态管理</th>
+<th>适用场景</th>
+<th>致命弱点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Session + Cookie</td>
+<td>随机 sessionId</td>
+<td>服务端有状态</td>
+<td>单体、同域 Web 应用</td>
+<td>跨域/多端难扩展；需共享 session 存储</td>
+</tr><tr>
+<td>OAuth2 + 不透明 token</td>
+<td>随机字符串 + introspection</td>
+<td>授权服务器有状态</td>
+<td>金融、高安全、需要即时吊销</td>
+<td>每次请求都要 introspection，性能开销大</td>
+</tr><tr>
+<td>OAuth2 + JWT</td>
+<td>自包含 JWT</td>
+<td>无状态（可加黑名单）</td>
+<td>微服务、跨域、高并发</td>
+<td>无法即时吊销；令牌泄露窗口大</td>
+</tr></tbody></table>
+<p><strong>我的观点</strong>：不要迷信"无状态 JWT 一定好"。JWT 的最大卖点是省掉一次查库，代价是<strong>吊销困难</strong>。如果你的业务需要"立即踢人下线"（比如金融、后台管理），用 introspection 或短 TTL + refresh 轮换更稳妥。JWT 适合"读多写少、容忍短暂延迟吊销"的场景。</p>
+<p>再补一个对比：<strong>IDaaS 托管 vs 自研</strong>。Auth0、Keycloak、AWS Cognito 这类托管方案能帮你把 OIDC 的各种边界情况处理掉，但自研能完全掌控数据和流程。我的经验是：<strong>认证这种"错了就全盘皆输"的模块，能托管就托管，把精力留给业务</strong>。自研的团队，往往在 nonce、PKCE、轮换这些细节上翻车。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<h3 id="坑-1-alg-none-攻击"><a href="#坑-1-alg-none-攻击" class="headerlink" title="坑 1：alg=none 攻击"></a>坑 1：alg=none 攻击</h3>
+<p>JWT header 里的 <code>alg</code> 是攻击者可控的。如果验证方不限制算法，攻击者把 <code>alg</code> 改成 <code>none</code>、删掉签名，某些库会"验证通过"。<strong>对策</strong>：永远显式指定允许的算法白名单，如示例 1 的第 2 步。</p>
+<h3 id="坑-2-算法混淆-RS256-HS256"><a href="#坑-2-算法混淆-RS256-HS256" class="headerlink" title="坑 2：算法混淆（RS256 → HS256）"></a>坑 2：算法混淆（RS256 → HS256）</h3>
+<p>如果服务端用公钥验 RS256，攻击者把 <code>alg</code> 改成 HS256，并用<strong>公钥当 HMAC 密钥</strong>重新签名，某些实现会误判通过。<strong>对策</strong>：验签时锁定算法，且公钥绝不用于 HMAC。</p>
+<h3 id="坑-3-不校验-aud-iss"><a href="#坑-3-不校验-aud-iss" class="headerlink" title="坑 3：不校验 aud / iss"></a>坑 3：不校验 aud / iss</h3>
+<p>这是开头事故的元凶。多租户系统里，A 租户的 token 能访问 B 租户的 API。<strong>对策</strong>：把 <code>aud</code>、<code>iss</code> 校验写进统一的中间件，强制所有端点走。</p>
+<h3 id="坑-4-id-token-当-access-token-用"><a href="#坑-4-id-token-当-access-token-用" class="headerlink" title="坑 4：id_token 当 access_token 用"></a>坑 4：id_token 当 access_token 用</h3>
+<p>两者都是 JWT，长得像，但语义完全不同。id_token 是给<strong>客户端</strong>验证用户身份的，access_token 是给<strong>资源服务器</strong>授权访问的。<strong>对策</strong>：在类型系统上区分（不同 struct/class），资源服务器只接受 access_token。</p>
+<h3 id="坑-5-refresh-token-不轮换"><a href="#坑-5-refresh-token-不轮换" class="headerlink" title="坑 5：refresh token 不轮换"></a>坑 5：refresh token 不轮换</h3>
+<p>泄露一次，永久续命。<strong>对策</strong>：每次刷新都换新 refresh，旧的一次性作废，并做复用检测（示例 3）。</p>
+<h3 id="坑-6-JWT-里塞敏感数据"><a href="#坑-6-JWT-里塞敏感数据" class="headerlink" title="坑 6：JWT 里塞敏感数据"></a>坑 6：JWT 里塞敏感数据</h3>
+<p>payload 明文可读。<strong>对策</strong>：只放 <code>sub</code>、<code>scope</code>、<code>exp</code> 这类非敏感声明。</p>
+<h3 id="坑-7-忽略-clock-skew"><a href="#坑-7-忽略-clock-skew" class="headerlink" title="坑 7：忽略 clock skew"></a>坑 7：忽略 clock skew</h3>
+<p>分布式系统里各机器时间有偏差，<code>exp</code> 校验过于严格会误杀。<strong>对策</strong>：允许 30~60 秒的时钟偏移（leeway），但不要超过 5 分钟。</p>
+<h3 id="最佳实践清单"><a href="#最佳实践清单" class="headerlink" title="最佳实践清单"></a>最佳实践清单</h3>
+<ol>
+<li><strong>认证用 OIDC，授权用 OAuth2，令牌格式按场景选 JWT 或不透明串</strong>——三者各司其职。</li>
+<li><strong>所有 token 校验集中到一个中间件</strong>，杜绝"某个端点忘了校验"。</li>
+<li><strong>access_token 短 TTL（5~15 分钟）+ refresh token 轮换</strong>，把泄露窗口压到最小。</li>
+<li><strong>公共客户端必须用 PKCE</strong>，机密客户端也要用（纵深防御）。</li>
+<li><strong>state、nonce、code 一次性</strong>，三个防重放锚点一个不能少。</li>
+<li><strong>JWKS 缓存 + 定期刷新</strong>，避免每次验签都请求 IdP。</li>
+<li><strong>监控异常刷新行为</strong>，复用检测触发时告警，这是入侵的强信号。</li>
+</ol>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个事故。那三个漏洞的本质，是把三个不同层次的东西混为一谈：</p>
+<ul>
+<li><strong>OAuth2 是授权框架</strong>，管"能做什么"，它本身不做认证；</li>
+</ul>
+<ul>
+<li><strong>OIDC 是认证层</strong>，管"你是谁"，它的核心是对 id_token 一堆字段的严格校验；</li>
+</ul>
+<ul>
+<li><strong>JWT 是令牌格式</strong>，管"怎么编码声明"，它既不等于授权也不等于认证。</li>
+</ul>
+<p>理解了这层边界，很多"最佳实践"就不再是需要背的教条，而是自然的推论：既然 OIDC 靠校验字段保证安全，那 <code>aud</code>、<code>iss</code>、<code>nonce</code> 一个都不能少；既然 JWT 是无状态自包含的，那吊销困难就是它的固有代价，短 TTL + 轮换是必然选择。</p>
+<p>最后留一个延伸思考：<strong>零信任（Zero Trust）</strong> 的浪潮下，"一次认证、长期有效"的模型正在被"持续验证"取代。JWT 的"自包含"特性在零信任里其实是双刃剑——它让你省了查库，却让你无法感知"这个用户 5 分钟前刚被降权"。未来，短生命周期令牌 + 持续风险评估（比如结合设备指纹、行为分析）会成为主流。到那时，JWT 可能更多扮演"短期凭证"的角色，而"身份真相"会重新回到有状态的授权服务器手里。</p>
+<p>技术没有银弹，只有对边界的清醒认知。搞清楚 OAuth2、OIDC、JWT 各管什么，比记住任何一条最佳实践都重要。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

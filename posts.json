@@ -1,5 +1,23 @@
 [
  {
+  "title": "别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱",
+  "url": "/2026/11/25/%E5%88%AB%E5%86%8D%E5%82%BB%E5%82%BB%E5%88%86%E4%B8%8D%E6%B8%85%EF%BC%9A%E4%BB%8E%E6%BA%90%E7%A0%81%E5%B1%82%E9%9D%A2%E6%8B%86%E8%A7%A3%20OAuth2%E3%80%81OIDC%20%E4%B8%8E%20JWT%20%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%8C%E4%BB%A5%E5%8F%8A%E9%82%A3%207%20%E4%B8%AA%E8%AE%A9%E6%97%A0%E6%95%B0%E5%9B%A2%E9%98%9F%E7%BF%BB%E8%BD%A6%E7%9A%84%E8%AE%A4%E8%AF%81%E9%99%B7%E9%98%B1/",
+  "date": "2026-11-25",
+  "year": 2026,
+  "month": 11,
+  "day": 25,
+  "category": "security",
+  "tags": [
+   "security",
+   "web-security",
+   "cryptography",
+   "zero-trust",
+   "penetration-testing"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=787",
+  "excerpt": "引言 先讲一个我亲身经历的生产事故。 2023 年，我接手一个 SaaS 项目的安全审计。这个项目用了 OAuth2 登录、JWT 做会话、还接了 OIDC 做 SSO。架构图看起来非常\\"
+ },
+ {
   "title": "别再堆组件了：从 Nacos、Sentinel、Seata 的源码看微服务治理的“三层边界”",
   "url": "/2026/11/24/%E5%88%AB%E5%86%8D%E5%A0%86%E7%BB%84%E4%BB%B6%E4%BA%86%EF%BC%9A%E4%BB%8E%20Nacos%E3%80%81Sentinel%E3%80%81Seata%20%E7%9A%84%E6%BA%90%E7%A0%81%E7%9C%8B%E5%BE%AE%E6%9C%8D%E5%8A%A1%E6%B2%BB%E7%90%86%E7%9A%84%E2%80%9C%E4%B8%89%E5%B1%82%E8%BE%B9%E7%95%8C%E2%80%9D/",
   "date": "2026-11-24",
