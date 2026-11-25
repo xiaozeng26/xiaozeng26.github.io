@@ -1,5 +1,24 @@
 [
  {
+  "title": "别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质",
+  "url": "/2026/11/26/%E5%88%AB%E5%86%8D%E7%94%A8%20%60v-html%60%20%E4%BA%86%EF%BC%9A%E4%BB%8E%E6%B5%8F%E8%A7%88%E5%99%A8%E6%B8%B2%E6%9F%93%E7%AE%A1%E7%BA%BF%E6%8B%86%E8%A7%A3%20XSS-CSRF-CSP%20%E7%9A%84%E6%94%BB%E9%98%B2%E6%9C%AC%E8%B4%A8/",
+  "date": "2026-11-26",
+  "year": 2026,
+  "month": 11,
+  "day": 26,
+  "category": "frontend",
+  "tags": [
+   "frontend",
+   "vue",
+   "react",
+   "typescript",
+   "javascript",
+   "nodejs"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=4295",
+  "excerpt": "v-html 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质\\"
+ },
+ {
   "title": "别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱",
   "url": "/2026/11/25/%E5%88%AB%E5%86%8D%E5%82%BB%E5%82%BB%E5%88%86%E4%B8%8D%E6%B8%85%EF%BC%9A%E4%BB%8E%E6%BA%90%E7%A0%81%E5%B1%82%E9%9D%A2%E6%8B%86%E8%A7%A3%20OAuth2%E3%80%81OIDC%20%E4%B8%8E%20JWT%20%E7%9A%84%E8%BE%B9%E7%95%8C%EF%BC%8C%E4%BB%A5%E5%8F%8A%E9%82%A3%207%20%E4%B8%AA%E8%AE%A9%E6%97%A0%E6%95%B0%E5%9B%A2%E9%98%9F%E7%BF%BB%E8%BD%A6%E7%9A%84%E8%AE%A4%E8%AF%81%E9%99%B7%E9%98%B1/",
   "date": "2026-11-25",

@@ -699,6 +699,13 @@
       "subtopic": "身份认证与授权：OAuth2、OIDC 与 JWT 安全",
       "date": "2026-11-24",
       "url": "/2026/11/25/别再傻傻分不清：从源码层面拆解 OAuth2、OIDC 与 JWT 的边界，以及那 7 个让无数团队翻车的认证陷阱/"
+    },
+    {
+      "title": "别再用 `v-html` 了：从浏览器渲染管线拆解 XSS/CSRF/CSP 的攻防本质",
+      "category": "frontend",
+      "subtopic": "前端安全：XSS、CSRF 与 CSP 防护",
+      "date": "2026-11-25",
+      "url": "/2026/11/26/别再用 `v-html` 了：从浏览器渲染管线拆解 XSS-CSRF-CSP 的攻防本质/"
     }
   ],
   "used_subtopics": {
@@ -861,6 +868,7 @@
     "多模态大模型：CLIP、视觉语言模型与多模态对齐": "c158388bdcc4da908b385cef40656fc59de75a4833827367e805ee8214b18a01",
     "混沌工程：故障注入与系统韧性验证": "b24f7df475dbf963549349978ffd3d87e31883f2242e4f86048ee2acf197002f",
     "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44",
-    "身份认证与授权：OAuth2、OIDC 与 JWT 安全": "d7fe07a93db58c887b5e40f3e4f5d5e666f003191d0a2029f3bf70d92705e826"
+    "身份认证与授权：OAuth2、OIDC 与 JWT 安全": "d7fe07a93db58c887b5e40f3e4f5d5e666f003191d0a2029f3bf70d92705e826",
+    "前端安全：XSS、CSRF 与 CSP 防护": "cbff5805858dfd69090ef799d86a02f21863a2aa645a70df1746e2849e048fcd"
   }
 }
