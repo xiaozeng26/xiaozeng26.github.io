@@ -706,6 +706,13 @@
       "subtopic": "前端安全：XSS、CSRF 与 CSP 防护",
       "date": "2026-11-25",
       "url": "/2026/11/26/别再用 `v-html` 了：从浏览器渲染管线拆解 XSS-CSRF-CSP 的攻防本质/"
+    },
+    {
+      "title": "Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉",
+      "category": "ai-agent",
+      "subtopic": "Agent 评估：如何衡量一个 Agent 是否可靠",
+      "date": "2026-11-26",
+      "url": "/2026/11/27/Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉/"
     }
   ],
   "used_subtopics": {
@@ -869,6 +876,7 @@
     "混沌工程：故障注入与系统韧性验证": "b24f7df475dbf963549349978ffd3d87e31883f2242e4f86048ee2acf197002f",
     "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44",
     "身份认证与授权：OAuth2、OIDC 与 JWT 安全": "d7fe07a93db58c887b5e40f3e4f5d5e666f003191d0a2029f3bf70d92705e826",
-    "前端安全：XSS、CSRF 与 CSP 防护": "cbff5805858dfd69090ef799d86a02f21863a2aa645a70df1746e2849e048fcd"
+    "前端安全：XSS、CSRF 与 CSP 防护": "cbff5805858dfd69090ef799d86a02f21863a2aa645a70df1746e2849e048fcd",
+    "Agent 评估：如何衡量一个 Agent 是否可靠": "02d5cef8e17311dd48fbdefce3dd4286de97585bfc5565022f72b56c7870a28a"
   }
 }

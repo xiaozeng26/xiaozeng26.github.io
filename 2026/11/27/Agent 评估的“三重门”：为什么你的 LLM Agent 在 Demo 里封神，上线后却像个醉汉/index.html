@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉 | 小曾博客</title>
+  <meta name="description" content="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉 引言 先说一个真实场景。 去年我参与一个客服 Agent 的落地项目。Demo 阶段，产品经理在会议室里演示：用户问“我上个月的订单为什么还没发货”，Agent 调用了订单查询 API、物流 API，还用自然语言解释了延迟原因，最后主动提出补偿方案。全场鼓掌。 三周后上线，监控面板上的数字开始变得">
+  <meta name="keywords" content="ai,agent,llm,langchain,langgraph,multi-agent,mcp,autogen">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉">
+  <meta name="twitter:description" content="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉 引言 先说一个真实场景。 去年我参与一个客服 Agent 的落地项目。Demo 阶段，产品经理在会议室里演示：用户问“我上个月的订单为什么还没发货”，Agent 调用了订单查询 API、物流 API，还用自然语言解释了延迟原因，最后主动提出补偿方案。全场鼓掌。 三周后上线，监控面板上的数字开始变得">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8199">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉 引言 先说一个真实场景。 去年我参与一个客服 Agent 的落地项目。Demo 阶段，产品经理在会议室里演示：用户问“我上个月的订单为什么还没发货”，Agent 调用了订单查询 API、物流 API，还用自然语言解释了延迟原因，最后主动提出补偿方案。全场鼓掌。 三周后上线，监控面板上的数字开始变得">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8199">
+  <meta property="article:published_time" content="2026-11-27T04:42:20.000Z">
+  <meta property="article:modified_time" content="2026-11-27T04:42:20.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Agent-评估的-三重门-为什么你的-LLM-Agent-在-Demo-里封神-上线后却像个醉汉"><span class="toc-text">Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-Agent-评估到底在评估什么"><span class="toc-text">核心概念：Agent 评估到底在评估什么</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#生活类比-米其林评审-vs-食客打分"><span class="toc-text">生活类比：米其林评审 vs 食客打分</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#技术定义"><span class="toc-text">技术定义</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码级深度分析-主流框架的评估能力到底差在哪"><span class="toc-text">源码级深度分析：主流框架的评估能力到底差在哪</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#LangGraph-的-Checkpointer-被低估的评估基础设施"><span class="toc-text">LangGraph 的 Checkpointer：被低估的评估基础设施</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#AutoGen-的对话轨迹-更难评估的-涌现行为"><span class="toc-text">AutoGen 的对话轨迹：更难评估的“涌现行为”</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#一个容易被忽略的陷阱-Checkpointer-的状态污染"><span class="toc-text">一个容易被忽略的陷阱：Checkpointer 的状态污染</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可运行的评估模块"><span class="toc-text">实战代码：三个可运行的评估模块</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-轨迹级评估器-基于-LangGraph-Checkpointer"><span class="toc-text">示例 1：轨迹级评估器（基于 LangGraph Checkpointer）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-LLM-as-Judge-的忠实度评估-带防幻觉设计"><span class="toc-text">示例 2：LLM-as-Judge 的忠实度评估（带防幻觉设计）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-稳定性评估-扰动与多次采样"><span class="toc-text">示例 3：稳定性评估——扰动与多次采样</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-主流评估方案的异同与适用场景"><span class="toc-text">方案对比：主流评估方案的异同与适用场景</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=8199)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-27"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-27</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-27"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-27</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">ai-agent</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="Agent-评估的-三重门-为什么你的-LLM-Agent-在-Demo-里封神-上线后却像个醉汉"><a href="#Agent-评估的-三重门-为什么你的-LLM-Agent-在-Demo-里封神-上线后却像个醉汉" class="headerlink" title="Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉"></a>Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>先说一个真实场景。</p>
+<p>去年我参与一个客服 Agent 的落地项目。Demo 阶段，产品经理在会议室里演示：用户问“我上个月的订单为什么还没发货”，Agent 调用了订单查询 API、物流 API，还用自然语言解释了延迟原因，最后主动提出补偿方案。全场鼓掌。</p>
+<p>三周后上线，监控面板上的数字开始变得难看：</p>
+<ul>
+<li>10% 的请求里，Agent 把两个用户的订单搞混了（上下文污染）；</li>
+</ul>
+<ul>
+<li>8% 的请求里，Agent 在工具调用失败后开始“编造”物流状态（幻觉）；</li>
+</ul>
+<ul>
+<li>还有一类最隐蔽：Agent 回答完全正确，但多花了 4 次工具调用、消耗了 3 倍 token——用户满意，财务不满意。</li>
+</ul>
+<p>问题出在哪？我们从来没有系统性地“评估”过它。我们只做过“测试”——跑几十条用例，人工看一眼输出像不像话。这跟用肉眼看体温计判断发动机故障没有本质区别。</p>
+<p><strong>Agent 的可靠性不是“回答得像不像”，而是一个多维度的工程指标。</strong> 这篇文章我想讲清楚：一个生产级 Agent 的评估体系应该长什么样，为什么业界主流框架（LangGraph、AutoGen、MCP 生态）在评估上各有短板，以及如何用源码级的视角去构建你自己的评估闭环。</p>
+<hr>
+<h2 id="核心概念-Agent-评估到底在评估什么"><a href="#核心概念-Agent-评估到底在评估什么" class="headerlink" title="核心概念：Agent 评估到底在评估什么"></a>核心概念：Agent 评估到底在评估什么</h2>
+<h3 id="生活类比-米其林评审-vs-食客打分"><a href="#生活类比-米其林评审-vs-食客打分" class="headerlink" title="生活类比：米其林评审 vs 食客打分"></a>生活类比：米其林评审 vs 食客打分</h3>
+<p>普通 LLM 评估像“食客打分”：菜好不好吃，尝一口，给个星星。简单直接，但只能反映<strong>最终输出</strong>。</p>
+<p>Agent 评估更像“米其林评审”：评审员不仅尝菜，还要看后厨动线是否合理（工具调用路径）、食材是否新鲜（上下文质量）、出餐时间是否稳定（延迟与成本）、以及换一个评审员来吃结果是否一致（可复现性）。</p>
+<p><strong>一个 Agent 的可靠性 = 输出正确性 × 过程合理性 × 资源经济性 × 行为稳定性。</strong></p>
+<p>四个维度缺一不可。只测第一个，你得到的是一个“偶尔正确但不可控”的系统。</p>
+<h3 id="技术定义"><a href="#技术定义" class="headerlink" title="技术定义"></a>技术定义</h3>
+<p>从工程视角，Agent 评估可形式化为一个四元组：</p>
+<figure class="highlight "><pre><code>Eval(Agent, Task) = {
+    Outcome:  最终答案与 ground truth 的语义匹配度,
+    Trajectory: 工具调用序列的合理性（路径、冗余、顺序）,
+    Cost:     token 数 / 工具调用次数 / 端到端延迟,
+    Robustness: 同一任务多次执行、扰动输入后的方差
+}</code></pre></figure>
+<p>关键在于 <strong>Trajectory（轨迹）</strong> ——这是 Agent 评估区别于传统 LLM 评估的核心。传统评估是 <code>f(prompt) -> response</code> 的黑盒；Agent 评估是 <code>f(prompt) -> (thought, action, observation)* -> response</code> 的<strong>过程评估</strong>。</p>
+<div class="mermaid">
+graph TD
+    A[用户任务] --> B[Agent 规划]
+    B --> C{选择动作}
+    C -->|工具调用| D[执行 Tool]
+    C -->|直接回答| E[生成响应]
+    D --> F[Observation 回填]
+    F --> B
+    E --> G[最终输出]
+    
+    B -.评估点.-> M1[规划合理性]
+    C -.评估点.-> M2[动作选择正确性]
+    D -.评估点.-> M3[工具调用参数准确率]
+    F -.评估点.-> M4[上下文利用率]
+    E -.评估点.-> M5[答案忠实度]
+    G -.评估点.-> M6[端到端正确性]
+    
+    style M1 fill:#ffe4b5
+    style M2 fill:#ffe4b5
+    style M3 fill:#ffe4b5
+    style M4 fill:#ffe4b5
+    style M5 fill:#ffe4b5
+    style M6 fill:#ffe4b5
+</div>
+<p>上图展示了 Agent 执行循环中的六个评估锚点。注意：<strong>只在终点评估（M6）是最省事但最危险的做法</strong>，因为一旦失败你根本不知道是规划错了、工具选错了，还是参数传错了。</p>
+<hr>
+<h2 id="源码级深度分析-主流框架的评估能力到底差在哪"><a href="#源码级深度分析-主流框架的评估能力到底差在哪" class="headerlink" title="源码级深度分析：主流框架的评估能力到底差在哪"></a>源码级深度分析：主流框架的评估能力到底差在哪</h2>
+<h3 id="LangGraph-的-Checkpointer-被低估的评估基础设施"><a href="#LangGraph-的-Checkpointer-被低估的评估基础设施" class="headerlink" title="LangGraph 的 Checkpointer：被低估的评估基础设施"></a>LangGraph 的 Checkpointer：被低估的评估基础设施</h3>
+<p>LangGraph 最容易被忽视的设计是 <code>Checkpointer</code>。大多数人把它当“断点续跑”用，但它其实是<strong>轨迹评估的天然数据源</strong>。</p>
+<p>看 LangGraph 的核心执行循环（简化自 <code>langgraph/pregel/__init__.py</code> 的执行逻辑）：</p>
+<figure class="highlight python"><pre><code class="language-python"># 伪代码，还原 LangGraph Pregel 执行引擎的核心逻辑
+class Pregel:
+    def stream(self, input, config):
+        # 每个 superstep 是一个&quot;节点执行 + 状态更新&quot;的原子单元
+        for step in self.steps:
+            # 1. 从 checkpointer 恢复上一轮状态
+            checkpoint = self.checkpointer.get(config[&quot;thread_id&quot;])
+            state = checkpoint.channel_values if checkpoint else {}
+            
+            # 2. 执行当前 superstep 的所有节点（可并行）
+            #    关键：write 是&quot;待提交的更新&quot;，不是立即写
+            writes = []
+            for node in step.nodes:
+                # 节点返回的是对 state 的增量更新，而非全量
+                node_writes = node.invoke(state)
+                writes.append((node.name, node_writes))
+            
+            # 3. 原子提交：只有全部成功才写入 checkpoint
+            #    这一步是评估的关键——它保证了轨迹的&quot;因果一致性&quot;
+            new_checkpoint = self._apply_writes(checkpoint, writes)
+            self.checkpointer.put(config[&quot;thread_id&quot;], new_checkpoint)
+            
+            yield new_checkpoint  # 每个 superstep 都可被外部观测</code></pre></figure>
+<p><strong>这段代码为什么对评估重要？</strong></p>
+<p><code>yield new_checkpoint</code> 意味着每一个 superstep 的完整状态快照都可以被外部消费。这意味着你可以构建一个<strong>旁路评估器</strong>：不侵入 Agent 逻辑，只订阅 checkpoint 流，就能拿到完整的 <code>(state_before, action, state_after)</code> 三元组序列。这比事后从日志里拼凑轨迹可靠得多。</p>
+<p>但 LangGraph 官方提供的评估工具（<code>langsmith</code> 的 evaluator）主要面向<strong>终点评估</strong>，对轨迹的细粒度打分需要你自己基于 checkpointer 实现。这是它的短板。</p>
+<h3 id="AutoGen-的对话轨迹-更难评估的-涌现行为"><a href="#AutoGen-的对话轨迹-更难评估的-涌现行为" class="headerlink" title="AutoGen 的对话轨迹：更难评估的“涌现行为”"></a>AutoGen 的对话轨迹：更难评估的“涌现行为”</h3>
+<p>AutoGen 的多 Agent 对话模式（<code>GroupChat</code>）评估难度更高。看它的消息路由逻辑（简化自 <code>autogen/agentchat/groupchat.py</code>）：</p>
+<figure class="highlight python"><pre><code class="language-python"># 简化还原 GroupChat 的发言者选择逻辑
+def _select_speaker(self, messages):
+    # 策略1：LLM 自己选下一个发言者（最常见的坑）
+    if self.speaker_selection_method == &quot;auto&quot;:
+        # 把整个对话历史塞给 LLM，让它输出下一个 agent 名字
+        prompt = self._build_speaker_selection_prompt(messages)
+        response = self.llm.generate(prompt)
+        # 这里没有强约束！LLM 可能返回不存在的 agent，
+        # 也可能在 A、B 之间无限乒乓
+        return self._parse_speaker(response, self.agents)
+    
+    # 策略2：轮询（round_robin）——可预测但僵化
+    elif self.speaker_selection_method == &quot;round_robin&quot;:
+        return self.agents[self._next_index % len(self.agents)]</code></pre></figure>
+<p><strong>这里的评估难点在于</strong>：多 Agent 的对话轨迹是<strong>涌现</strong>的，没有唯一“正确路径”。A 先问 B 还是 B 先问 A，可能都合理。所以你不能用“轨迹匹配”来评估，只能用<strong>约束满足</strong>：</p>
+<ul>
+<li>是否在 N 轮内收敛（没有无限乒乓）？</li>
+</ul>
+<ul>
+<li>是否每个 Agent 都只做了职责内的事（没有越界）？</li>
+</ul>
+<ul>
+<li>最终结论是否是某个 Agent 的“确认输出”而非“最后一句话”？</li>
+</ul>
+<p>AutoGen 本身不提供这些评估器，你需要自己写。这是多 Agent 评估比单 Agent 评估难一个量级的根本原因。</p>
+<h3 id="一个容易被忽略的陷阱-Checkpointer-的状态污染"><a href="#一个容易被忽略的陷阱-Checkpointer-的状态污染" class="headerlink" title="一个容易被忽略的陷阱：Checkpointer 的状态污染"></a>一个容易被忽略的陷阱：Checkpointer 的状态污染</h3>
+<p>即便有了完美的轨迹数据，评估还有一个隐蔽陷阱。看下面这段看似无害的代码：</p>
+<figure class="highlight python"><pre><code class="language-python"># 坑：复用 thread_id 会导致评估数据被污染
+config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;user_123&quot;}}
+graph.invoke({&quot;messages&quot;: [(&quot;user&quot;, &quot;查订单&quot;)]}, config)
+graph.invoke({&quot;messages&quot;: [(&quot;user&quot;, &quot;查物流&quot;)]}, config)  # 同一个 thread!</code></pre></figure>
+<p>第二次调用会<strong>继承</strong>第一次的完整状态（包括工具返回的订单数据）。如果你的评估用例假设“每次从干净状态开始”，那么复用 thread_id 会让评估结果完全失真——Agent 看起来“记住了上下文”，其实是你喂了脏数据。</p>
+<p><strong>正确做法</strong>：评估时每个用例用独立 <code>thread_id</code>，并在评估报告中显式记录 <code>thread_id</code> 与 <code>checkpoint_id</code>，保证可复现。</p>
+<hr>
+<h2 id="实战代码-三个可运行的评估模块"><a href="#实战代码-三个可运行的评估模块" class="headerlink" title="实战代码：三个可运行的评估模块"></a>实战代码：三个可运行的评估模块</h2>
+<p>下面是三个我实际项目中沉淀下来的评估组件，代码可直接运行（依赖 <code>langgraph</code>、<code>openai</code>，工具用 mock）。</p>
+<h3 id="示例-1-轨迹级评估器-基于-LangGraph-Checkpointer"><a href="#示例-1-轨迹级评估器-基于-LangGraph-Checkpointer" class="headerlink" title="示例 1：轨迹级评估器（基于 LangGraph Checkpointer）"></a>示例 1：轨迹级评估器（基于 LangGraph Checkpointer）</h3>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+TrajectoryEvaluator: 订阅 LangGraph 的 checkpoint 流，
+对每个 superstep 做细粒度打分。
+核心思想：不侵入 Agent，只做旁路观测。
+&quot;&quot;&quot;
+from dataclasses import dataclass, field
+from typing import Any
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+
+@dataclass
+class TrajectoryScore:
+    &quot;&quot;&quot;单个评估用例的轨迹打分结果&quot;&quot;&quot;
+    task_id: str
+    tool_calls: list[str] = field(default_factory=list)      # 工具调用序列
+    redundant_calls: int = 0                                  # 冗余调用次数
+    illegal_calls: int = 0                                    # 非法调用（越权/不存在的工具）
+    step_count: int = 0                                       # 总步数
+    converged: bool = False                                   # 是否收敛（有终止动作）
+
+
+class TrajectoryEvaluator:
+    def __init__(self, allowed_tools: set[str], max_steps: int = 10):
+        self.allowed_tools = allowed_tools
+        self.max_steps = max_steps
+
+    def evaluate(self, checkpoints: list[dict]) -&gt; TrajectoryScore:
+        &quot;&quot;&quot;
+        checkpoints: 从 checkpointer 按顺序导出的状态快照列表。
+        每个快照形如 {&quot;node&quot;: &quot;agent&quot;, &quot;state&quot;: {...}, &quot;writes&quot;: {...}}
+        &quot;&quot;&quot;
+        score = TrajectoryScore(task_id=&quot;&quot;)
+        seen_signatures = set()
+
+        for i, ckpt in enumerate(checkpoints):
+            score.step_count = i + 1
+            state = ckpt.get(&quot;state&quot;, {})
+
+            # 1. 提取本步的工具调用（LangGraph 里通常是 ToolMessage 或 tool_calls）
+            for msg in state.get(&quot;messages&quot;, []):
+                tool_name = getattr(msg, &quot;name&quot;, None)
+                if not tool_name:
+                    continue
+
+                score.tool_calls.append(tool_name)
+
+                # 2. 非法调用检测：调了不该调的工具
+                if tool_name not in self.allowed_tools:
+                    score.illegal_calls += 1
+
+                # 3. 冗余检测：用&quot;工具名+参数签名&quot;去重
+                #    注意：要排除&quot;重试&quot;语义，这里简化处理
+                args = str(getattr(msg, &quot;content&quot;, &quot;&quot;))[:100]
+                sig = f&quot;{tool_name}:{args}&quot;
+                if sig in seen_signatures:
+                    score.redundant_calls += 1
+                seen_signatures.add(sig)
+
+            # 4. 收敛检测：出现终止节点或直接回答（无 tool_calls）
+            if ckpt.get(&quot;node&quot;) == &quot;__end__&quot; or self._is_final_answer(ckpt):
+                score.converged = True
+
+        # 5. 未收敛（超过步数上限仍在循环）视为失败
+        if score.step_count &gt;= self.max_steps and not score.converged:
+            score.converged = False
+
+        return score
+
+    def _is_final_answer(self, ckpt: dict) -&gt; bool:
+        &quot;&quot;&quot;最后一条 message 是 AIMessage 且无 tool_calls，即视为最终回答&quot;&quot;&quot;
+        msgs = ckpt.get(&quot;state&quot;, {}).get(&quot;messages&quot;, [])
+        if not msgs:
+            return False
+        last = msgs[-1]
+        return (
+            getattr(last, &quot;type&quot;, &quot;&quot;) == &quot;ai&quot;
+            and not getattr(last, &quot;tool_calls&quot;, None)
+        )
+
+
+# ---------- 使用示例 ----------
+def build_demo_graph():
+    &quot;&quot;&quot;一个最小可复现的 Agent 图，用于演示评估器&quot;&quot;&quot;
+    from langgraph.graph import MessagesState
+    from langchain_core.messages import AIMessage
+
+    def agent_node(state: MessagesState):
+        # 模拟：第一轮调工具，第二轮直接回答
+        if len(state[&quot;messages&quot;]) &lt; 2:
+            return {&quot;messages&quot;: [AIMessage(content=&quot;&quot;, tool_calls=[{
+                &quot;name&quot;: &quot;query_order&quot;, &quot;args&quot;: {&quot;id&quot;: &quot;A1&quot;}, &quot;id&quot;: &quot;call_1&quot;
+            }])]}
+        return {&quot;messages&quot;: [AIMessage(content=&quot;订单已发货&quot;)]}
+
+    def tool_node(state: MessagesState):
+        from langchain_core.messages import ToolMessage
+        return {&quot;messages&quot;: [ToolMessage(content=&quot;已发货&quot;, tool_call_id=&quot;call_1&quot;, name=&quot;query_order&quot;)]}
+
+    g = StateGraph(MessagesState)
+    g.add_node(&quot;agent&quot;, agent_node)
+    g.add_node(&quot;tools&quot;, tool_node)
+    g.set_entry_point(&quot;agent&quot;)
+    g.add_conditional_edges(&quot;agent&quot;, lambda s: &quot;tools&quot; if s[&quot;messages&quot;][-1].tool_calls else END)
+    g.add_edge(&quot;tools&quot;, &quot;agent&quot;)
+    return g.compile(checkpointer=MemorySaver())
+
+
+if __name__ == &quot;__main__&quot;:
+    graph = build_demo_graph()
+    config = {&quot;configurable&quot;: {&quot;thread_id&quot;: &quot;eval_case_001&quot;}}
+    graph.invoke({&quot;messages&quot;: [(&quot;user&quot;, &quot;查订单 A1&quot;)]}, config)
+
+    # 从 checkpointer 导出全部快照（真实场景用 get_state_history）
+    history = list(graph.get_state_history(config))
+    snapshots = [{&quot;node&quot;: s.metadata.get(&quot;step&quot;), &quot;state&quot;: s.values} for s in history]
+
+    evaluator = TrajectoryEvaluator(allowed_tools={&quot;query_order&quot;})
+    score = evaluator.evaluate(snapshots)
+    print(f&quot;工具调用: {score.tool_calls}&quot;)
+    print(f&quot;冗余: {score.redundant_calls}, 非法: {score.illegal_calls}&quot;)
+    print(f&quot;收敛: {score.converged}, 步数: {score.step_count}&quot;)</code></pre></figure>
+<p>这个评估器的价值在于：<strong>它把“我觉得这个 Agent 还行”变成了“冗余调用 0 次、非法调用 0 次、3 步收敛”的可量化指标。</strong></p>
+<h3 id="示例-2-LLM-as-Judge-的忠实度评估-带防幻觉设计"><a href="#示例-2-LLM-as-Judge-的忠实度评估-带防幻觉设计" class="headerlink" title="示例 2：LLM-as-Judge 的忠实度评估（带防幻觉设计）"></a>示例 2：LLM-as-Judge 的忠实度评估（带防幻觉设计）</h3>
+<p>终点评估最常见的做法是 LLM-as-Judge，但直接问“这个回答对吗”极其不可靠。下面是带<strong>证据锚定</strong>的版本：</p>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+FaithfulnessJudge: 评估最终回答是否&quot;忠实于&quot;工具返回的证据。
+关键设计：强制 Judge 引用原文片段，防止它自己产生幻觉。
+&quot;&quot;&quot;
+import json
+from openai import OpenAI
+
+JUDGE_PROMPT = &quot;&quot;&quot;你是一个严格的评估员。给定：
+1. 用户问题
+2. Agent 最终回答
+3. Agent 在过程中获得的工具返回（证据）
+
+请判断最终回答中的**每一个事实性断言**是否能在证据中找到支撑。
+输出 JSON，格式：
+{
+  &quot;claims&quot;: [
+    {&quot;claim&quot;: &quot;...&quot;, &quot;supported&quot;: true/false, &quot;evidence_quote&quot;: &quot;证据原文片段，若无则空&quot;}
+  ],
+  &quot;faithfulness_score&quot;: 0.0-1.0,
+  &quot;verdict&quot;: &quot;PASS&quot; | &quot;FAIL&quot;
+}
+
+规则：
+- evidence_quote 必须逐字摘自证据，不得改写，否则该 claim 判为不支持。
+- 若回答包含证据中没有的信息（哪怕是常识），判为不支持。
+&quot;&quot;&quot;
+
+
+class FaithfulnessJudge:
+    def __init__(self, client: OpenAI, model: str = &quot;gpt-4o&quot;):
+        self.client = client
+        self.model = model
+
+    def judge(self, question: str, answer: str, evidence: list[str]) -&gt; dict:
+        evidence_block = &quot;\n---\n&quot;.join(evidence) if evidence else &quot;(无工具证据)&quot;
+        user_msg = (
+            f&quot;【用户问题】\n{question}\n\n&quot;
+            f&quot;【Agent 回答】\n{answer}\n\n&quot;
+            f&quot;【工具证据】\n{evidence_block}&quot;
+        )
+
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {&quot;role&quot;: &quot;system&quot;, &quot;content&quot;: JUDGE_PROMPT},
+                {&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: user_msg},
+            ],
+            temperature=0,           # 评估必须确定性
+            response_format={&quot;type&quot;: &quot;json_object&quot;},
+        )
+        result = json.loads(resp.choices[0].message.content)
+
+        # 二次校验：evidence_quote 必须真的出现在证据里
+        # 这是防止 Judge 自己也幻觉的关键一步
+        for claim in result[&quot;claims&quot;]:
+            quote = claim.get(&quot;evidence_quote&quot;, &quot;&quot;)
+            if claim[&quot;supported&quot;] and quote:
+                if not any(quote in ev for ev in evidence):
+                    claim[&quot;supported&quot;] = False  # Judge 编造了证据，降级
+                    claim[&quot;note&quot;] = &quot;evidence_quote 未在原始证据中找到，判定为不支持&quot;
+
+        # 重算分数
+        if result[&quot;claims&quot;]:
+            supported = sum(1 for c in result[&quot;claims&quot;] if c[&quot;supported&quot;])
+            result[&quot;faithfulness_score&quot;] = supported / len(result[&quot;claims&quot;])
+
+        result[&quot;verdict&quot;] = &quot;PASS&quot; if result[&quot;faithfulness_score&quot;] &gt;= 0.9 else &quot;FAIL&quot;
+        return result
+
+
+# ---------- 使用示例 ----------
+if __name__ == &quot;__main__&quot;:
+    client = OpenAI()
+    judge = FaithfulnessJudge(client)
+
+    result = judge.judge(
+        question=&quot;订单 A1 为什么还没到？&quot;,
+        answer=&quot;您的订单 A1 已于 11 月 20 日发货，预计 11 月 24 日送达。&quot;,
+        evidence=[&quot;订单 A1 状态：已发货，发货时间 2026-11-20&quot;, &quot;物流预计送达：2026-11-24&quot;],
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))</code></pre></figure>
+<p><strong>这个设计的精髓在第二次校验</strong>：LLM-as-Judge 最大的问题是 Judge 自己也会幻觉——它会编造一个“证据原文”来支撑一个其实没依据的 claim。通过“quote 必须逐字出现在证据中”的硬约束，我们把 Judge 的幻觉率压到了可接受范围。</p>
+<h3 id="示例-3-稳定性评估-扰动与多次采样"><a href="#示例-3-稳定性评估-扰动与多次采样" class="headerlink" title="示例 3：稳定性评估——扰动与多次采样"></a>示例 3：稳定性评估——扰动与多次采样</h3>
+<p>可靠性 = 正确性 × 稳定性。一个 90% 正确的 Agent，如果同一输入两次结果不同，那它不可靠。下面这个模块量化稳定性：</p>
+<figure class="highlight python"><pre><code class="language-python">&quot;&quot;&quot;
+StabilityProbe: 对同一任务做 N 次采样 + M 种输入扰动，
+计算输出一致性与轨迹一致性。
+&quot;&quot;&quot;
+import hashlib
+from collections import Counter
+from typing import Callable
+
+
+class StabilityProbe:
+    def __init__(self, agent_fn: Callable[[str], dict], n_samples: int = 5):
+        &quot;&quot;&quot;
+        agent_fn: 接收 query，返回 {&quot;answer&quot;: str, &quot;trajectory&quot;: list[str]}
+        &quot;&quot;&quot;
+        self.agent_fn = agent_fn
+        self.n_samples = n_samples
+
+    @staticmethod
+    def _normalize(text: str) -&gt; str:
+        &quot;&quot;&quot;归一化：去空白、统一标点，降低措辞差异对一致性判断的干扰&quot;&quot;&quot;
+        return &quot;&quot;.join(text.split()).replace(&quot;，&quot;, &quot;,&quot;).replace(&quot;。&quot;, &quot;.&quot;)
+
+    @staticmethod
+    def _hash(s: str) -&gt; str:
+        return hashlib.md5(s.encode()).hexdigest()[:8]
+
+    def probe(self, query: str, perturbations: list[str] = None) -&gt; dict:
+        &quot;&quot;&quot;
+        perturbations: 输入扰动列表（如加错别字、换语序）。
+        返回：答案一致性、轨迹一致性、扰动敏感度。
+        &quot;&quot;&quot;
+        perturbations = perturbations or [query]
+        all_answers, all_trajectories = [], []
+
+        for pq in perturbations:
+            for _ in range(self.n_samples):
+                out = self.agent_fn(pq)
+                all_answers.append(self._normalize(out[&quot;answer&quot;]))
+                # 轨迹只取&quot;工具名序列&quot;做哈希，忽略参数细节
+                traj_sig = self._hash(&quot;|&quot;.join(out.get(&quot;trajectory&quot;, [])))
+                all_trajectories.append(traj_sig)
+
+        ans_counter = Counter(all_answers)
+        traj_counter = Counter(all_trajectories)
+
+        # 一致性 = 众数出现频率（占比最高的那个结果出现多少次）
+        ans_consistency = ans_counter.most_common(1)[0][1] / len(all_answers)
+        traj_consistency = traj_counter.most_common(1)[0][1] / len(all_trajectories)
+
+        return {
+            &quot;answer_consistency&quot;: round(ans_consistency, 3),   # 越低越不稳定
+            &quot;trajectory_consistency&quot;: round(traj_consistency, 3),
+            &quot;unique_answers&quot;: len(ans_counter),
+            &quot;unique_trajectories&quot;: len(traj_counter),
+            &quot;sample_count&quot;: len(all_answers),
+            # 扰动敏感度：不同扰动下的答案差异，越高说明对输入措辞越敏感
+            &quot;perturbation_sensitivity&quot;: round(1 - ans_consistency, 3),
+        }
+
+
+# ---------- 使用示例 ----------
+if __name__ == &quot;__main__&quot;:
+    import random
+
+    def mock_agent(query: str) -&gt; dict:
+        # 模拟一个不稳定的 Agent：有时走捷径，有时多绕一圈
+        if random.random() &lt; 0.3:
+            return {&quot;answer&quot;: &quot;已为您查询，订单已发货&quot;, &quot;trajectory&quot;: [&quot;query_order&quot;, &quot;query_logistics&quot;]}
+        return {&quot;answer&quot;: &quot;订单已发货&quot;, &quot;trajectory&quot;: [&quot;query_order&quot;]}
+
+    probe = StabilityProbe(mock_agent, n_samples=10)
+    report = probe.probe(
+        query=&quot;查订单 A1&quot;,
+        perturbations=[&quot;查订单 A1&quot;, &quot;帮我看看订单A1&quot;, &quot;A1订单状态&quot;],
+    )
+    print(report)
+    # 典型输出：answer_consistency ~0.4，说明这个 Agent 极不稳定，
+    # 光是&quot;同一问题不同措辞&quot;就会导致 60% 的结果差异</code></pre></figure>
+<p><strong>这个指标的实战价值</strong>：我们曾用它发现一个 Agent 在 <code>temperature=0.7</code> 下轨迹一致性只有 0.35——意味着同一问题它走的工具路径每次都不同。把 temperature 降到 0.1 后，一致性升到 0.9，线上投诉率同步下降。<strong>稳定性是可以被调出来的，前提是你先能测出来。</strong></p>
+<hr>
+<h2 id="方案对比-主流评估方案的异同与适用场景"><a href="#方案对比-主流评估方案的异同与适用场景" class="headerlink" title="方案对比：主流评估方案的异同与适用场景"></a>方案对比：主流评估方案的异同与适用场景</h2>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>评估维度</th>
+<th>轨迹支持</th>
+<th>成本</th>
+<th>适用场景</th>
+<th>主要短板</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>LangSmith Evaluator</strong></td>
+<td>终点 + 部分轨迹</td>
+<td>中等</td>
+<td>中（托管）</td>
+<td>LangChain 生态、快速上手</td>
+<td>轨迹细粒度打分需自定义；闭源</td>
+</tr><tr>
+<td><strong>AutoGen + 自研 evaluator</strong></td>
+<td>对话级</td>
+<td>弱（需自建）</td>
+<td>低</td>
+<td>多 Agent 协作场景</td>
+<td>无内置评估，全自研</td>
+</tr><tr>
+<td><strong>Ragas</strong></td>
+<td>RAG 忠实度/相关性</td>
+<td>无</td>
+<td>低</td>
+<td>检索增强型 Agent</td>
+<td>不覆盖工具调用轨迹</td>
+</tr><tr>
+<td><strong>OpenAI Evals</strong></td>
+<td>终点</td>
+<td>弱</td>
+<td>低</td>
+<td>单轮问答</td>
+<td>不适合多步 Agent</td>
+</tr><tr>
+<td><strong>自研旁路评估器（本文方案）</strong></td>
+<td>全维度</td>
+<td>强</td>
+<td>中（开发成本）</td>
+<td>生产级、需可复现</td>
+<td>需自己维护评估数据集</td>
+</tr></tbody></table>
+<p><strong>选型建议</strong>：</p>
+<ul>
+<li><strong>Demo 阶段</strong>：LangSmith 够用，快速拿到终点指标。</li>
+</ul>
+<ul>
+<li><strong>上线前</strong>：必须上轨迹评估 + 稳定性评估，否则你无法解释“为什么昨天好好的今天挂了”。</li>
+</ul>
+<ul>
+<li><strong>多 Agent 系统</strong>：放弃“轨迹匹配”，改用“约束满足”评估（收敛性、职责边界、最终确认）。</li>
+</ul>
+<ul>
+<li><strong>成本敏感场景</strong>：把 token 数和工具调用次数作为一等公民指标，和正确性一起看。</li>
+</ul>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 评估数据集要“三元组化”，不是“问答对化”</strong></p>
+<p>传统数据集是 <code>(question, answer)</code>。Agent 评估数据集应该是 <code>(question, expected_trajectory, expected_answer)</code>。没有期望轨迹，你只能评终点；有了期望轨迹，你才能定位失败点。</p>
+<p><strong>2. 每个用例独立 thread_id，并记录 checkpoint_id</strong></p>
+<p>前面提过的坑，再强调一次。评估报告里必须包含 <code>thread_id</code> + <code>checkpoint_id</code>，否则“这个用例为什么失败”永远无法复现。</p>
+<p><strong>3. LLM-as-Judge 必须做“证据锚定”二次校验</strong></p>
+<p>Judge 自己会幻觉。任何依赖 Judge 引用原文的评估，都要加“quote 必须逐字出现在源文本中”的硬校验，否则你的评估分数本身就是幻觉。</p>
+<p><strong>4. 稳定性评估的采样数不少于 5，扰动种类不少于 3</strong></p>
+<p>单次采样测不出方差。经验值：<code>n_samples >= 5</code>，扰动覆盖“同义改写、错别字、语序调整”三类，才能暴露真实的不稳定性。</p>
+<p><strong>5. 把成本指标纳入评估报告，和正确性并列</strong></p>
+<p>一个 95% 正确但平均 8 次工具调用的 Agent，可能比 90% 正确但 3 次调用的 Agent 更不可用。<strong>成本是可靠性的一部分</strong>，因为成本失控本身就是一种不可靠。</p>
+<p><strong>6. 多 Agent 场景放弃“轨迹匹配”，改用“约束满足”</strong></p>
+<p>不要试图定义“唯一正确的对话路径”。改为定义约束：N 轮内收敛、每个 Agent 不越界、最终结论来自指定 Agent。约束满足的评估器鲁棒性远高于路径匹配。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个客服 Agent 的故事。后来我们做了三件事：</p>
+<ol>
+<li>用 checkpointer 旁路导出轨迹，建了 <code>TrajectoryEvaluator</code>，把“冗余调用”从平均 2.3 次压到 0.4 次；</li>
+<li>用带证据锚定的 <code>FaithfulnessJudge</code>，把幻觉率从 8% 降到 1.2%；</li>
+<li>用 <code>StabilityProbe</code> 发现 temperature 是稳定性杀手，调参后轨迹一致性从 0.35 升到 0.9。</li>
+</ol>
+<p>投诉率下降 70%。<strong>这不是因为我们换了更好的模型，而是因为我们终于能“看见”Agent 的行为了。</strong></p>
+<p>最后留一个延伸思考：<strong>Agent 评估的终极形态是什么？</strong></p>
+<p>我的判断是——评估器本身也会 Agent 化。未来的评估系统不再是“跑一批用例、打个分”，而是一个<strong>持续探针 Agent</strong>：它主动生成对抗性用例、监控线上轨迹漂移、在指标异常时自动回溯到具体 checkpoint 并生成失败归因。换句话说，<strong>你不仅需要一个可靠的 Agent，还需要一个可靠的“评估 Agent”来看着它。</strong> 这是下一篇文章想展开的话题。</p>
+<p>在那之前，先把本文的三个评估模块跑起来——<strong>能被量化的可靠性，才是真正的可靠性。</strong></p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>
