@@ -1,5 +1,23 @@
 [
  {
+  "title": "别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界",
+  "url": "/2026/11/28/%E5%88%AB%E5%86%8D%E7%94%A8%20Deployment%20%E7%9B%B4%E6%8E%A5%E6%BB%9A%E5%8A%A8%E6%9B%B4%E6%96%B0%E4%BA%86%EF%BC%9A%E4%BB%8E%20Argo%20Rollouts%20%E6%BA%90%E7%A0%81%E6%8B%86%E8%A7%A3%E9%87%91%E4%B8%9D%E9%9B%80%E4%B8%8E%E8%93%9D%E7%BB%BF%E7%9A%84%E7%9C%9F%E5%AE%9E%E8%BE%B9%E7%95%8C/",
+  "date": "2026-11-28",
+  "year": 2026,
+  "month": 11,
+  "day": 28,
+  "category": "cloud-native",
+  "tags": [
+   "Docker",
+   "kubernetes",
+   "cloud-native",
+   "devops",
+   "container"
+  ],
+  "cover": "https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1709",
+  "excerpt": "引言 去年双十一前夜，我所在的团队遇到了一次堪称\\"
+ },
+ {
   "title": "Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉",
   "url": "/2026/11/27/Agent%20%E8%AF%84%E4%BC%B0%E7%9A%84%E2%80%9C%E4%B8%89%E9%87%8D%E9%97%A8%E2%80%9D%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E4%BD%A0%E7%9A%84%20LLM%20Agent%20%E5%9C%A8%20Demo%20%E9%87%8C%E5%B0%81%E7%A5%9E%EF%BC%8C%E4%B8%8A%E7%BA%BF%E5%90%8E%E5%8D%B4%E5%83%8F%E4%B8%AA%E9%86%89%E6%B1%89/",
   "date": "2026-11-27",

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界 | 小曾博客</title>
+  <meta name="description" content="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界 引言 去年双十一前夜，我所在的团队遇到了一次堪称\"教科书级\"的事故。一个只改了 12 行代码的用户服务，通过 kubectl set image 触发了 Deployment 的滚动更新。K8s 的 maxUnavailable=25% 让新 Pod 在 40 秒内铺满了整个集群。结果新版">
+  <meta name="keywords" content="Docker,kubernetes,cloud-native,devops,container">
+  <meta name="author" content="小曾">
+  <meta name="copyright" content="小曾">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="shortcut icon" href="/img/favicon.png">
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+  <link rel="preconnect" href="//cdn.jsdelivr.net"/>
+  <link rel="dns-prefetch" href="//cdn.jsdelivr.net"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin="crossorigin"/>
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="//busuanzi.ibruce.info"/>
+  <link rel="dns-prefetch" href="//busuanzi.ibruce.info"/>
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界">
+  <meta name="twitter:description" content="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界 引言 去年双十一前夜，我所在的团队遇到了一次堪称\"教科书级\"的事故。一个只改了 12 行代码的用户服务，通过 kubectl set image 触发了 Deployment 的滚动更新。K8s 的 maxUnavailable=25% 让新 Pod 在 40 秒内铺满了整个集群。结果新版">
+  <meta name="twitter:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1709">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界">
+  <meta property="og:url" content="https://xiaozeng26.github.io/">
+  <meta property="og:site_name" content="小曾博客">
+  <meta property="og:description" content="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界 引言 去年双十一前夜，我所在的团队遇到了一次堪称\"教科书级\"的事故。一个只改了 12 行代码的用户服务，通过 kubectl set image 触发了 Deployment 的滚动更新。K8s 的 maxUnavailable=25% 让新 Pod 在 40 秒内铺满了整个集群。结果新版">
+  <meta property="og:image" content="https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1709">
+  <meta property="article:published_time" content="2026-11-28T04:28:11.000Z">
+  <meta property="article:modified_time" content="2026-11-28T04:28:11.000Z">
+  <script src="https://cdn.jsdelivr.net/npm/js-cookie/dist/js.cookie.min.js"></script>
+  <script>
+var autoChangeMode = '1'
+var t = Cookies.get("theme")
+if (autoChangeMode == '1'){
+  var isDarkMode = window.matchMedia("(prefers-color-scheme: dark)").matches
+  var isLightMode = window.matchMedia("(prefers-color-scheme: light)").matches
+  var isNotSpecified = window.matchMedia("(prefers-color-scheme: no-preference)").matches
+  var hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+  if (t === undefined){
+    if (isLightMode) activateLightMode()
+    else if (isDarkMode) activateDarkMode()
+    else if (isNotSpecified || hasNoSupport){
+      console.log('You specified no preference for a color scheme or your browser does not support it. I Schedule dark mode during night time.')
+      var now = new Date()
+      var hour = now.getHours()
+      var isNight = hour < 6 || hour >= 18
+      isNight ? activateDarkMode() : activateLightMode()
+  }
+  } else if (t == 'light') activateLightMode()
+  else activateDarkMode()
+} else if (autoChangeMode == '2'){
+  now = new Date();
+  hour = now.getHours();
+  isNight = hour < 6 || hour >= 18
+  if(t === undefined) isNight? activateDarkMode() : activateLightMode()
+  else if (t === 'light') activateLightMode()
+  else activateDarkMode()
+} else {
+  if ( t == 'dark' ) activateDarkMode()
+  else if ( t == 'light') activateLightMode()
+}
+function activateDarkMode(){
+  document.documentElement.setAttribute('data-theme', 'dark')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+    document.querySelector('meta[name="theme-color"]').setAttribute('content','#000')
+  }
+}
+function activateLightMode(){
+  document.documentElement.setAttribute('data-theme', 'light')
+  if (document.querySelector('meta[name="theme-color"]') !== null){
+  document.querySelector('meta[name="theme-color"]').setAttribute('content','#fff')
+  }
+}
+  </script>
+  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@latest/css/font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css">
+  <link rel="canonical" href="https://xiaozeng26.github.io/">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/disqusjs@1.2/dist/disqusjs.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Titillium+Web">
+  <script>
+var GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: {"defaultEncoding":2,"translateDelay":0,"cookieDomain":"https://xiaozeng26.github.io/","msgToTraditionalChinese":"繁","msgToSimplifiedChinese":"簡"},
+  copy: { success: '复制成功', error: '复制错误', noSupport: '浏览器不支持' },
+  bookmark: { message_prev: '按', message_next: '键将本页加入书签' },
+  runtime_unit: '天',
+  runtime: true,
+  copyright: undefined,
+  ClickShowText: undefined,
+  medium_zoom: false,
+  fancybox: true,
+  Snackbar: undefined,
+  baiduPush: false,
+  highlightCopy: true,
+  highlightLang: true,
+  highlightShrink: 'false',
+  isFontAwesomeV5: false,
+  isPhotoFigcaption: true,
+  islazyload: false,
+  isanchor: true
+}
+  </script>
+  <script>var GLOBAL_CONFIG_SITE = { isPost: true, isHome: false, isSidebar: true }</script>
+  <noscript><style>#page-header { opacity: 1 } .justified-gallery img{ opacity: 1 }</style></noscript>
+  <link rel="stylesheet" href="/css/background.css">
+  <meta name="generator" content="Hexo 4.2.0">
+  <link rel="alternate" href="/atom.xml" title="小曾博客" type="application/atom+xml">
+</head>
+<body>
+<div id="mobile-sidebar">
+  <div id="menu_mask"></div>
+  <div id="mobile-sidebar-menus">
+    <div class="mobile_author_icon"><img class="avatar-img" src="/img/avatar.jfif" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div>
+    <div class="mobile_post_data">
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/archives/"><div class="headline">文章</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/tags/"><div class="headline">标签</div></a></div></div>
+      <div class="mobile_data_item is-center"><div class="mobile_data_link"><a href="/categories/"><div class="headline">分类</div></a></div></div>
+    </div>
+    <hr/>
+    <div class="menus_items">
+      <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+      <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+      <div class="menus_item">
+        <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+        <ul class="menus_item_child">
+          <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+          <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+          <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+<i class="fa fa-arrow-right on" id="toggle-sidebar" aria-hidden="true"></i>
+<div id="sidebar">
+  <div class="sidebar-toc">
+    <div class="sidebar-toc__title">目录</div>
+    <div class="sidebar-toc__progress"><span class="progress-notice">你已经读了</span><span class="progress-num">0</span><span class="progress-percentage">%</span><div class="sidebar-toc__progress-bar"></div></div>
+    <div class="sidebar-toc__content"><div class="sidebar-toc__content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#别再用-Deployment-直接滚动更新了-从-Argo-Rollouts-源码拆解金丝雀与蓝绿的真实边界"><span class="toc-text">别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#引言"><span class="toc-text">引言</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#核心概念-从-后厨试菜-到-流量分诊"><span class="toc-text">核心概念：从"后厨试菜"到"流量分诊"</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#源码-原理深度分析-Argo-Rollouts-如何-翻译-发布策略"><span class="toc-text">源码/原理深度分析：Argo Rollouts 如何"翻译"发布策略</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#1-为什么不是-给-Deployment-加个字段"><span class="toc-text">1. 为什么不是"给 Deployment 加个字段"？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#2-权重是怎么变成副本数的"><span class="toc-text">2. 权重是怎么变成副本数的？</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#3-蓝绿在源码里长什么样"><span class="toc-text">3. 蓝绿在源码里长什么样？</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#实战代码-三个可直接跑起来的示例"><span class="toc-text">实战代码：三个可直接跑起来的示例</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-1-基于-Istio-的金丝雀-Rollout-带自动分析"><span class="toc-text">示例 1：基于 Istio 的金丝雀 Rollout（带自动分析）</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-2-用-Go-写一个自定义的-流量权重调节器"><span class="toc-text">示例 2：用 Go 写一个自定义的"流量权重调节器"</span></a></li>
+<li class="toc-item toc-level-3"><a class="toc-link" href="#示例-3-蓝绿发布-预发布冒烟测试"><span class="toc-text">示例 3：蓝绿发布 + 预发布冒烟测试</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#方案对比-原生-Deployment-vs-Argo-Rollouts-vs-Flagger"><span class="toc-text">方案对比：原生 Deployment vs Argo Rollouts vs Flagger</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#最佳实践与避坑指南"><span class="toc-text">最佳实践与避坑指南</span></a></li>
+<li class="toc-item toc-level-2"><a class="toc-link" href="#总结"><span class="toc-text">总结</span></a></li></ol></div></div>
+  </div>
+</div>
+<div id="body-wrap">
+  <div class="post-bg" id="nav" style="background-image: url(https://api.btstu.cn/sjbz/api.php?lx=fengjing&format=images&_=1709)">
+    <div id="page-header">
+      <span class="pull_left" id="blog_name"><a class="blog_title" id="site-name" href="/">小曾博客</a></span>
+      <span class="pull_right menus">
+        <div class="menus_items">
+          <div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fa fa-home"></i><span> 首页</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive"></i><span> 时间轴</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags"></i><span> 标签</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open"></i><span> 分类</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link"></i><span> 友链</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/messageboard/"><i class="fa-fw fa fa-link"></i><span> 留言板</span></a></div>
+          <div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart"></i><span> 关于我</span></a></div>
+          <div class="menus_item">
+            <a class="site-page"><i class="fa-fw fa fa-list" aria-hidden="true"></i><span> 娱乐</span><i class="fa fa-chevron-down menus-expand" aria-hidden="true"></i></a>
+            <ul class="menus_item_child">
+              <li><a class="site-page" href="/music/"><i class="fa-fw fa fa-music"></i><span> Music</span></a></li>
+              <li><a class="site-page" href="/photos/"><i class="fa-fw fa fa-picture-o"></i><span> Photos</span></a></li>
+              <li><a class="site-page" href="/movies/"><i class="fa-fw fa fa-film"></i><span> Movie</span></a></li>
+            </ul>
+          </div>
+        </div>
+        <span class="toggle-menu close"><a class="site-page"><i class="fa fa-bars fa-fw" aria-hidden="true"></i></a></span>
+      </span>
+    </div>
+    <div id="post-info">
+      <div id="post-title"><div class="posttitle">别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界</div></div>
+      <div id="post-meta">
+        <div class="meta-firstline">
+          <time class="post-meta__date">
+            <span class="post-meta__date-created" title="发表于 2026-11-28"><i class="fa fa-calendar" aria-hidden="true"></i> 发表于 2026-11-28</span>
+            <span class="post-meta__separator">|</span>
+            <span class="post-meta__date-updated" title="更新于 2026-11-28"><i class="fa fa-history" aria-hidden="true"></i> 更新于 2026-11-28</span>
+          </time>
+        </div>
+        <div class="meta-secondline">
+          <span class="post-meta-categories">
+            <span class="post-meta__separator">|</span>
+            <i class="fa fa-inbox post-meta__icon" aria-hidden="true"></i>
+            <a class="post-meta__categories" href="/categories/">cloud-native</a>
+          </span>
+        </div>
+        <div class="meta-thirdline">
+          <span class="post-meta-pv-cv"><i class="fa fa-eye post-meta__icon" aria-hidden="true"></i><span>阅读量:</span><span id="busuanzi_value_page_pv"></span></span>
+          <span class="post-meta-commentcount"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <main class="layout_post" id="content-inner">
+    <article id="post">
+      <div class="post-content" id="article-container">
+        <h1 id="别再用-Deployment-直接滚动更新了-从-Argo-Rollouts-源码拆解金丝雀与蓝绿的真实边界"><a href="#别再用-Deployment-直接滚动更新了-从-Argo-Rollouts-源码拆解金丝雀与蓝绿的真实边界" class="headerlink" title="别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界"></a>别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界</h1>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2>
+<p>去年双十一前夜，我所在的团队遇到了一次堪称"教科书级"的事故。一个只改了 12 行代码的用户服务，通过 <code>kubectl set image</code> 触发了 Deployment 的滚动更新。K8s 的 <code>maxUnavailable=25%</code> 让新 Pod 在 40 秒内铺满了整个集群。结果新版本有一个只在特定请求头下才触发的序列化 bug，5 分钟后错误率飙到 37%，而 <code>kubectl rollout undo</code> 又花了 90 秒才把旧 Pod 全部拉回来——这 90 秒里，监控告警响了 17 次，客服电话被打爆。</p>
+<p>复盘时我们意识到一个残酷的事实：<strong>Deployment 的滚动更新本质上是一种"乐观"的发布策略</strong>。它假设新版本是对的，然后尽可能快地把流量切过去，只保留一个抽象的"就绪探针"作为唯一的质量闸门。但真实世界的故障往往不是"Pod 起不来"，而是"Pod 起来了、探针过了、但业务逻辑错了"。</p>
+<p>这就是灰度发布要解决的核心问题：<strong>如何在不信任新版本的前提下，用真实流量做一次低成本的"面试"</strong>。本文不打算再重复那些"金丝雀是逐步放量、蓝绿是整体切换"的入门定义，而是想带你从 Argo Rollouts 的源码层面，看清楚这两种策略在控制器里到底是怎么被"翻译"成 ReplicaSet 操作的，以及那些官方文档里不会告诉你的坑。</p>
+<hr>
+<h2 id="核心概念-从-后厨试菜-到-流量分诊"><a href="#核心概念-从-后厨试菜-到-流量分诊" class="headerlink" title="核心概念：从"后厨试菜"到"流量分诊""></a>核心概念：从"后厨试菜"到"流量分诊"</h2>
+<p>先做个生活化类比。</p>
+<p><strong>滚动更新</strong>像是一家餐厅换主厨：新主厨上岗，老主厨一个接一个下班，中间有一段时间两个厨师同时在岗。问题是——如果新主厨做的菜有问题，你得等到顾客投诉才知道，而这时老主厨可能已经走了大半。</p>
+<p><strong>蓝绿发布</strong>像是准备两个完全独立的后厨（蓝厨房、绿厨房），新菜在绿厨房里全部做好、内部试吃通过后，<strong>在门口挂个牌子</strong>把顾客整体引导到绿厨房。出问题？把牌子摘了，顾客立刻回到蓝厨房。它的本质是"两套完整环境 + 一次原子切换"，优点是回滚极快（秒级），缺点是资源翻倍。</p>
+<p><strong>金丝雀发布</strong>像是让新主厨先只负责 5% 的订单，服务员按比例把订单分给两个厨房。观察这 5% 的顾客反馈，没问题就提到 20%、50%、100%。它的本质是"同一套服务 + 按权重分流"，优点是资源节省、风险可控，缺点是<strong>分流依赖流量入口的配合</strong>，而且回滚不是"原子"的，需要反向调权重。</p>
+<p>这里有个关键洞察，很多人没意识到：<strong>蓝绿和金丝雀在 K8s 控制器层面，最终都归结为对 ReplicaSet 副本数的操纵</strong>。蓝绿是"两个 RS，一个满配一个零配，切换时对调"；金丝雀是"两个 RS，一个满配一个按比例配，逐步加"。Argo Rollouts 的整个源码，本质上就是在编排这场"副本数之舞"。</p>
+<div class="mermaid">
+graph TD
+    subgraph 蓝绿发布
+        B1[Service selector: version=blue] --> B2[RS blue: replicas=N]
+        B3[RS green: replicas=N 预热]
+        B2 -.切换.-> B4[Service selector: version=green]
+        B4 --> B3
+    end
+    subgraph 金丝雀发布
+        C1[Service: 稳定版] --> C2[RS stable: replicas=N]
+        C3[Service: 金丝雀] --> C4[RS canary: replicas=0.1N]
+        C5[流量入口 Istio/NGINX] -->|90%| C2
+        C5 -->|10%| C4
+    end
+</div>
+<hr>
+<h2 id="源码-原理深度分析-Argo-Rollouts-如何-翻译-发布策略"><a href="#源码-原理深度分析-Argo-Rollouts-如何-翻译-发布策略" class="headerlink" title="源码/原理深度分析：Argo Rollouts 如何"翻译"发布策略"></a>源码/原理深度分析：Argo Rollouts 如何"翻译"发布策略</h2>
+<p>Argo Rollouts 的核心是一个 CRD <code>Rollout</code> 加上一个控制器 <code>rollout-controller</code>。它没有重新发明 Deployment，而是<strong>接管了 Deployment 的 ReplicaSet 管理逻辑</strong>，在 <code>replicaset</code> 之上叠加了"步骤（steps）"和"分析（analysis）"两个原语。</p>
+<h3 id="1-为什么不是-给-Deployment-加个字段"><a href="#1-为什么不是-给-Deployment-加个字段" class="headerlink" title="1. 为什么不是"给 Deployment 加个字段"？"></a>1. 为什么不是"给 Deployment 加个字段"？</h3>
+<p>这是 Argo Rollouts 设计上最值得玩味的一点。你可能会想：为什么不在 Deployment 上加个 <code>strategy: canary</code>？答案藏在 K8s 的<strong>控制器职责单一原则</strong>里。Deployment 控制器的调谐循环（reconcile loop）是无状态、幂等的，它只看"期望副本数 vs 实际副本数"，任何"暂停、等待、分析"这类<strong>带时间维度的状态机</strong>塞进去，都会让它的语义变得极其复杂。</p>
+<p>Argo Rollouts 的做法是：<strong>自己实现一个带状态机的控制器，把 ReplicaSet 当作"哑"资源来操纵</strong>。它维护了一个 <code>status.currentStepIndex</code> 字段来记录"当前走到第几步"，这就是它比 Deployment 多出来的那层"记忆"。</p>
+<p>看一段 Rollout 控制器的核心调谐逻辑（<code>rollout/controller.go</code> 精简版，注释为本人补充）：</p>
+<figure class="highlight go"><pre><code class="language-go">// 摘自 argo-rollouts/rollout/controller.go（简化并加注释）
+func (c *rolloutContext) reconcile() error {
+    // 1. 如果 Rollout 处于 &quot;pause&quot; 状态（比如等待人工确认），直接返回
+    //    这就是金丝雀能&quot;卡在 20% 等人看&quot;的关键——控制器主动放弃推进
+    if c.pauseContext.IsPaused() {
+        return nil
+    }
+
+    // 2. 计算当前应该有多少个 canary 副本
+    //    calculateReplicaCountsForCanary 是整个金丝雀的大脑
+    canaryReplicas, stableReplicas := c.calculateReplicaCountsForCanary()
+
+    // 3. 找到/创建对应的 ReplicaSet
+    //    注意：canary RS 的 pod-template-hash 来自新版本，stable RS 来自旧版本
+    //    控制器通过 revision 字段区分二者
+    c.newRS = c.getNewReplicaSet()
+    c.stableRS = c.getStableReplicaSet()
+
+    // 4. 核心：按计算出的副本数扩缩容两个 RS
+    //    scaleReplicaSet 内部会调用 K8s API 的 scale 子资源
+    c.scaleReplicaSet(c.newRS, canaryReplicas)
+    c.scaleReplicaSet(c.stableRS, stableReplicas)
+
+    // 5. 推进步骤状态机
+    //    advanceRolloutStep 会根据 steps 定义决定&quot;下一步做什么&quot;
+    //    可能是 setWeight、pause、analysis 等
+    return c.advanceRolloutStep()
+}</code></pre></figure>
+<h3 id="2-权重是怎么变成副本数的"><a href="#2-权重是怎么变成副本数的" class="headerlink" title="2. 权重是怎么变成副本数的？"></a>2. 权重是怎么变成副本数的？</h3>
+<p>这是最容易被误解的地方。很多人以为 Argo Rollouts 的 <code>setWeight: 20</code> 是"把 20% 流量打到新版本"。<strong>错</strong>。在<strong>没有流量治理插件</strong>的情况下，它做的是"把 canary RS 的副本数设成总数的 20%"——因为 K8s Service 是<strong>随机轮询</strong>，副本数占比近似等于流量占比。</p>
+<p>看 <code>calculateReplicaCountsForCanary</code> 里的换算逻辑：</p>
+<figure class="highlight go"><pre><code class="language-go">// 副本数换算的核心（伪代码，逻辑来自 rollout/replicaset.go）
+func (c *rolloutContext) calculateReplicaCountsForCanary() (int32, int32) {
+    totalReplicas := *c.rollout.Spec.Replicas  // 比如 10
+
+    // 当前步骤的权重，来自 rollout.Spec.Strategy.Canary.Steps[index].SetWeight
+    weight := c.rollout.Status.Canary.Weights.Canary.Weight  // 比如 &quot;20&quot;
+
+    // 关键换算：canaryReplicas = ceil(total * weight / 100)
+    // 注意是 ceil 向上取整——因为 0.2 个 Pod 不存在，
+    // 宁可多给一个也不能让金丝雀&quot;消失&quot;
+    canaryReplicas := int32(math.Ceil(float64(totalReplicas) * weight / 100))
+    stableReplicas := totalReplicas - canaryReplicas
+
+    return canaryReplicas, stableReplicas
+}</code></pre></figure>
+<p><strong>这里埋着一个巨坑</strong>：如果你的服务副本数是 3，想设 10% 权重，<code>ceil(3 * 0.1) = 1</code>，也就是 1 个 canary Pod 对 2 个 stable Pod，实际流量是 <strong>33% 而不是 10%</strong>。副本数越少，权重的精度越差。这就是为什么金丝雀发布在低副本服务上经常"一放就过"——你以为只放了 10%，实际放了三分之一。</p>
+<p>要真正实现"按请求比例分流"，就必须引入 <strong>Istio VirtualService 或 NGINX Ingress 的 <code>canary-weight</code> 注解</strong>。Argo Rollouts 通过 <code>TrafficRouting</code> 字段把权重下发给这些流量插件，此时 <code>setWeight</code> 才算名副其实。看它下发权重的入口：</p>
+<figure class="highlight go"><pre><code class="language-go">// rollout/trafficrouting.go 精简
+func (c *rolloutContext) reconcileTrafficRouting() error {
+    // 找到配置的流量插件（istio / nginx / alb / ambassador...）
+    trafficRoutingPlugin := c.newTrafficRoutingPlugin()
+
+    // 把 canary 权重、stable 权重、以及&quot;是否要切 fully&quot;传给它
+    // 插件内部会去 patch VirtualService 的 http.route.weight
+    return trafficRoutingPlugin.SetWeight(
+        c.rollout.Status.Canary.Weights.Canary.Weight,
+        c.rollout.Status.Canary.Weights.Canary.Paused,
+    )
+}</code></pre></figure>
+<h3 id="3-蓝绿在源码里长什么样"><a href="#3-蓝绿在源码里长什么样" class="headerlink" title="3. 蓝绿在源码里长什么样？"></a>3. 蓝绿在源码里长什么样？</h3>
+<p>蓝绿的逻辑比金丝雀简单得多，因为它不需要"逐步"。它的核心只有两个动作：<strong>预热新 RS</strong> 和 <strong>原子切换 Service</strong>。</p>
+<figure class="highlight go"><pre><code class="language-go">// 蓝绿的核心：切换 Service 的 selector（伪代码，逻辑来自 rollout/bluegreen.go）
+func (c *rolloutContext) reconcileBlueGreen() error {
+    activeService := c.rollout.Spec.Strategy.BlueGreen.ActiveService  // 生产流量入口
+    previewService := c.rollout.Spec.Strategy.BlueGreen.PreviewService // 预览入口
+
+    if c.rollout.Status.BlueGreen.ActiveSelector == &quot;&quot; {
+        // 首次发布：把 active 指向当前 stable
+        c.rollout.Status.BlueGreen.ActiveSelector = c.stableRS.Name
+    }
+
+    // 新 RS 已经全量就绪（previewService 指向它，方便做冒烟测试）
+    if c.newRS.Status.ReadyReplicas == *c.newRS.Spec.Replicas {
+        if c.rollout.Status.BlueGreen.ActiveSelector != c.newRS.Name {
+            // 原子切换：把 activeService 的 selector 从 stable 改成 new
+            // 这一步只改 Service 的 label selector，不涉及 Pod 重建
+            c.patchServiceSelector(activeService, c.newRS.Name)
+            c.rollout.Status.BlueGreen.ActiveSelector = c.newRS.Name
+        }
+    }
+    return nil
+}</code></pre></figure>
+<p>注意蓝绿里那个 <code>previewService</code> 的设计——它让新版本在上线前就有一个<strong>稳定的访问入口</strong>，可以在切换前跑一轮集成测试（通过 <code>prePromotionAnalysis</code>）。这比"切完再看监控"安全得多。</p>
+<hr>
+<h2 id="实战代码-三个可直接跑起来的示例"><a href="#实战代码-三个可直接跑起来的示例" class="headerlink" title="实战代码：三个可直接跑起来的示例"></a>实战代码：三个可直接跑起来的示例</h2>
+<h3 id="示例-1-基于-Istio-的金丝雀-Rollout-带自动分析"><a href="#示例-1-基于-Istio-的金丝雀-Rollout-带自动分析" class="headerlink" title="示例 1：基于 Istio 的金丝雀 Rollout（带自动分析）"></a>示例 1：基于 Istio 的金丝雀 Rollout（带自动分析）</h3>
+<p>这是生产环境最推荐的组合：Argo Rollouts 负责编排，Istio 负责精确分流，Prometheus 负责自动判定。</p>
+<figure class="highlight yaml"><pre><code class="language-yaml"># canary-rollout.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: user-service
+spec:
+  replicas: 10          # 注意：副本数越多，权重精度越高
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: app
+          image: registry.example.com/user-service:v1.2.0
+          ports:
+            - containerPort: 8080
+          # 就绪探针只做&quot;活着&quot;判断，不要在这里塞业务逻辑
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+  strategy:
+    canary:
+      # 关键：把权重下发给 Istio，而不是靠副本数比例
+      trafficRouting:
+        istio:
+          virtualService:
+            name: user-service-vs
+            routes:
+              - primary
+          # 指定 stable/canary 的 destination subset
+          # 这两个 subset 需要在 DestinationRule 里预先定义
+      steps:
+        - setWeight: 5         # 5% 流量，观察 2 分钟
+        - pause: { duration: 2m }
+        - setWeight: 20
+        - pause: { duration: 5m }
+        # 在 20% 时插入自动分析：查 Prometheus 错误率
+        - analysis:
+            templates:
+              - templateName: error-rate-check
+        - setWeight: 50
+        - pause: { duration: 5m }
+        - setWeight: 100
+      # 分析失败自动回滚
+      analysis:
+        successfulRunHistory: 3
+        failedRunHistory: 3
+---
+# 分析模板：如果错误率 &gt; 1% 持续 1 分钟，判定失败并回滚
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: error-rate-check
+spec:
+  metrics:
+    - name: error-rate
+      interval: 30s
+      count: 5           # 最多查 5 次
+      failureLimit: 2    # 连续 2 次失败就判定失败
+      successCondition: result[0] &lt; 0.01   # 错误率 &lt; 1%
+      provider:
+        prometheus:
+          address: http://prometheus.monitoring:9090
+          query: |
+            sum(rate(http_requests_total{app=&quot;user-service&quot;,status=~&quot;5..&quot;}[1m]))
+            /
+            sum(rate(http_requests_total{app=&quot;user-service&quot;}[1m]))</code></pre></figure>
+<p>配套的 Istio VirtualService 必须把 <code>primary</code> 路由拆成两个 subset 权重：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-vs
+spec:
+  hosts:
+    - user-service
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: user-service
+            subset: stable
+          weight: 100      # Argo Rollouts 会动态 patch 这两个 weight
+        - destination:
+            host: user-service
+            subset: canary
+          weight: 0</code></pre></figure>
+<h3 id="示例-2-用-Go-写一个自定义的-流量权重调节器"><a href="#示例-2-用-Go-写一个自定义的-流量权重调节器" class="headerlink" title="示例 2：用 Go 写一个自定义的"流量权重调节器""></a>示例 2：用 Go 写一个自定义的"流量权重调节器"</h3>
+<p>有时候你不想用 Istio（比如在用裸 K8s + 自研网关），可以自己实现一个轻量的权重控制器。下面这段代码演示了<strong>如何监听 Rollout 的权重变化并同步到自研网关</strong>——这正是 Argo Rollouts <code>TrafficRoutingPlugin</code> 接口的简化版：</p>
+<figure class="highlight go"><pre><code class="language-go">// weight_syncer.go
+package main
+
+import (
+	&quot;context&quot;
+	&quot;fmt&quot;
+	&quot;time&quot;
+
+	argov1alpha1 &quot;github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1&quot;
+	&quot;github.com/argoproj/argo-rollouts/pkg/client/clientset/versioned&quot;
+	metav1 &quot;k8s.io/apimachinery/pkg/apis/meta/v1&quot;
+	&quot;k8s.io/client-go/tools/cache&quot;
+)
+
+// WeightSyncer 监听 Rollout 的权重变更，同步到自研网关
+// 这就是 Argo Rollouts 插件机制的核心思想：把&quot;流量操作&quot;抽象成一个可插拔接口
+type WeightSyncer struct {
+	rolloutClient versioned.Interface
+	gatewayClient *GatewayClient // 自研网关的 HTTP 客户端
+}
+
+func (s *WeightSyncer) Run(ctx context.Context) error {
+	// 用 informer 监听 Rollout 变化，避免轮询
+	informer := s.rolloutClient.ArgoprojV1alpha1().Rollouts(&quot;default&quot;)
+	watcher, err := informer.Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	defer watcher.Stop()
+
+	for {
+		select {
+		case event := &lt;-watcher.ResultChan():
+			rollout, ok := event.Object.(*argov1alpha1.Rollout)
+			if !ok {
+				continue
+			}
+			// 提取 Argo 计算好的 canary 权重
+			weight := s.extractCanaryWeight(rollout)
+			// 关键幂等逻辑：只在权重真的变化时才调用网关，避免刷爆 API
+			if err := s.gatewayClient.SetWeight(ctx, &quot;user-service&quot;, weight); err != nil {
+				// 失败要重试，但不能阻塞，否则会拖垮整个调谐
+				go s.retrySetWeight(ctx, &quot;user-service&quot;, weight)
+			}
+		case &lt;-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (s *WeightSyncer) extractCanaryWeight(r *argov1alpha1.Rollout) int {
+	// canary 权重存在 status.canary.weights.canary.weight 里
+	if r.Status.Canary.Weights != nil &amp;&amp; r.Status.Canary.Weights.Canary.Weight != 0 {
+		return int(r.Status.Canary.Weights.Canary.Weight)
+	}
+	return 0
+}
+
+// retrySetWeight 指数退避重试，最多 5 次
+func (s *WeightSyncer) retrySetWeight(ctx context.Context, svc string, w int) {
+	backoff := time.Second
+	for i := 0; i &lt; 5; i++ {
+		if err := s.gatewayClient.SetWeight(ctx, svc, w); err == nil {
+			return
+		}
+		time.Sleep(backoff)
+		backoff *= 2
+	}
+	fmt.Printf(&quot;failed to sync weight for %s after 5 retries\n&quot;, svc)
+}</code></pre></figure>
+<blockquote>
+<p>这段代码的价值不在于"能跑"，而在于让你理解 Argo Rollouts 的插件设计：<strong>它把"决定放多少量"（控制器）和"怎么放量"（TrafficRouting 插件）彻底解耦了</strong>。你完全可以用同样的思路对接任何流量入口。</p>
+</blockquote>
+<h3 id="示例-3-蓝绿发布-预发布冒烟测试"><a href="#示例-3-蓝绿发布-预发布冒烟测试" class="headerlink" title="示例 3：蓝绿发布 + 预发布冒烟测试"></a>示例 3：蓝绿发布 + 预发布冒烟测试</h3>
+<p>蓝绿最适合"数据库 schema 变更"这类<strong>必须整体切换</strong>的场景。下面这个例子在 <code>prePromotionAnalysis</code> 里跑一轮 HTTP 冒烟测试：</p>
+<figure class="highlight yaml"><pre><code class="language-yaml">apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: order-service
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: app
+          image: registry.example.com/order-service:v2.0.0
+          ports:
+            - containerPort: 8080
+  strategy:
+    blueGreen:
+      # 生产流量指向这里
+      activeService: order-service-active
+      # 预览流量指向这里，供冒烟测试访问
+      previewService: order-service-preview
+      # 切换前自动跑冒烟测试，失败则不切换
+      prePromotionAnalysis:
+        templates:
+          - templateName: smoke-test
+        args:
+          - name: preview-url
+            value: &quot;http://order-service-preview.default.svc.cluster.local:8080&quot;
+      # 切换后自动跑一轮验证，失败则自动回滚
+      postPromotionAnalysis:
+        templates:
+          - templateName: smoke-test
+      # 切换后等待多久再清理旧 RS
+      scaleDownDelaySeconds: 600
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: smoke-test
+spec:
+  args:
+    - name: preview-url
+  metrics:
+    - name: smoke
+      # 只跑一次，用 Job 执行
+      provider:
+        job:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: smoke
+                    image: curlimages/curl:8.5.0
+                    command:
+                      - sh
+                      - -c
+                      - |
+                        # 冒烟测试：3 个核心接口，任一失败即退出非零
+                        set -e
+                        curl -sf {{args.preview-url}}/healthz
+                        curl -sf -X POST {{args.preview-url}}/api/orders \
+                          -H &quot;Content-Type: application/json&quot; \
+                          -d &#x27;{&quot;sku&quot;:&quot;test-1&quot;,&quot;qty&quot;:1}&#x27;
+                        curl -sf {{args.preview-url}}/api/orders/test-1
+                restartPolicy: Never
+      successCondition: status.succeeded &gt; 0
+      failureLimit: 1</code></pre></figure>
+<p>注意 <code>scaleDownDelaySeconds: 600</code> 这个字段——<strong>这是蓝绿发布里最被低估的配置</strong>。它让旧 RS 在切换后保留 10 分钟，一旦新版本出问题，<code>kubectl argo rollouts undo</code> 能在秒级切回去，因为旧 Pod 还在。没有它，回滚就得等旧 Pod 重新调度，那又是几十秒的雪崩。</p>
+<hr>
+<h2 id="方案对比-原生-Deployment-vs-Argo-Rollouts-vs-Flagger"><a href="#方案对比-原生-Deployment-vs-Argo-Rollouts-vs-Flagger" class="headerlink" title="方案对比：原生 Deployment vs Argo Rollouts vs Flagger"></a>方案对比：原生 Deployment vs Argo Rollouts vs Flagger</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>原生 Deployment</th>
+<th>Argo Rollouts</th>
+<th>Flagger</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>发布策略</td>
+<td>仅滚动更新</td>
+<td>金丝雀 + 蓝绿</td>
+<td>金丝雀（基于服务网格）</td>
+</tr><tr>
+<td>流量精确分流</td>
+<td>不支持（靠副本比例）</td>
+<td>依赖 Istio/NGINX 插件</td>
+<td>强依赖服务网格（Istio/Linkerd/App Mesh）</td>
+</tr><tr>
+<td>自动分析回滚</td>
+<td>无</td>
+<td>有（Prometheus/Web 等）</td>
+<td>有，且是核心卖点</td>
+</tr><tr>
+<td>状态机</td>
+<td>无（无状态调谐）</td>
+<td>有（steps + pause）</td>
+<td>有（基于指标自动推进）</td>
+</tr><tr>
+<td>与 GitOps 集成</td>
+<td>一般</td>
+<td>与 Argo CD 天然一体</td>
+<td>与 Flux 天然一体</td>
+</tr><tr>
+<td>学习曲线</td>
+<td>极低</td>
+<td>中（要理解 CRD + 插件）</td>
+<td>中高（强依赖网格）</td>
+</tr><tr>
+<td>适用场景</td>
+<td>内部服务、非核心链路</td>
+<td>大多数中大型业务</td>
+<td>已深度使用服务网格的团队</td>
+</tr></tbody></table>
+<p>我的观点：<strong>如果你已经在用 Istio 或 Argo CD，Argo Rollouts 是默认选择</strong>；如果你的团队用 Flux + Linkerd，Flagger 的"指标驱动自动推进"模型更顺。但如果你的服务副本只有 2-3 个，且没有服务网格，<strong>任何金丝雀工具都是伪金丝雀</strong>——因为权重精度根本不够，此时老老实实做蓝绿反而更诚实。</p>
+<p>还有一个常被忽略的对比维度：<strong>回滚速度</strong>。蓝绿的回滚是"改 Service selector"，毫秒级；金丝雀的回滚是"逐步把权重调回 0"，如果你在 50% 时才发现问题，需要再走一遍反向步骤，可能耗时数分钟。所以<strong>"蓝绿适合快速止损，金丝雀适合精细控制"</strong>这个结论，在源码层面是有依据的。</p>
+<hr>
+<h2 id="最佳实践与避坑指南"><a href="#最佳实践与避坑指南" class="headerlink" title="最佳实践与避坑指南"></a>最佳实践与避坑指南</h2>
+<p><strong>1. 副本数 < 5 的服务，别用金丝雀。</strong> 前面算过，3 副本设 10% 权重实际是 33%。要么扩副本，要么用蓝绿。</p>
+<p><strong>2. 就绪探针 ≠ 业务健康。</strong> Argo Rollouts 的 <code>pause</code> 是根据"步骤时间"推进的，不是根据"探针"。如果你的新版本探针过了但业务挂了，唯一的防线是 <code>AnalysisTemplate</code>。<strong>务必在 20% 权重处插入一次自动分析</strong>，这是性价比最高的质量闸门。</p>
+<p><strong>3. Istio 的 subset 必须提前在 DestinationRule 定义好。</strong> 很多人 Rollout 写对了，但忘了建 <code>DestinationRule</code> 里 <code>stable</code> / <code>canary</code> 两个 subset，结果流量全打到默认版本，金丝雀"静默失效"。</p>
+<p><strong>4. <code>scaleDownDelaySeconds</code> 是蓝绿的生命线。</strong> 默认 30 秒太短，建议至少 300 秒，覆盖你发现问题的平均时间。</p>
+<p><strong>5. 分析查询要带 <code>[1m]</code> 以上的窗口。</strong> 用 <code>rate(...[30s])</code> 在低流量服务上会得到 0 或剧烈抖动，误判率极高。经验值：窗口至少是 step 时长的 2 倍。</p>
+<p><strong>6. 别把 <code>pause: {}</code>（无时长）和 CI 自动化混用。</strong> 无时长的 pause 会无限等待人工 <code>promote</code>，如果你的 GitOps 流水线期望自动推进，会永远卡住。要么给时长，要么显式配置 <code>autoPromotionEnabled: false</code> 并接受人工介入。</p>
+<p><strong>7. 回滚也要测。</strong> 很多团队只测"发布成功"，从没测过"发布到 50% 时回滚"。建议每季度做一次"故障演练"：故意推一个坏版本，验证 AnalysisTemplate 能在 3 分钟内自动回滚。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2>
+<p>回到开头那个事故。如果当时用的是 Argo Rollouts + 5% 金丝雀 + 错误率自动分析，那个序列化 bug 会在 5% 流量、约 30 秒内被 Prometheus 抓到，AnalysisTemplate 判定失败，控制器自动把权重调回 0——整个过程可能 2 分钟，且只有 5% 的用户受影响。</p>
+<p>本文想传递的核心认知是：<strong>灰度发布的本质不是"慢一点发布"，而是"用状态机把风险切分成可观测、可回滚的小块"</strong>。Argo Rollouts 的源码之所以值得读，是因为它把这件事拆解得极其清晰——<code>calculateReplicaCountsForCanary</code> 负责"放多少"，<code>advanceRolloutStep</code> 负责"何时推进"，<code>TrafficRoutingPlugin</code> 负责"怎么放"。理解了这三个职责的边界，你就能判断什么时候该用它、什么时候该自己写一个更轻的。</p>
+<p>最后留一个延伸思考：<strong>当你的服务已经拆到几十个微服务时，灰度发布的真正瓶颈不再是单个服务的策略，而是"跨服务的发布编排"</strong>——A 服务的金丝雀依赖 B 服务的新版本，B 又依赖 C。这时候 Argo Rollouts 的单服务状态机就不够了，你需要往上再抽象一层（比如 Argo Workflows 编排多服务发布，或者用 Feature Flag 把发布与部署彻底解耦）。这是另一个话题，但方向是一致的：<strong>把"不确定性"关进可控的笼子里</strong>。</p>
+      </div>
+    </article>
+  </main>
+</div>
+<footer id="footer">
+  <div id="footer-wrap">
+    <div class="copyright">&copy;2020 - 2026 By 小曾</div>
+    <div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div>
+  </div>
+</footer>
+<script src="/js/utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'default', securityLevel:'loose'});</script>
+<script src="/js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/instant.page@latest" type="module"></script>
+</body>
+</html>

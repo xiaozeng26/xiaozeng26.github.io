@@ -713,6 +713,13 @@
       "subtopic": "Agent 评估：如何衡量一个 Agent 是否可靠",
       "date": "2026-11-26",
       "url": "/2026/11/27/Agent 评估的“三重门”：为什么你的 LLM Agent 在 Demo 里封神，上线后却像个醉汉/"
+    },
+    {
+      "title": "别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界",
+      "category": "cloud-native",
+      "subtopic": "K8s 灰度发布：金丝雀、蓝绿与 Argo Rollouts",
+      "date": "2026-11-27",
+      "url": "/2026/11/28/别再用 Deployment 直接滚动更新了：从 Argo Rollouts 源码拆解金丝雀与蓝绿的真实边界/"
     }
   ],
   "used_subtopics": {
@@ -877,6 +884,7 @@
     "Spring Cloud Alibaba 微服务全家桶实战：Nacos + Sentinel + Seata": "73bfcb88ff19000bce7729e4f72ad9109cd9e71362bdecbf5d2e9d2a18afbd44",
     "身份认证与授权：OAuth2、OIDC 与 JWT 安全": "d7fe07a93db58c887b5e40f3e4f5d5e666f003191d0a2029f3bf70d92705e826",
     "前端安全：XSS、CSRF 与 CSP 防护": "cbff5805858dfd69090ef799d86a02f21863a2aa645a70df1746e2849e048fcd",
-    "Agent 评估：如何衡量一个 Agent 是否可靠": "02d5cef8e17311dd48fbdefce3dd4286de97585bfc5565022f72b56c7870a28a"
+    "Agent 评估：如何衡量一个 Agent 是否可靠": "02d5cef8e17311dd48fbdefce3dd4286de97585bfc5565022f72b56c7870a28a",
+    "K8s 灰度发布：金丝雀、蓝绿与 Argo Rollouts": "034d7703af85a23bc4988adbd40a1987f3fa22cafa52f7c3d40617548688195b"
   }
 }
